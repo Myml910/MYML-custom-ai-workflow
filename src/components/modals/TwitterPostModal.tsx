@@ -264,9 +264,9 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="p-2 hover:bg-neutral-800 rounded-lg transition-colors disabled:opacity-50"
+                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <X size={20} className="text-neutral-400" />
+                        <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
                     </button>
                 </div>
 
@@ -300,7 +300,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     {/* Authenticating State */}
                     {status === 'authenticating' && (
                         <div className="flex flex-col items-center gap-4 py-8">
-                            <Loader2 size={40} className="text-white animate-spin" />
+                            <Loader2 size={40} className="text-[#D8FF00] animate-spin" />
                             <p className="text-neutral-400">Waiting for authorization...</p>
                             <p className="text-xs text-neutral-500">Complete sign-in in the popup window</p>
                         </div>
@@ -335,7 +335,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                                     onChange={(e) => setTweetText(e.target.value)}
                                     placeholder="What's happening?"
                                     disabled={status === 'posting'}
-                                    className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-xl p-4 text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 transition-colors resize-none disabled:opacity-50"
+                                    className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-xl p-4 text-white placeholder-neutral-500 focus:outline-none focus:border-[#D8FF00] focus:ring-1 focus:ring-[#D8FF00]/30 transition-colors resize-none disabled:opacity-50"
                                     rows={3}
                                 />
                                 <div className="flex justify-between items-center text-sm">
@@ -408,7 +408,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="px-4 py-2 text-neutral-400 hover:text-white transition-colors disabled:opacity-50"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {status === 'success' ? 'Close' : 'Cancel'}
                     </button>

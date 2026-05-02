@@ -151,9 +151,9 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200"
                     >
-                        <X size={20} className="text-neutral-400" />
+                        <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
                     </button>
                 </div>
 
@@ -221,8 +221,8 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                                         {videoInfo.title}
                                     </p>
                                     <p className="text-xs text-neutral-500">
-                                        By @{videoInfo.author} • {Math.round(videoInfo.duration)}s
-                                        {videoInfo.trimmed && ' • Trimmed'}
+                                        By @{videoInfo.author} - {Math.round(videoInfo.duration)}s
+                                        {videoInfo.trimmed && ' - Trimmed'}
                                     </p>
                                 </div>
                             </div>
@@ -245,7 +245,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                 <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200"
                     >
                         Cancel
                     </button>

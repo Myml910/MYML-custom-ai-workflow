@@ -63,8 +63,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 {/* Header */}
                 <div className="px-6 pt-6 pb-2">
                     <div className="flex items-center gap-6 border-b border-neutral-700 pb-2">
-                        <button className="text-white font-medium border-b-2 border-white pb-2 -mb-2.5">Create Asset</button>
-                        <button className="text-neutral-500 font-medium pb-2 hover:text-neutral-300 transition-colors">Add to Existing</button>
+                        <button className="text-[#D8FF00] font-medium border-b-2 border-[#D8FF00] pb-2 -mb-2.5">Create Asset</button>
+                        <button
+                            className="text-neutral-500 font-medium pb-2 opacity-40 cursor-not-allowed"
+                            disabled
+                            title="Coming soon"
+                        >
+                            Add to Existing
+                        </button>
                     </div>
                 </div>
 
@@ -94,7 +100,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#D8FF00] focus:ring-1 focus:ring-[#D8FF00]/30 transition-colors"
                                 placeholder="Asset Name"
                             />
                         </div>
@@ -122,7 +128,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                                             className="w-full px-3 py-2 text-left hover:bg-[#252525] flex items-center justify-between group"
                                         >
                                             <span className="text-neutral-300 group-hover:text-white">{cat}</span>
-                                            {category === cat && <Check size={14} className="text-white" />}
+                                            {category === cat && <Check size={14} className="text-[#D8FF00]" />}
                                         </button>
                                     ))}
                                 </div>
@@ -136,7 +142,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200"
                     >
                         Cancel
                     </button>
@@ -146,7 +152,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                         className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${status === 'success' ? 'bg-green-600 text-white' :
                                 status === 'error' ? 'bg-red-600 text-white' :
                                     status === 'saving' ? 'bg-neutral-700 text-neutral-300' :
-                                        'bg-[#2a9d8f] hover:bg-[#21867a] text-white'
+                                        'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                             }`}
                     >
                         {status === 'saving' && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
