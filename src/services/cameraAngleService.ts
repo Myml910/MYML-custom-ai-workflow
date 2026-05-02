@@ -130,7 +130,7 @@ function buildCameraAnglePrompt(settings: CameraAngleSettings): string {
         );
     }
 
-    // Zoom / scale
+    // Zoom
     if (zoom >= 70) {
         parts.push(
             'Move the camera much closer to the subject, creating a close-up composition while preserving the subject structure.'
@@ -142,6 +142,18 @@ function buildCameraAnglePrompt(settings: CameraAngleSettings): string {
     } else if (zoom > 0) {
         parts.push(
             'Apply a subtle camera push-in while keeping most of the original composition visible.'
+        );
+    } else if (zoom <= -70) {
+        parts.push(
+            'Move the camera much farther away from the subject, creating a wider framing with more surrounding space while preserving the same scene.'
+        );
+    } else if (zoom <= -35) {
+        parts.push(
+            'Move the camera farther away from the subject, with a looser framing that shows more of the surrounding scene.'
+        );
+    } else if (zoom < 0) {
+        parts.push(
+            'Move the camera slightly farther away from the subject, applying a subtle wider framing.'
         );
     } else {
         parts.push(

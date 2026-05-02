@@ -16,7 +16,7 @@ import { OrbitCameraControl } from './OrbitCameraControl';
 interface AngleSettings {
     rotation: number;  // -180 to 180 degrees
     tilt: number;      // -90 to 90 degrees
-    scale: number;     // 0 to 100
+    zoom: number;      // 0 to 100
     wideAngle: boolean;
 }
 
@@ -37,7 +37,7 @@ interface ChangeAnglePanelProps {
 const DEFAULT_SETTINGS: AngleSettings = {
     rotation: 0,
     tilt: 0,
-    scale: 0,
+    zoom: 0,
     wideAngle: false
 };
 
@@ -65,8 +65,8 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
         onSettingsChange({ ...settings, tilt: value });
     }, [settings, onSettingsChange]);
 
-    const handleScaleChange = useCallback((value: number) => {
-        onSettingsChange({ ...settings, scale: value });
+    const handleZoomChange = useCallback((value: number) => {
+        onSettingsChange({ ...settings, zoom: value });
     }, [settings, onSettingsChange]);
 
     const handleReset = useCallback(() => {
@@ -106,11 +106,39 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                 imageUrl={imageUrl}
                 rotation={settings.rotation}
                 tilt={settings.tilt}
-                zoom={settings.scale}
+                zoom={settings.zoom}
                 onRotationChange={handleRotationChange}
                 onTiltChange={handleTiltChange}
-                onZoomChange={handleScaleChange}
+                onZoomChange={handleZoomChange}
             />
+
+            {/* Camera Distance / Zoom */}
+            <div className={`mt-4 p-3 rounded-xl border ${isDark ? 'bg-neutral-900/50 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
+                <div className="flex items-center justify-between mb-2">
+                    <span className={`text-xs font-medium ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>
+                        Camera Distance
+                    </span>
+                    <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                        Zoom: {settings.zoom}
+                    </span>
+                </div>
+
+                <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="1"
+                    value={settings.zoom}
+                    onChange={(e) => handleZoomChange(Number(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDark ? 'bg-neutral-800 accent-white' : 'bg-neutral-200 accent-neutral-900'}`}
+                />
+
+                <div className={`flex items-center justify-between mt-2 text-[11px] ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
+                    <span>Farther</span>
+                    <span>Same distance</span>
+                    <span>Closer</span>
+                </div>
+            </div>
 
             {/* Generate Button */}
             <button

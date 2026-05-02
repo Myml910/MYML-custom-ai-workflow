@@ -131,7 +131,7 @@ const IMAGE_MODELS = [
  */
 function buildAnglePrompt(
     basePrompt: string,
-    settings: { rotation: number; tilt: number; scale: number; wideAngle: boolean }
+    settings: { rotation: number; tilt: number; zoom: number; wideAngle: boolean }
 ): string {
     const parts: string[] = [];
 
@@ -150,11 +150,11 @@ function buildAnglePrompt(
         parts.push(`The camera has tilted ${Math.abs(settings.tilt)}° ${direction}.`);
     }
 
-    // Scale
-    if (settings.scale !== 0) {
-        if (settings.scale > 50) {
+    // Zoom
+    if (settings.zoom !== 0) {
+        if (settings.zoom > 50) {
             parts.push('The camera is positioned closer to the subject.');
-        } else if (settings.scale < 50 && settings.scale > 0) {
+        } else if (settings.zoom < 50 && settings.zoom > 0) {
             parts.push('The camera is positioned slightly closer.');
         }
     }
@@ -566,6 +566,13 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // Theme helper
     const isDark = canvasTheme === 'dark';
 
+    const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
+        rotation: settings?.rotation ?? 0,
+        tilt: settings?.tilt ?? 0,
+        zoom: settings?.zoom ?? settings?.scale ?? 0,
+        wideAngle: settings?.wideAngle ?? false
+    });
+
     // Handle angle mode generate - creates a new connected node
     const handleAngleGenerate = () => {
         if (onChangeAngleGenerate) {
@@ -587,7 +594,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             >
                 <ChangeAnglePanel
                     imageUrl={data.resultUrl}
-                    settings={data.angleSettings || { rotation: 0, tilt: 0, scale: 0, wideAngle: false }}
+                    settings={normalizeAngleSettings(data.angleSettings)}
                     onSettingsChange={(settings) => onUpdate(data.id, { angleSettings: settings })}
                     onClose={() => onUpdate(data.id, { angleMode: false })}
                     onGenerate={handleAngleGenerate}

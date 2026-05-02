@@ -45,13 +45,22 @@ function buildCameraAngleNodePrompt(settings: NonNullable<NodeData['angleSetting
     parts.push(`Camera angle test with GPT Image 2`);
     parts.push(`rotation=${settings.rotation} degrees`);
     parts.push(`tilt=${settings.tilt} degrees`);
-    parts.push(`scale=${settings.scale}`);
+    parts.push(`zoom=${settings.zoom}`);
 
     if (settings.wideAngle) {
         parts.push('wideAngle=true');
     }
 
     return parts.join(', ');
+}
+
+function normalizeAngleSettings(settings: NonNullable<NodeData['angleSettings']> & { scale?: number }) {
+    return {
+        rotation: settings.rotation,
+        tilt: settings.tilt,
+        zoom: settings.zoom ?? settings.scale ?? 0,
+        wideAngle: settings.wideAngle
+    };
 }
 
 // ============================================================================
@@ -169,7 +178,7 @@ export const useImageNodeHandlers = ({
             return;
         }
 
-        const angleSettings = imageNode.angleSettings;
+        const angleSettings = normalizeAngleSettings(imageNode.angleSettings);
         const newNodeId = crypto.randomUUID();
         const position = getNextNodePosition(imageNode);
 
@@ -220,7 +229,7 @@ export const useImageNodeHandlers = ({
                 imageNode.resultUrl,
                 angleSettings.rotation,
                 angleSettings.tilt,
-                angleSettings.scale,
+                angleSettings.zoom,
                 angleSettings.wideAngle
             );
 

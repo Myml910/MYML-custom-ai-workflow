@@ -104,6 +104,13 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   // Theme helper
   const isDark = canvasTheme === 'dark';
 
+  const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
+    rotation: settings?.rotation ?? 0,
+    tilt: settings?.tilt ?? 0,
+    zoom: settings?.zoom ?? settings?.scale ?? 0,
+    wideAngle: settings?.wideAngle ?? false
+  });
+
   // Inverse scaling for toolbar to keep it readable when zooming out
   // Same logic as NodeControls prompt bar
   const minEffectiveScale = 0.8;
@@ -310,7 +317,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 <button
                   onClick={() => onUpdate(data.id, {
                     angleMode: !data.angleMode,
-                    angleSettings: data.angleSettings || { rotation: 0, tilt: 0, scale: 0, wideAngle: false }
+                    angleSettings: normalizeAngleSettings(data.angleSettings)
                   })}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
@@ -478,7 +485,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               >
                 <ChangeAnglePanel
                   imageUrl={data.resultUrl}
-                  settings={data.angleSettings || { rotation: 0, tilt: 0, scale: 0, wideAngle: false }}
+                  settings={normalizeAngleSettings(data.angleSettings)}
                   onSettingsChange={(settings) => onUpdate(data.id, { angleSettings: settings })}
                   onClose={() => onUpdate(data.id, { angleMode: false })}
                   onGenerate={onChangeAngleGenerate ? () => onChangeAngleGenerate(data.id) : () => { }}
@@ -603,7 +610,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <button
                     onClick={() => onUpdate(data.id, {
                       angleMode: !data.angleMode,
-                      angleSettings: data.angleSettings || { rotation: 0, tilt: 0, scale: 0, wideAngle: false }
+                      angleSettings: normalizeAngleSettings(data.angleSettings)
                     })}
                     onPointerDown={(e) => e.stopPropagation()}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
