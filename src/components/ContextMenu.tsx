@@ -125,7 +125,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-48 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+        className={`w-48 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md motion-menu-in transition-all duration-200 ease-out ${
           isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
         }`}
       >
@@ -194,7 +194,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+        className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md motion-menu-in transition-all duration-200 ease-out ${
           isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
         }`}
       >
@@ -286,7 +286,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         top: state.y,
         zIndex: 1000
       }}
-      className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+      className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md motion-menu-in transition-all duration-200 ease-out ${
         isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
       }`}
     >

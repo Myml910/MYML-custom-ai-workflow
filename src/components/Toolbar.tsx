@@ -157,7 +157,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           {/* Dropdown Menu */}
           {isToolsOpen && (
             <div
-              className={`absolute left-10 top-0 rounded-xl shadow-2xl py-2 min-w-[240px] z-50 animate-in fade-in zoom-in-95 duration-150 border ${
+              className={`absolute left-10 top-0 rounded-xl shadow-2xl py-2 min-w-[240px] z-50 motion-menu-in border ${
                 isDark
                   ? 'bg-[#1a1a1a] border-neutral-800'
                   : 'bg-white border-neutral-200'

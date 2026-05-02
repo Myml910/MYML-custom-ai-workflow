@@ -116,8 +116,8 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         : 'bg-white/95 border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.12)]';
 
     const dropdownClass = isDark
-        ? 'bg-[#1a1a1a] border-neutral-800 shadow-2xl rounded-xl transition-all duration-200 animate-in fade-in zoom-in-95 duration-150'
-        : 'bg-white border-neutral-200 shadow-2xl rounded-xl transition-all duration-200 animate-in fade-in zoom-in-95 duration-150';
+        ? 'bg-[#1a1a1a] border-neutral-800 shadow-2xl rounded-xl transition-all duration-200 motion-menu-in'
+        : 'bg-white border-neutral-200 shadow-2xl rounded-xl transition-all duration-200 motion-menu-in';
 
     const dropdownHeaderClass = isDark
         ? 'bg-[#111111] border-neutral-800 text-neutral-400'

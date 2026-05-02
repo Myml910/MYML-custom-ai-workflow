@@ -569,8 +569,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         ? 'flex items-center gap-1.5 text-xs font-medium bg-[#1a1a1a] border border-neutral-800 text-neutral-200 hover:border-[#D8FF00]/50 hover:text-[#D8FF00] px-2.5 py-1.5 rounded-lg transition-all duration-200'
         : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-all duration-200';
     const dropdownClass = isDark
-        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150'
-        : 'bg-white border-neutral-200 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150';
+        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-2xl overflow-hidden z-50 motion-menu-in'
+        : 'bg-white border-neutral-200 rounded-xl shadow-2xl overflow-hidden z-50 motion-menu-in';
     const dropdownHeaderClass = isDark
         ? 'bg-[#0f0f0f] text-neutral-400 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
