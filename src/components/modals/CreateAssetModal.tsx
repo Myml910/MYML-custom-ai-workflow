@@ -57,8 +57,8 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[600px] shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in">
+            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[600px] shadow-2xl overflow-hidden flex flex-col motion-modal-dialog-in">
 
                 {/* Header */}
                 <div className="px-6 pt-6 pb-2">
@@ -142,14 +142,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 motion-press"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={status === 'saving' || status === 'success'}
-                        className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${status === 'success' ? 'bg-green-600 text-white' :
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${status === 'saving' || status === 'success' ? '' : 'motion-press'} ${status === 'success' ? 'bg-green-600 text-white' :
                                 status === 'error' ? 'bg-red-600 text-white' :
                                     status === 'saving' ? 'bg-neutral-700 text-neutral-300' :
                                         'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'

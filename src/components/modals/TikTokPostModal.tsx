@@ -242,11 +242,11 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
             onClick={(e) => e.target === e.currentTarget && status !== 'posting' && onClose()}
             onKeyDown={handleKeyDown}
         >
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[550px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[550px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col motion-modal-dialog-in">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-neutral-800">
@@ -264,7 +264,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                         <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
                     </button>
@@ -286,7 +286,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                             </div>
                             <button
                                 onClick={handleLogin}
-                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] text-white font-semibold rounded-full hover:opacity-90 transition-opacity"
+                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] text-white font-semibold rounded-full hover:opacity-90 transition-opacity motion-press"
                             >
                                 <TikTokIcon />
                                 Sign in with TikTok
@@ -422,7 +422,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                         {status === 'success' ? 'Close' : 'Cancel'}
                     </button>
@@ -431,7 +431,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                         <button
                             onClick={handlePost}
                             disabled={status === 'posting' || isOverLimit || !mediaUrl}
-                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] text-white font-semibold rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] text-white font-semibold rounded-full hover:opacity-90 transition-opacity motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                         >
                             {status === 'posting' ? (
                                 <>

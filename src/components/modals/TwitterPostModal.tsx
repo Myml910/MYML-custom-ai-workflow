@@ -242,11 +242,11 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
             onClick={(e) => e.target === e.currentTarget && status !== 'posting' && onClose()}
             onKeyDown={handleKeyDown}
         >
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[550px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[550px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col motion-modal-dialog-in">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-neutral-800">
@@ -264,7 +264,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                         <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
                     </button>
@@ -286,7 +286,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             </div>
                             <button
                                 onClick={handleLogin}
-                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors"
+                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press"
                             >
                                 <XIcon />
                                 Sign in with X
@@ -394,7 +394,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                                 href={tweetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors"
+                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press"
                             >
                                 <ExternalLink size={18} />
                                 View on X
@@ -408,7 +408,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                         {status === 'success' ? 'Close' : 'Cancel'}
                     </button>
@@ -418,7 +418,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             <button
                                 onClick={() => handlePost(true)}
                                 disabled={status === 'posting' || isOverLimit || !tweetText.trim()}
-                                className="flex items-center gap-2 px-4 py-2 bg-neutral-700 text-white font-medium rounded-full hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                className="flex items-center gap-2 px-4 py-2 bg-neutral-700 text-white font-medium rounded-full hover:bg-neutral-600 transition-colors motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-sm"
                                 title="Post text only without the image"
                             >
                                 Text Only
@@ -426,7 +426,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             <button
                                 onClick={() => handlePost(false)}
                                 disabled={status === 'posting' || isOverLimit || !mediaUrl || !tweetText.trim()}
-                                className="flex items-center gap-2 px-6 py-2 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex items-center gap-2 px-6 py-2 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                             >
                                 {status === 'posting' ? (
                                     <>
