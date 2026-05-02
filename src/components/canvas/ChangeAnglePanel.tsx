@@ -16,7 +16,7 @@ import { OrbitCameraControl } from './OrbitCameraControl';
 interface AngleSettings {
     rotation: number;  // -180 to 180 degrees
     tilt: number;      // -90 to 90 degrees
-    zoom: number;      // 0 to 100
+    zoom: number;      // -100 to 100
     wideAngle: boolean;
 }
 
@@ -55,6 +55,13 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
     canvasTheme = 'dark'
 }) => {
     const isDark = canvasTheme === 'dark';
+    const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
+    const accentButtonClass = isDark
+        ? 'bg-[#D8FF00] text-black hover:bg-[#e4ff3a] active:scale-[0.98] shadow-[0_0_18px_rgba(216,255,0,0.18)]'
+        : 'bg-lime-600 text-white hover:bg-lime-500 active:scale-[0.98] shadow-[0_8px_18px_rgba(132,204,22,0.22)]';
+    const iconButtonClass = isDark
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
+        : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-700';
 
     // --- Event Handlers ---
     const handleRotationChange = useCallback((value: number) => {
@@ -76,7 +83,7 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
     // --- Render ---
     return (
         <div
-            className={`p-4 rounded-2xl shadow-2xl cursor-default w-[500px] transition-colors duration-300 ${isDark ? 'bg-[#1a1a1a] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
+            className={`p-4 rounded-2xl shadow-2xl cursor-default w-[500px] transition-all duration-200 ${isDark ? 'bg-[#111111] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
             onPointerDown={(e) => e.stopPropagation()}
         >
             {/* Header */}
@@ -87,14 +94,14 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleReset}
-                        className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-900'}`}
+                        className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-all duration-200 ${iconButtonClass}`}
                     >
                         <RotateCcw size={12} />
                         Reset
                     </button>
                     <button
                         onClick={onClose}
-                        className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-700 text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'}`}
+                        className={`p-1.5 rounded-lg transition-all duration-200 ${iconButtonClass}`}
                     >
                         <X size={18} />
                     </button>
@@ -110,6 +117,7 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                 onRotationChange={handleRotationChange}
                 onTiltChange={handleTiltChange}
                 onZoomChange={handleZoomChange}
+                canvasTheme={canvasTheme}
             />
 
             {/* Camera Distance / Zoom */}
@@ -118,7 +126,7 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                     <span className={`text-xs font-medium ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>
                         Camera Distance
                     </span>
-                    <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                    <span className={`text-xs font-semibold ${accentTextClass}`}>
                         Zoom: {settings.zoom}
                     </span>
                 </div>
@@ -130,7 +138,7 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                     step="1"
                     value={settings.zoom}
                     onChange={(e) => handleZoomChange(Number(e.target.value))}
-                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDark ? 'bg-neutral-800 accent-white' : 'bg-neutral-200 accent-neutral-900'}`}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDark ? 'bg-neutral-800 accent-[#D8FF00]' : 'bg-neutral-200 accent-lime-600'}`}
                 />
 
                 <div className={`flex items-center justify-between mt-2 text-[11px] ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
@@ -145,10 +153,8 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                 onClick={onGenerate}
                 disabled={isLoading}
                 className={`group w-full mt-4 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2.5 transition-all duration-200 ${isLoading
-                    ? 'bg-neutral-700/50 text-neutral-500 cursor-not-allowed'
-                    : isDark
-                        ? 'bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.98]'
-                        : 'bg-neutral-900 text-white hover:bg-neutral-800 active:scale-[0.98]'
+                    ? 'bg-neutral-700/50 text-neutral-500 opacity-50 cursor-not-allowed'
+                    : accentButtonClass
                     }`}
             >
                 {isLoading ? (

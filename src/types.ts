@@ -93,7 +93,7 @@ export interface NodeData {
   angleSettings?: {
     rotation: number;  // Horizontal rotation in degrees (-180 to 180)
     tilt: number;      // Vertical tilt in degrees (-90 to 90)
-    zoom: number;      // Zoom level (0 to 100)
+    zoom: number;      // Camera/framing distance (-100 to 100)
     wideAngle: boolean; // Whether to use wide-angle lens perspective
   };
 

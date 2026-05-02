@@ -103,6 +103,17 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
   // Theme helper
   const isDark = canvasTheme === 'dark';
+  const angleAccentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
+  const angleSelectedRingClass = isDark
+    ? 'ring-1 ring-[#D8FF00]/35'
+    : 'ring-1 ring-lime-500/30';
+  const angleImageRingClass = isDark
+    ? 'ring-2 ring-[#D8FF00] shadow-2xl shadow-[#D8FF00]/10'
+    : 'ring-2 ring-lime-500 shadow-2xl';
+  const angleSpinnerClass = isDark ? 'border-[#D8FF00]' : 'border-lime-500';
+  const angleActiveButtonClass = isDark
+    ? 'bg-[#D8FF00] text-black'
+    : 'bg-lime-600 text-white';
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -321,7 +332,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   })}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
-                    ? 'bg-blue-500 text-white'
+                    ? angleActiveButtonClass
                     : 'text-neutral-300 hover:bg-neutral-700 hover:text-white'
                     }`}
                 >
@@ -441,13 +452,13 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
           {/* Node Card */}
           <div
-            className={`relative rounded-2xl transition-all duration-200 flex flex-col ${isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-2xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-blue-500/30' : ''}`}
+            className={`relative rounded-2xl transition-all duration-200 flex flex-col ${isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-2xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''}`}
             style={{
               width: '340px',
             }}
           >
             {/* Header */}
-            <div className="absolute -top-8 left-0 text-sm px-2 py-0.5 rounded font-medium text-blue-400">
+            <div className={`absolute -top-8 left-0 text-sm px-2 py-0.5 rounded font-medium ${angleAccentTextClass}`}>
               Camera Angle
             </div>
 
@@ -456,16 +467,36 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               className={`flex flex-col items-center justify-center ${data.resultUrl ? 'p-0' : 'p-6'}`}
               style={{ minHeight: data.resultUrl ? 'auto' : '340px' }}
             >
-              {data.resultUrl ? (
+              {data.status === NodeStatus.ERROR ? (
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-red-500/15 text-red-400 border border-red-500/35' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-600'}`}>
+                      Camera angle generation failed
+                    </div>
+                    {data.errorMessage && (
+                      <div className={`mt-1 max-w-[260px] text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
+                        {data.errorMessage}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : data.resultUrl ? (
                 <img
                   src={data.resultUrl}
                   alt="Content"
-                  className={`rounded-xl w-full h-auto object-cover ${selected ? 'ring-2 ring-blue-500 shadow-2xl' : ''}`}
+                  className={`rounded-xl w-full h-auto object-cover ${selected ? angleImageRingClass : ''}`}
                   draggable={false}
                 />
               ) : (
                 <div className="flex flex-col items-center gap-3 text-neutral-500">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${angleSpinnerClass}`}></div>
                   <span className="text-sm">Generating new angle...</span>
                 </div>
               )}
@@ -614,7 +645,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     })}
                     onPointerDown={(e) => e.stopPropagation()}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
-                      ? 'bg-blue-500 text-white'
+                      ? angleActiveButtonClass
                       : 'text-neutral-300 hover:bg-neutral-700 hover:text-white'
                       }`}
                   >

@@ -30,10 +30,11 @@ interface OrbitCameraControlProps {
     imageUrl: string;
     rotation: number;           // theta: -90 to 90 degrees (horizontal)
     tilt: number;               // phi: -45 to 90 degrees (vertical)
-    zoom: number;               // Not used
+    zoom: number;               // Not used here; Camera Distance is controlled by the ChangeAnglePanel slider.
     onRotationChange: (value: number) => void;
     onTiltChange: (value: number) => void;
     onZoomChange: (value: number) => void;
+    canvasTheme?: 'dark' | 'light';
 }
 
 interface SceneProps {
@@ -682,7 +683,11 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
     tilt,
     onRotationChange,
     onTiltChange,
+    canvasTheme = 'dark',
 }) => {
+    const isDark = canvasTheme === 'dark';
+    const sceneBackground = isDark ? '#111111' : '#f5f5f5';
+
     // Status text
     const statusText = useMemo(() => {
         const parts: string[] = [];
@@ -704,19 +709,19 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
     return (
         <div className="w-full flex flex-col gap-2">
             {/* Legend */}
-            <div className="flex items-center gap-4 text-xs">
+            <div className={`flex items-center gap-4 text-xs ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                    <span className="text-neutral-400">Rotation (↔)</span>
+                    <span>Rotation (↔)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-pink-400" />
-                    <span className="text-neutral-400">Vertical Tilt (↕)</span>
+                    <span>Vertical Tilt (↕)</span>
                 </div>
             </div>
 
             {/* Three.js Canvas */}
-            <div className="w-full h-[340px] rounded-xl overflow-hidden bg-[#1a1a2e] border border-neutral-800">
+            <div className={`w-full h-[340px] rounded-xl overflow-hidden transition-all duration-200 ${isDark ? 'bg-[#111111] border border-neutral-800' : 'bg-neutral-100 border border-neutral-200'}`}>
                 <Canvas
                     camera={{
                         position: [3.5, 2.5, 4.5],
@@ -726,7 +731,7 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
                     }}
                     gl={{ antialias: true }}
                 >
-                    <color attach="background" args={['#1a1a2e']} />
+                    <color attach="background" args={[sceneBackground]} />
                     <Scene
                         imageUrl={imageUrl}
                         rotation={rotation}
@@ -739,7 +744,7 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
 
             {/* Status text */}
             <div className="flex justify-center">
-                <div className="px-4 py-1.5 rounded-lg bg-[#1a1a2e] border border-green-500/50 text-cyan-400 text-sm">
+                <div className={`px-4 py-1.5 rounded-lg border text-sm transition-all duration-200 ${isDark ? 'bg-[#111111] border-[#D8FF00]/35 text-[#D8FF00]' : 'bg-lime-50 border-lime-300 text-lime-700'}`}>
                     {statusText}
                 </div>
             </div>
