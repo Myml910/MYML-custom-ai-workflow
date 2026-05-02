@@ -229,8 +229,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                             className={`text-sm font-medium transition-colors pb-1 flex items-center gap-2 ${
                                 activeTab === 'images'
                                     ? isDark
-                                        ? 'text-white border-b-2 border-white'
-                                        : 'text-neutral-900 border-b-2 border-neutral-900'
+                                        ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
+                                        : 'text-lime-600 border-b-2 border-lime-600'
                                     : isDark
                                         ? 'text-neutral-500 hover:text-white'
                                         : 'text-neutral-400 hover:text-neutral-900'
@@ -245,8 +245,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                             className={`text-sm font-medium transition-colors pb-1 flex items-center gap-2 ${
                                 activeTab === 'videos'
                                     ? isDark
-                                        ? 'text-white border-b-2 border-white'
-                                        : 'text-neutral-900 border-b-2 border-neutral-900'
+                                        ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
+                                        : 'text-lime-600 border-b-2 border-lime-600'
                                     : isDark
                                         ? 'text-neutral-500 hover:text-white'
                                         : 'text-neutral-400 hover:text-neutral-900'
@@ -263,7 +263,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                         className={`p-2 rounded-lg transition-all duration-150 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10'
-                                : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100'
+                                : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
                         }`}
                         title={isExpanded ? 'Collapse panel' : 'Expand panel'}
                     >
@@ -282,7 +282,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                 >
                     {loading ? (
                         <div className="flex items-center justify-center h-40">
-                            <Loader2 className="animate-spin text-neutral-500" size={24} />
+                            <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={24} />
                         </div>
                     ) : assets.length === 0 ? (
                         <div className={`flex flex-col items-center justify-center h-40 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
@@ -315,8 +315,10 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                             <div
                                                 key={asset.id}
                                                 onClick={() => handleSelectAsset(asset)}
-                                                className={`aspect-square rounded-xl overflow-hidden cursor-pointer transition-all group relative ${
-                                                    isDark ? 'bg-neutral-900' : 'bg-neutral-100'
+                                                className={`aspect-square rounded-xl overflow-hidden cursor-pointer transition-all duration-200 group relative border ${
+                                                    isDark
+                                                        ? 'bg-neutral-900 border-neutral-800 hover:border-[#D8FF00]/50'
+                                                        : 'bg-white border-neutral-200 hover:border-lime-500'
                                                 }`}
                                             >
                                                 {activeTab === 'images' ? (
@@ -362,7 +364,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                     className="flex items-center justify-center py-4"
                                 >
                                     {loadingMore && (
-                                        <Loader2 className="animate-spin text-neutral-500" size={20} />
+                                        <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={20} />
                                     )}
                                 </div>
                             )}

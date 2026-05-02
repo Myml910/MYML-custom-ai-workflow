@@ -212,8 +212,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                             className={`font-medium pb-1 transition-colors ${
                                 activeTab === 'my'
                                     ? isDark
-                                        ? 'text-white border-b-2 border-white'
-                                        : 'text-neutral-900 border-b-2 border-neutral-900'
+                                        ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
+                                        : 'text-lime-600 border-b-2 border-lime-600'
                                     : isDark
                                         ? 'text-neutral-500 hover:text-neutral-300'
                                         : 'text-neutral-400 hover:text-neutral-600'
@@ -227,8 +227,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                             className={`font-medium pb-1 transition-colors ${
                                 activeTab === 'public'
                                     ? isDark
-                                        ? 'text-white border-b-2 border-white'
-                                        : 'text-neutral-900 border-b-2 border-neutral-900'
+                                        ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
+                                        : 'text-lime-600 border-b-2 border-lime-600'
                                     : isDark
                                         ? 'text-neutral-500 hover:text-neutral-300'
                                         : 'text-neutral-400 hover:text-neutral-600'
@@ -243,7 +243,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                         className={`p-2 rounded-lg transition-all duration-150 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10'
-                                : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100'
+                                : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
                         }`}
                         title={isExpanded ? 'Collapse panel' : 'Expand panel'}
                     >
@@ -261,7 +261,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                 >
                     {loading && activeTab === 'my' ? (
                         <div className="flex items-center justify-center h-40">
-                            <Loader2 className="animate-spin text-neutral-500" size={24} />
+                            <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={24} />
                         </div>
                     ) : activeTab === 'my' ? (
                         workflows.length === 0 ? (
@@ -275,7 +275,11 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                         key={workflow.id}
                                         onClick={() => onLoadWorkflow(workflow.id)}
                                         className={`rounded-xl overflow-hidden cursor-pointer transition-all group ${
-                                            workflow.id === currentWorkflowId ? 'ring-2 ring-blue-500' : ''
+                                            workflow.id === currentWorkflowId
+                                                ? isDark
+                                                    ? 'ring-2 ring-[#D8FF00]'
+                                                    : 'ring-2 ring-lime-500'
+                                                : ''
                                         }`}
                                     >
                                         <div className="aspect-[4/3] bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative overflow-hidden">
@@ -287,7 +291,11 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                                     loading="lazy"
                                                 />
                                             ) : (
-                                                <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20 flex items-center justify-center">
+                                                <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                                                    isDark
+                                                        ? 'bg-gradient-to-br from-[#D8FF00]/20 to-neutral-800'
+                                                        : 'bg-gradient-to-br from-lime-100 to-neutral-100'
+                                                }`}>
                                                     <FileText size={28} className="text-neutral-500" />
                                                 </div>
                                             )}
@@ -295,10 +303,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                 <button
                                                     onClick={(e) => openCoverEditor(workflow.id, e)}
-                                                    className="p-1.5 bg-black/50 hover:bg-blue-500 rounded-lg transition-all"
+                                                    className={`group/edit p-1.5 bg-black/50 rounded-lg transition-all ${
+                                                        isDark
+                                                            ? 'hover:bg-[#D8FF00] hover:text-black'
+                                                            : 'hover:bg-lime-600 hover:text-white'
+                                                    }`}
                                                     title={t(language, 'editCover')}
                                                 >
-                                                    <Pencil size={14} className="text-white" />
+                                                    <Pencil size={14} className={isDark ? 'text-white group-hover/edit:text-black' : 'text-white'} />
                                                 </button>
 
                                                 <button

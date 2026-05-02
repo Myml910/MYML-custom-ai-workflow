@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { Loader2, X, Trash2 } from 'lucide-react';
 import { Language, t } from '../i18n/translations';
 
 interface LibraryAsset {
@@ -113,10 +113,10 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
                         <button
                             onClick={onClose}
-                            className={`p-2 rounded-lg transition-colors ${
+                            className={`p-2 rounded-lg transition-all duration-200 ${
                                 isDark
-                                    ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white'
-                                    : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'
+                                    ? 'hover:bg-[#D8FF00]/10 text-neutral-400 hover:text-[#D8FF00]'
+                                    : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-600'
                             }`}
                         >
                             <X size={20} />
@@ -217,14 +217,14 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border ${
                             selectedCategory === cat
                                 ? isDark
-                                    ? 'bg-neutral-100 text-black border-white'
-                                    : 'bg-neutral-900 text-white border-neutral-900'
+                                    ? 'bg-[#D8FF00] text-black border-[#D8FF00]'
+                                    : 'bg-lime-600 text-white border-lime-600'
                                 : isDark
-                                    ? 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-600'
-                                    : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                                    ? 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-[#D8FF00]'
+                                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-lime-600'
                         }`}
                     >
                         {t(language, cat)}
@@ -241,8 +241,11 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                 }}
             >
                 {loading ? (
-                    <div className="col-span-full text-center py-10 text-neutral-500">
-                        {language === 'zh' ? '加载中...' : 'Loading...'}
+                    <div className={`col-span-full flex flex-col items-center justify-center gap-2 py-10 text-sm ${
+                        isDark ? 'text-neutral-400' : 'text-neutral-500'
+                    }`}>
+                        <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={22} />
+                        <span>{language === 'zh' ? '加载中...' : 'Loading...'}</span>
                     </div>
                 ) : filteredAssets.length === 0 ? (
                     <div className="col-span-full text-center py-10 text-neutral-500 text-sm">
@@ -252,7 +255,11 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     filteredAssets.map((asset: LibraryAsset) => (
                         <div
                             key={asset.id}
-                            className="group relative aspect-square bg-neutral-900 rounded-lg overflow-hidden border border-neutral-800 hover:border-neutral-600 cursor-pointer"
+                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-all duration-200 ${
+                                isDark
+                                    ? 'bg-neutral-900 border-neutral-800 hover:border-[#D8FF00]/50'
+                                    : 'bg-white border-neutral-200 hover:border-lime-500'
+                            }`}
                             onClick={() => onSelectAsset(asset.url, asset.type)}
                         >
                             <img
