@@ -342,7 +342,7 @@ const ConnectionItem: React.FC<{
     const buttonX = startX + (endX - startX) * buttonT;
     const buttonY = startY + (endY - startY) * buttonT;
 
-    const highlightStroke = canvasTheme === 'dark' ? '#D8FF00' : '#2563eb';
+    const highlightStroke = canvasTheme === 'dark' ? '#D8FF00' : '#84cc16';
     const idleStroke = canvasTheme === 'dark' ? '#444' : '#d1d5db';
 
     return (
@@ -442,7 +442,7 @@ const ConnectionItem: React.FC<{
                                 filter:
                                     canvasTheme === 'dark'
                                         ? 'drop-shadow(0 0 8px rgba(216,255,0,0.65))'
-                                        : 'drop-shadow(0 2px 6px rgba(37,99,235,0.25))'
+                                        : 'drop-shadow(0 2px 6px rgba(132,204,22,0.25))'
                             }}
                         />
 
@@ -547,7 +547,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
             tempLine = (
                 <path
                     d={path}
-                    stroke={canvasTheme === 'dark' ? '#D8FF00' : '#2563eb'}
+                    stroke={canvasTheme === 'dark' ? '#D8FF00' : '#84cc16'}
                     strokeWidth="2"
                     strokeDasharray="5,5"
                     fill="none"

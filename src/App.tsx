@@ -1289,8 +1289,8 @@ export default function App() {
             top: Math.min(selectionBox.startY, selectionBox.endY),
             width: Math.abs(selectionBox.endX - selectionBox.startX),
             height: Math.abs(selectionBox.endY - selectionBox.startY),
-            border: '2px solid #3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            border: `2px solid ${canvasTheme === 'dark' ? '#D8FF00' : '#84cc16'}`,
+            backgroundColor: canvasTheme === 'dark' ? 'rgba(216, 255, 0, 0.1)' : 'rgba(132, 204, 22, 0.1)',
             zIndex: 1000
           }}
         />

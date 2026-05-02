@@ -183,7 +183,7 @@ const MagneticConnectorButton: React.FC<{
 
     const themeClassName = isDark
         ? 'border-neutral-700 bg-[#0f0f0f] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00] hover:shadow-[0_0_18px_rgba(216,255,0,0.55)]'
-        : 'border-neutral-300 bg-white text-neutral-500 hover:text-blue-600 hover:border-blue-500 hover:shadow-[0_0_18px_rgba(37,99,235,0.22)] shadow-sm';
+        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:shadow-[0_0_18px_rgba(132,204,22,0.22)] shadow-sm';
 
     return (
         <div
