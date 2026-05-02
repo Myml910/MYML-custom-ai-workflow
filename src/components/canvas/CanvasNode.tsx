@@ -317,7 +317,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
             <div
-              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
+              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
             >
               <div
                 style={{
@@ -630,7 +630,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
+            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
           >
             <div
               style={{
@@ -818,7 +818,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Video Toolbar - Appears above the card for Video nodes on hover */}
         {data.type === NodeType.VIDEO && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
+            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
           >
             <div
               style={{

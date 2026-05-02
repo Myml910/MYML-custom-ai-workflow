@@ -609,7 +609,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen }) => {
     return (
         <button
             onClick={onClick}
-            className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#C8EE00] rounded-full flex items-center justify-center shadow-[0_10px_24px_rgba(216,255,0,0.18)] transition-all duration-200 ease-out active:scale-[0.98] z-50"
+            className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-full flex items-center justify-center shadow-[0_10px_24px_rgba(216,255,0,0.18)] hover:shadow-[0_12px_30px_rgba(216,255,0,0.24)] transition-all duration-200 ease-out active:scale-[0.98] z-50"
         >
             <Sparkles size={22} className="text-black" />
         </button>

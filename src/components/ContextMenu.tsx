@@ -125,8 +125,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-48 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
-          isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
+        className={`w-48 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+          isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
         }`}
       >
         <div className="p-1.5 flex flex-col gap-0.5">
@@ -194,8 +194,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
-          isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
+        className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+          isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
         }`}
       >
         <input
@@ -286,8 +286,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         top: state.y,
         zIndex: 1000
       }}
-      className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
-        isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
+      className={`w-64 border rounded-xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-200 ease-out ${
+        isDark ? 'bg-[#1e1e1e] border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.42)]' : 'bg-white border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.16)]'
       }`}
     >
       <div
@@ -418,7 +418,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`group flex items-center gap-3 w-full p-2 rounded-lg text-left transition-all duration-150 ease-out ${
+      className={`group flex items-center gap-3 w-full p-2 rounded-lg text-left transition-all duration-200 ease-out ${
         disabled
           ? isDark
             ? 'opacity-30 cursor-not-allowed'
@@ -428,12 +428,12 @@ const MenuItem: React.FC<MenuItemProps> = ({
               ? 'bg-[#2a2a2a] text-white'
               : 'bg-neutral-100 text-neutral-900'
             : isDark
-              ? 'text-neutral-300 hover:bg-[#2a2a2a] hover:text-white'
-              : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900'
+              ? 'text-neutral-300 hover:bg-[#2a2a2a] hover:text-white hover:translate-x-[1px]'
+              : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 hover:translate-x-[1px]'
       }`}
     >
       <div
-        className={`flex items-center justify-center w-8 h-8 rounded-md transition-all duration-150 ease-out ${
+        className={`flex items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-out ${
           disabled
             ? 'bg-transparent'
             : active
