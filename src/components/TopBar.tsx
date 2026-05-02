@@ -153,7 +153,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     {/* Auto-save notification */}
                     {lastAutoSaveTime && !hasUnsavedChanges && (
                         <div
-                            className={`text-[10px] font-bold tracking-[0.12em] uppercase px-2 py-1 rounded-sm border animate-in fade-in duration-500 ${
+                            className={`text-[10px] font-bold tracking-[0.12em] uppercase px-2 py-1 rounded-sm border motion-toast-in ${
                                 canvasTheme === 'dark'
                                     ? 'text-[#D8FF00]/60 border-[#D8FF00]/20'
                                     : 'text-neutral-500 border-neutral-200'

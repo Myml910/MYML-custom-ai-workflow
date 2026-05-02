@@ -283,7 +283,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                             {/* Delete Button or Confirmation */}
                             {deleteConfirmId === asset.id ? (
                                 <div
-                                    className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 z-20 animate-in fade-in duration-200"
+                                    className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 z-20 motion-fade-in"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <span className="text-white text-xs font-medium">
