@@ -50,6 +50,8 @@ interface PromptBarProps {
 
     // Flags
     hasInputImage: boolean;
+    isGenerating?: boolean;
+    promptError?: string;
 }
 
 // ============================================================================
@@ -76,7 +78,9 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     batchCount,
     setBatchCount,
     onGenerate,
-    hasInputImage
+    hasInputImage,
+    isGenerating = false,
+    promptError
 }) => {
     // --- Refs ---
     const modelDropdownRef = useRef<HTMLDivElement>(null);
@@ -103,6 +107,9 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             : 'Describe the changes you want to make...',
         recommended: language === 'zh' ? '推荐' : 'REC',
     };
+
+    const generateText = language === 'zh' ? '生成中...' : 'Generating...';
+    const emptyPromptText = language === 'zh' ? '请输入编辑提示词' : 'Please enter an edit prompt';
 
     const barClass = isDark
         ? 'bg-[#111111]/95 border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.45)]'
@@ -149,9 +156,12 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         : 'bg-lime-600 hover:bg-lime-500 text-white shadow-[0_8px_18px_rgba(132,204,22,0.22)]';
 
     const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-700';
+    const errorTextClass = isDark ? 'text-red-300' : 'text-red-600';
     const inputTextClass = isDark
         ? 'text-neutral-200 placeholder-neutral-600'
         : 'text-neutral-900 placeholder-neutral-400';
+    const isGenerateDisabled = isGenerating || prompt.trim().length === 0;
+    const displayedPromptError = promptError || (prompt.trim().length === 0 ? emptyPromptText : '');
 
     // --- Effects ---
 
@@ -260,13 +270,20 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             </div>
 
             {/* Prompt Input - Takes remaining space */}
-            <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={text.promptPlaceholder}
-                className={`flex-1 min-w-0 bg-transparent text-sm outline-none ${inputTextClass}`}
-            />
+            <div className="relative flex-1 min-w-0">
+                {displayedPromptError && (
+                    <div className={`absolute left-0 bottom-full mb-2 text-xs font-medium ${errorTextClass}`}>
+                        {displayedPromptError}
+                    </div>
+                )}
+                <input
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={text.promptPlaceholder}
+                    className={`w-full bg-transparent text-sm outline-none ${inputTextClass}`}
+                />
+            </div>
 
             {/* Right - Compact Controls Group */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -355,12 +372,13 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 {/* Generate Button */}
                 <button
                     onClick={onGenerate}
-                    className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass}`}
+                    disabled={isGenerateDisabled}
+                    className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                         <path d="M12 2v20M2 12h20" />
                     </svg>
-                    {text.generate}
+                    {isGenerating ? generateText : text.generate}
                 </button>
             </div>
         </div>

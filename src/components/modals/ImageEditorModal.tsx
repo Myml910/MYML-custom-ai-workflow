@@ -53,6 +53,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Prompt & Generation State ---
     const [prompt, setPrompt] = useState(initialPrompt || '');
     const [batchCount, setBatchCount] = useState(4);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [promptError, setPromptError] = useState('');
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [showAspectDropdown, setShowAspectDropdown] = useState(false);
     const [showResolutionDropdown, setShowResolutionDropdown] = useState(false);
@@ -447,20 +449,54 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Handlers ---
 
     const handleGenerateClick = async () => {
-        const compositeImageDataUrl = await generateCompositeImage();
+        const finalPrompt = prompt.trim();
 
-        onUpdate(nodeId, {
-            prompt,
-            imageModel: selectedModel,
-            aspectRatio: selectedAspectRatio,
-            resolution: selectedResolution
-        });
-        onGenerate(nodeId, prompt, batchCount, {
-            imageModel: selectedModel,
-            aspectRatio: selectedAspectRatio,
-            resolution: selectedResolution,
-            compositeImageDataUrl: compositeImageDataUrl || undefined
-        });
+        if (!finalPrompt) {
+            setPromptError(language === 'zh' ? '请输入编辑提示词' : 'Please enter an edit prompt');
+            return;
+        }
+
+        setPromptError('');
+        setIsGenerating(true);
+
+        try {
+            const compositeImageDataUrl = await generateCompositeImage();
+
+            onUpdate(nodeId, {
+                prompt: finalPrompt,
+                imageModel: selectedModel,
+                aspectRatio: selectedAspectRatio,
+                resolution: selectedResolution
+            });
+            await onGenerate(nodeId, finalPrompt, batchCount, {
+                imageModel: selectedModel,
+                aspectRatio: selectedAspectRatio,
+                resolution: selectedResolution,
+                compositeImageDataUrl: compositeImageDataUrl || undefined
+            });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handlePromptChange = (nextPrompt: string) => {
+        setPrompt(nextPrompt);
+        if (promptError) {
+            setPromptError('');
+        }
+    };
+
+    const handleDownloadClick = async () => {
+        const compositeImageDataUrl = await generateCompositeImage();
+        const downloadUrl = compositeImageDataUrl || localImageUrl;
+        if (!downloadUrl) return;
+
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `image-editor-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleModelChange = (modelId: string) => {
@@ -511,6 +547,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 <div className="flex items-center gap-2">
                     {/* Download Button */}
                     <button
+                        onClick={handleDownloadClick}
                         className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
                         title={editorText.download}
                     >
@@ -913,7 +950,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     canvasTheme={canvasTheme}
                     language={language}
                     prompt={prompt}
-                    setPrompt={setPrompt}
+                    setPrompt={handlePromptChange}
                     selectedModel={selectedModel}
                     onModelChange={handleModelChange}
                     showModelDropdown={showModelDropdown}
@@ -930,6 +967,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     setBatchCount={setBatchCount}
                     onGenerate={handleGenerateClick}
                     hasInputImage={hasInputImage}
+                    isGenerating={isGenerating}
+                    promptError={promptError}
                 />
             </div>
         </div>
