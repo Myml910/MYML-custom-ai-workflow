@@ -116,36 +116,36 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         : 'bg-white/95 border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.12)]';
 
     const dropdownClass = isDark
-        ? 'bg-[#111111] border-neutral-800 shadow-2xl'
-        : 'bg-white border-neutral-200 shadow-2xl';
+        ? 'bg-[#1a1a1a] border-neutral-800 shadow-2xl rounded-xl transition-all duration-200 animate-in fade-in zoom-in-95 duration-150'
+        : 'bg-white border-neutral-200 shadow-2xl rounded-xl transition-all duration-200 animate-in fade-in zoom-in-95 duration-150';
 
     const dropdownHeaderClass = isDark
-        ? 'bg-[#0a0a0a] border-neutral-800 text-neutral-400'
+        ? 'bg-[#111111] border-neutral-800 text-neutral-400'
         : 'bg-neutral-50 border-neutral-200 text-neutral-500';
 
     const dropdownSectionClass = isDark
-        ? 'bg-[#151515] text-neutral-500 border-neutral-800'
+        ? 'bg-[#111111] text-neutral-500 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
 
     const dropdownItemClass = (active: boolean) => {
         if (active) {
             return isDark
-                ? 'text-[#D8FF00] bg-[#D8FF00]/5'
+                ? 'text-[#D8FF00] bg-[#D8FF00]/10'
                 : 'text-lime-700 bg-lime-50';
         }
 
         return isDark
-            ? 'text-neutral-300 hover:bg-neutral-900'
-            : 'text-neutral-700 hover:bg-neutral-100';
+            ? 'text-neutral-300 hover:bg-neutral-800 hover:text-[#D8FF00]'
+            : 'text-neutral-700 hover:bg-neutral-100 hover:text-lime-600';
     };
 
     const compactButtonClass = isDark
-        ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-800 text-neutral-200'
-        : 'bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-700';
+        ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
+        : 'bg-neutral-100 hover:bg-neutral-100 border border-neutral-200 text-neutral-500 hover:text-lime-600';
 
     const modelButtonClass = isDark
-        ? 'text-neutral-300 hover:bg-neutral-900 border border-neutral-800'
-        : 'text-neutral-700 hover:bg-neutral-100 border border-neutral-200';
+        ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00] border border-neutral-800'
+        : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600 border border-neutral-200';
 
     const batchClass = isDark
         ? 'bg-neutral-900/70 border-neutral-800 text-neutral-300'
@@ -153,10 +153,10 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     const generateButtonClass = isDark
         ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black shadow-[0_0_18px_rgba(216,255,0,0.18)]'
-        : 'bg-lime-600 hover:bg-lime-500 text-white shadow-[0_8px_18px_rgba(132,204,22,0.22)]';
+        : 'bg-lime-600 hover:bg-lime-500 text-white shadow-sm';
 
     const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-700';
-    const errorTextClass = isDark ? 'text-red-300' : 'text-red-600';
+    const errorTextClass = isDark ? 'text-red-400' : 'text-red-600';
     const inputTextClass = isDark
         ? 'text-neutral-200 placeholder-neutral-600'
         : 'text-neutral-900 placeholder-neutral-400';
@@ -216,7 +216,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     <button
                         key={model.id}
                         onClick={() => onModelChange(model.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors ${dropdownItemClass(currentModel.id === model.id)}`}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentModel.id === model.id)}`}
                     >
                         <span className="flex items-center gap-2 min-w-0">
                             {renderProviderIcon(model, 12)}
@@ -242,13 +242,13 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     return (
         <div
-            className={`w-full backdrop-blur-sm rounded-xl border pointer-events-auto flex items-center px-3 py-2.5 gap-3 transition-colors duration-200 ${barClass}`}
+            className={`w-full backdrop-blur-sm rounded-xl border pointer-events-auto flex items-center px-3 py-2.5 gap-3 transition-all duration-200 ${barClass}`}
         >
             {/* Left - Model Dropdown */}
             <div className="relative flex-shrink-0" ref={modelDropdownRef}>
                 <button
                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                    className={`flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md transition-colors ${modelButtonClass}`}
+                    className={`flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md transition-all duration-200 ${modelButtonClass}`}
                 >
                     {renderProviderIcon(currentModel, 11)}
                     <span className="font-medium whitespace-nowrap">{currentModel.name}</span>
@@ -256,7 +256,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 </button>
 
                 {showModelDropdown && (
-                    <div className={`absolute bottom-full mb-2 left-0 w-56 border rounded-lg overflow-hidden z-50 ${dropdownClass}`}>
+                    <div className={`absolute bottom-full mb-2 left-0 w-56 border overflow-hidden z-50 ${dropdownClass}`}>
                         <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b ${dropdownHeaderClass}`}>
                             {hasInputImage ? text.imageToImage : text.textToImage}
                         </div>
@@ -291,14 +291,14 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className="relative" ref={aspectDropdownRef}>
                     <button
                         onClick={() => setShowAspectDropdown(!showAspectDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-colors ${compactButtonClass}`}
+                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-all duration-200 ${compactButtonClass}`}
                     >
                         <Crop size={10} className={accentTextClass} />
                         <span>{selectedAspectRatio}</span>
                     </button>
 
                     {showAspectDropdown && (
-                        <div className={`absolute bottom-full mb-2 right-0 w-28 border rounded-lg overflow-hidden z-50 max-h-60 overflow-y-auto ${dropdownClass}`}>
+                        <div className={`absolute bottom-full mb-2 right-0 w-28 border overflow-hidden z-50 max-h-60 overflow-y-auto ${dropdownClass}`}>
                             <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionClass}`}>
                                 {text.size}
                             </div>
@@ -306,7 +306,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                                 <button
                                     key={ratio}
                                     onClick={() => onAspectChange(ratio)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors ${dropdownItemClass(selectedAspectRatio === ratio)}`}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(selectedAspectRatio === ratio)}`}
                                 >
                                     <span>{ratio}</span>
                                     {selectedAspectRatio === ratio && <Check size={12} className={accentTextClass} />}
@@ -320,14 +320,14 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className="relative" ref={resolutionDropdownRef}>
                     <button
                         onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-colors ${compactButtonClass}`}
+                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-all duration-200 ${compactButtonClass}`}
                     >
                         <Monitor size={10} className={accentTextClass} />
                         <span>{selectedResolution}</span>
                     </button>
 
                     {showResolutionDropdown && (
-                        <div className={`absolute bottom-full mb-2 right-0 w-24 border rounded-lg overflow-hidden z-50 ${dropdownClass}`}>
+                        <div className={`absolute bottom-full mb-2 right-0 w-24 border overflow-hidden z-50 ${dropdownClass}`}>
                             <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionClass}`}>
                                 {text.quality}
                             </div>
@@ -335,7 +335,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                                 <button
                                     key={res}
                                     onClick={() => onResolutionChange(res)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors ${dropdownItemClass(selectedResolution === res)}`}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(selectedResolution === res)}`}
                                 >
                                     <span>{res}</span>
                                     {selectedResolution === res && <Check size={12} className={accentTextClass} />}
@@ -349,7 +349,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className={`flex items-center rounded-md px-2 py-1.5 gap-1 text-[11px] font-medium border ${batchClass}`}>
                     <span className="hidden sm:inline text-[10px] opacity-70">{text.batch}</span>
                     <button
-                        className={`disabled:opacity-40 transition-colors ${
+                        className={`transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                             isDark ? 'hover:text-[#D8FF00]' : 'hover:text-lime-700'
                         }`}
                         onClick={() => setBatchCount(Math.max(1, batchCount - 1))}
@@ -359,7 +359,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     </button>
                     <span className="w-3 text-center">{batchCount}</span>
                     <button
-                        className={`disabled:opacity-40 transition-colors ${
+                        className={`transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                             isDark ? 'hover:text-[#D8FF00]' : 'hover:text-lime-700'
                         }`}
                         onClick={() => setBatchCount(Math.min(4, batchCount + 1))}
@@ -373,7 +373,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <button
                     onClick={onGenerate}
                     disabled={isGenerateDisabled}
-                    className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
                 >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                         <path d="M12 2v20M2 12h20" />
