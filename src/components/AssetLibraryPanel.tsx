@@ -99,9 +99,9 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     if (variant === 'modal') {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm motion-modal-overlay-in">
                 <div
-                    className={`flex flex-col w-[800px] h-[600px] border rounded-2xl shadow-2xl overflow-hidden transition-colors duration-300 ${
+                    className={`flex flex-col w-[800px] h-[600px] border rounded-2xl shadow-2xl overflow-hidden transition-colors duration-300 motion-modal-dialog-in ${
                         isDark ? 'bg-[#0a0a0a] border-neutral-800' : 'bg-white border-neutral-200'
                     }`}
                     onClick={(e) => e.stopPropagation()}
