@@ -446,14 +446,21 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Handlers ---
 
-    const handleGenerateClick = () => {
+    const handleGenerateClick = async () => {
+        const compositeImageDataUrl = await generateCompositeImage();
+
         onUpdate(nodeId, {
             prompt,
             imageModel: selectedModel,
             aspectRatio: selectedAspectRatio,
             resolution: selectedResolution
         });
-        onGenerate(nodeId, prompt, batchCount);
+        onGenerate(nodeId, prompt, batchCount, {
+            imageModel: selectedModel,
+            aspectRatio: selectedAspectRatio,
+            resolution: selectedResolution,
+            compositeImageDataUrl: compositeImageDataUrl || undefined
+        });
     };
 
     const handleModelChange = (modelId: string) => {

@@ -52,6 +52,13 @@ export interface HistoryState {
     imageUrl?: string; // Current image URL (for crop undo/redo)
 }
 
+export interface ImageEditorGenerateOptions {
+    imageModel?: string;
+    aspectRatio?: string;
+    resolution?: string;
+    compositeImageDataUrl?: string;
+}
+
 /**
  * Props for the main ImageEditorModal component
  */
@@ -73,7 +80,12 @@ export interface ImageEditorModalProps {
     language?: Language;
 
     onClose: () => void;
-    onGenerate: (id: string, prompt: string, count: number) => void;
+    onGenerate: (
+        id: string,
+        prompt: string,
+        count: number,
+        options?: ImageEditorGenerateOptions
+    ) => void;
     onUpdate: (id: string, updates: any) => void;
 }
 

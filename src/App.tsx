@@ -1346,16 +1346,16 @@ export default function App() {
         initialCanvasSize={nodes.find(n => n.id === editorModal.nodeId)?.editorCanvasSize}
         initialBackgroundUrl={nodes.find(n => n.id === editorModal.nodeId)?.editorBackgroundUrl}
         onClose={handleCloseImageEditor}
-        onGenerate={async (sourceId, prompt, count) => {
+        onGenerate={async (sourceId, prompt, count, options) => {
           handleCloseImageEditor();
 
           const sourceNode = nodes.find(n => n.id === sourceId);
           if (!sourceNode) return;
 
-          // Get settings from source node (which were updated by the modal)
-          const imageModel = sourceNode.imageModel || 'custom-image-gpt-image-2';
-          const aspectRatio = sourceNode.aspectRatio || 'Auto';
-          const resolution = sourceNode.resolution || '1K';
+          // Prefer modal-selected settings because node updates may still be batched.
+          const imageModel = options?.imageModel || sourceNode.imageModel || 'custom-image-gpt-image-2';
+          const aspectRatio = options?.aspectRatio || sourceNode.aspectRatio || 'Auto';
+          const resolution = options?.resolution || sourceNode.resolution || '1K';
 
           const startX = sourceNode.x + 360; // Source width + gap
           const startY = sourceNode.y;
@@ -1387,10 +1387,15 @@ export default function App() {
           // Note: State updates might be batched
           setNodes(prev => [...prev, ...newNodes]);
 
-          // Convert editor image to base64 for generation reference
+          // Prefer the editor's current composite image, then fall back to saved/current node image.
+          const editorReferenceUrl =
+            options?.compositeImageDataUrl ||
+            sourceNode.resultUrl ||
+            editorModal.imageUrl;
+
           let imageBase64: string | undefined = undefined;
-          if (editorModal.imageUrl) {
-            imageBase64 = await urlToBase64(editorModal.imageUrl);
+          if (editorReferenceUrl) {
+            imageBase64 = await urlToBase64(editorReferenceUrl);
           }
 
           newNodes.forEach(async (node) => {
