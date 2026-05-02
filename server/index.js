@@ -1164,8 +1164,12 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { sessionId, message, media } = req.body;
 
-        if (!API_KEY) {
-            return res.status(500).json({ error: "Server missing API Key config" });
+        const chatApiKey = process.env.CHAT_API_KEY || process.env.OPENAI_API_KEY || API_KEY;
+
+        if (!chatApiKey) {
+            return res.status(500).json({
+                error: "Server missing CHAT_API_KEY config. Add CHAT_API_KEY to .env and restart the server."
+            });
         }
 
         if (!sessionId) {
@@ -1176,7 +1180,7 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: "message or media is required" });
         }
 
-        const result = await chatAgent.sendMessage(sessionId, message, media, API_KEY);
+        const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey);
 
         res.json({
             success: true,

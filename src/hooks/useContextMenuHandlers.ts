@@ -1,6 +1,6 @@
 /**
  * useContextMenuHandlers.ts
- * 
+ *
  * Handles context menu operations: double-click, right-click,
  * node context menu, toolbar add button.
  */
@@ -47,6 +47,7 @@ export const useContextMenuHandlers = ({
 
     const handleGlobalContextMenu = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
+
         if ((e.target as HTMLElement).id === 'canvas-background') {
             setContextMenu({
                 isOpen: true,
@@ -61,14 +62,19 @@ export const useContextMenuHandlers = ({
     // NODE OPERATIONS
     // ============================================================================
 
-    const handleAddNext = useCallback((nodeId: string, _direction: 'left' | 'right') => {
+    const handleAddNext = useCallback((
+        nodeId: string,
+        _direction: 'left' | 'right',
+        x?: number,
+        y?: number
+    ) => {
         const sourceNode = nodes.find(n => n.id === nodeId);
         if (!sourceNode) return;
 
         setContextMenu({
             isOpen: true,
-            x: window.innerWidth / 2,
-            y: window.innerHeight / 2,
+            x: x ?? window.innerWidth / 2,
+            y: y ?? window.innerHeight / 2,
             type: 'node-connector',
             sourceNodeId: nodeId,
             connectorSide: _direction
@@ -112,6 +118,7 @@ export const useContextMenuHandlers = ({
 
     const handleToolbarAdd = useCallback((e: React.MouseEvent) => {
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+
         setContextMenu({
             isOpen: true,
             x: rect.right + 10,

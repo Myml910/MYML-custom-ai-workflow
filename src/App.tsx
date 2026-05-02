@@ -357,6 +357,7 @@ export default function App() {
   const {
     handleImageToImage,
     handleImageToVideo,
+    handleImageToEditor,
     handleChangeAngleGenerate
   } = useImageNodeHandlers({ nodes, setNodes, setSelectedNodeIds, onGenerateNode: handleGenerate });
 
@@ -903,6 +904,21 @@ export default function App() {
     }
   }, [nodes, updateNode]);
 
+  const handleDisconnectConnection = React.useCallback((parentId: string, childId: string) => {
+    setNodes(prev =>
+      prev.map(node =>
+        node.id === childId
+          ? {
+              ...node,
+              parentIds: (node.parentIds || []).filter(id => id !== parentId)
+            }
+          : node
+      )
+    );
+
+    setSelectedConnection(null);
+  }, [setNodes]);
+
   const handleGlobalPointerUp = (e: React.PointerEvent) => {
     // 1. Handle Selection Box End
     if (isSelecting) {
@@ -1106,6 +1122,7 @@ export default function App() {
               tempConnectionEnd={tempConnectionEnd}
               selectedConnection={selectedConnection}
               onEdgeClick={handleEdgeClick}
+              onDisconnectConnection={handleDisconnectConnection}
             />
           </svg>
 
@@ -1178,11 +1195,13 @@ export default function App() {
                 onTextToImage={handleTextToImage}
                 onImageToImage={handleImageToImage}
                 onImageToVideo={handleImageToVideo}
+                onImageToEditor={handleImageToEditor}
                 onChangeAngleGenerate={handleChangeAngleGenerate}
                 zoom={viewport.zoom}
                 onMouseEnter={() => setCanvasHoveredNodeId(node.id)}
                 onMouseLeave={() => setCanvasHoveredNodeId(null)}
                 canvasTheme={canvasTheme}
+                language={language}
                 onPostToX={handlePostToX}
                 onPostToTikTok={handlePostToTikTok}
               />
@@ -1389,6 +1408,8 @@ export default function App() {
             }
           });
         }}
+        canvasTheme={canvasTheme}
+        language={language}
         onUpdate={updateNode}
       />
 

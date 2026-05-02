@@ -1,156 +1,290 @@
 /**
  * ConnectionsLayer.tsx
- * 
+ *
  * Renders the SVG connections between nodes on the canvas.
  * Includes permanent connections and temporary drag connections.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NodeData, NodeStatus, NodeType, Viewport } from '../../types';
 import { calculateConnectionPath } from '../../utils/connectionHelpers';
+
+// ============================================================================
+// LINE HOVER CONFIG
+// ============================================================================
+
+// Controls how far from the line the mouse can be before the line starts reacting.
+// This affects line color hover only.
+// Keep this slightly larger than MAGNET_RADIUS to avoid hover/magnet dead zones.
+const LINE_HOVER_HIT_WIDTH = 90;
+
+// Keeps the visible connection line thin even when hovered.
+const IDLE_LINE_WIDTH = 1.7;
+const SELECTED_LINE_WIDTH = 2.1;
+
+// Default flowing line effect.
+const FLOW_LINE_WIDTH = 2;
+const FLOW_DASH_ARRAY = '120 28';
+const FLOW_ANIMATION_DURATION = '1s';
+
+// ============================================================================
+// MINUS BUTTON MAGNET CONFIG
+// ============================================================================
+
+const MAGNET_RADIUS = 150;
+const FOLLOW_RATIO = 1;
+const IDLE_SCALE = 1;
+const HOVER_SCALE = 1.08;
+const FOLLOW_EASE = 0.28;
+
+const clamp = (value: number, min: number, max: number) => {
+    return Math.max(min, Math.min(max, value));
+};
+
+// ============================================================================
+// SVG MAGNET HOOK
+// ============================================================================
+
+const useSvgStableMagnet = (viewportZoom: number, isActive: boolean) => {
+    const anchorRef = useRef<SVGCircleElement | null>(null);
+    const buttonRef = useRef<SVGGElement | null>(null);
+    const frameRef = useRef<number | null>(null);
+    const currentRef = useRef({ x: 0, y: 0, scale: IDLE_SCALE });
+
+    useEffect(() => {
+        const anchor = anchorRef.current;
+        const button = buttonRef.current;
+        if (!anchor || !button) return;
+
+        const safeZoom = Math.max(viewportZoom || 1, 0.01);
+
+        const applyTransform = () => {
+            const current = currentRef.current;
+
+            button.setAttribute(
+                'transform',
+                `translate(${current.x} ${current.y}) scale(${current.scale})`
+            );
+        };
+
+        const setTransform = (targetX: number, targetY: number, targetScale: number) => {
+            const current = currentRef.current;
+
+            current.x += (targetX - current.x) * FOLLOW_EASE;
+            current.y += (targetY - current.y) * FOLLOW_EASE;
+            current.scale += (targetScale - current.scale) * FOLLOW_EASE;
+
+            applyTransform();
+        };
+
+        const resetTransform = () => {
+            currentRef.current = { x: 0, y: 0, scale: IDLE_SCALE };
+            applyTransform();
+        };
+
+        if (!isActive) {
+            resetTransform();
+            return;
+        }
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (frameRef.current !== null) return;
+
+            frameRef.current = window.requestAnimationFrame(() => {
+                frameRef.current = null;
+
+                const rect = anchor.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                const dx = e.clientX - centerX;
+                const dy = e.clientY - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > MAGNET_RADIUS) {
+                    setTransform(0, 0, IDLE_SCALE);
+                    return;
+                }
+
+                const safeDistance = Math.max(distance, 1);
+                const strength = clamp(1 - safeDistance / MAGNET_RADIUS, 0, 1);
+
+                const offsetX = (dx / safeZoom) * FOLLOW_RATIO;
+                const offsetY = (dy / safeZoom) * FOLLOW_RATIO;
+
+                const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
+
+                setTransform(offsetX, offsetY, scale);
+            });
+        };
+
+        window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+        resetTransform();
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+
+            if (frameRef.current !== null) {
+                window.cancelAnimationFrame(frameRef.current);
+                frameRef.current = null;
+            }
+        };
+    }, [viewportZoom, isActive]);
+
+    return { anchorRef, buttonRef };
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Get the width of a node based on its type and content
- * @param node - The node to calculate width for
- * @param parentNode - Optional parent node (used for Editor nodes to determine width when they have input content)
- */
-const getNodeWidth = (node: NodeData, parentNode?: NodeData): number => {
-    // Image Editor with input from parent: width depends on aspect ratio
-    if (node.type === NodeType.IMAGE_EDITOR) {
-        const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && parentNode.resultUrl;
-        if (hasInput && parentNode.resultAspectRatio) {
-            const parts = parentNode.resultAspectRatio.split('/');
-            if (parts.length === 2) {
-                const aspectRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
-                // For portrait images: height=500px, width=500*aspectRatio
-                // For landscape images: width is capped at 500px
-                if (aspectRatio < 1) {
-                    return 500 * aspectRatio;
-                } else {
-                    return 500;
-                }
+const parseAspectRatio = (value?: string): number | null => {
+    if (!value) return null;
+
+    if (value.includes('/')) {
+        const parts = value.split('/');
+        if (parts.length === 2) {
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+            if (Number.isFinite(width) && Number.isFinite(height) && height !== 0) {
+                return width / height;
             }
         }
-        // Empty: width 340px
-        return 340;
     }
 
-    // Video Editor with input: uses 16:9 aspect ratio with maxWidth 500px
-    if (node.type === NodeType.VIDEO_EDITOR) {
+    if (value.includes(':')) {
+        const parts = value.split(':');
+        if (parts.length === 2) {
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+            if (Number.isFinite(width) && Number.isFinite(height) && height !== 0) {
+                return width / height;
+            }
+        }
+    }
+
+    return null;
+};
+
+const getNodeWidth = (node: NodeData, parentNode?: NodeData): number => {
+    if (node.type === NodeType.IMAGE_EDITOR) {
         const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && parentNode.resultUrl;
-        if (hasInput) {
-            // Video uses 16:9, and width is capped at 500px
-            // height = width / (16/9), maxHeight = 500px
-            // So width = min(500, height * 16/9) where height is capped at 500
-            // Result: width = min(500, 500 * 16/9) = min(500, 888) = 500
+        const inputAspectRatio = parseAspectRatio(parentNode?.resultAspectRatio);
+
+        if (hasInput && inputAspectRatio) {
+            if (inputAspectRatio < 1) {
+                return 500 * inputAspectRatio;
+            }
+
             return 500;
         }
-        // Empty: width 340px
+
         return 340;
     }
 
-    // Video nodes are wider
+    if (node.type === NodeType.VIDEO_EDITOR) {
+        const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && parentNode.resultUrl;
+
+        if (hasInput) {
+            return 500;
+        }
+
+        return 340;
+    }
+
     if (node.type === NodeType.VIDEO) return 385;
-    // Camera Angle nodes have fixed width
     if (node.type === NodeType.CAMERA_ANGLE) return 340;
-    // Image and other nodes
+
     return 365;
 };
 
-/**
- * Estimate the height of a node based on its type and aspect ratio.
- * The node card height is determined by the content's aspect ratio or min-height for empty states.
- * Note: The title label is positioned ABOVE the card (-top-8), not inside it.
- * @param node - The node to calculate height for
- * @param parentNode - Optional parent node (used for Editor nodes to determine if they have input content)
- */
 const getNodeHeight = (node: NodeData, parentNode?: NodeData): number => {
     const baseWidth = getNodeWidth(node, parentNode);
     const hasContent = node.status === NodeStatus.SUCCESS && node.resultUrl;
 
-    // Handle Image Editor nodes
     if (node.type === NodeType.IMAGE_EDITOR) {
-        // Check if has input from parent
         const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && parentNode.resultUrl;
-        if (hasInput && parentNode.resultAspectRatio) {
-            // Use parent's aspect ratio to calculate actual dimensions
-            // Image Editor with content: width=auto maxWidth=500px, image has maxHeight=500px
-            const parts = parentNode.resultAspectRatio.split('/');
-            if (parts.length === 2) {
-                const aspectRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
-                // For portrait images (aspectRatio < 1): height is capped at 500px
-                // For landscape images (aspectRatio >= 1): width is capped at 500px
-                if (aspectRatio < 1) {
-                    // Portrait: height = 500px, width = 500 * aspectRatio
-                    return 500;
-                } else {
-                    // Landscape: width = 500px, height = 500 / aspectRatio
-                    return 500 / aspectRatio;
-                }
+        const inputAspectRatio = parseAspectRatio(parentNode?.resultAspectRatio);
+
+        if (hasInput && inputAspectRatio) {
+            if (inputAspectRatio < 1) {
+                return 500;
             }
+
+            return 500 / inputAspectRatio;
         }
-        // Empty: minHeight 380px
+
         return 380;
     }
 
-    // Handle Video Editor nodes
     if (node.type === NodeType.VIDEO_EDITOR) {
-        // Check if has input from parent
-        const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && parentNode.resultUrl;
+        const hasInput = parentNode && parentNode.status === NodeStatus.SUCCESS && node.resultUrl;
+
         if (hasInput) {
-            // Video editor shows 16:9 when has content (line 301 in CanvasNode.tsx)
             return Math.min(baseWidth / (16 / 9), 500);
         }
-        // Empty: minHeight 380px
+
         return 380;
     }
 
-    // Handle Camera Angle nodes
     if (node.type === NodeType.CAMERA_ANGLE) {
-        const hasContent = node.status === NodeStatus.SUCCESS && node.resultUrl;
-        if (hasContent && node.resultAspectRatio) {
-            // Use actual result dimensions when content exists
-            const parts = node.resultAspectRatio.split('/');
-            if (parts.length === 2) {
-                const aspectRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
-                return 340 / aspectRatio; // width is 340px
-            }
+        const hasCameraContent = node.status === NodeStatus.SUCCESS && node.resultUrl;
+        const cameraAspectRatio = parseAspectRatio(node.resultAspectRatio);
+
+        if (hasCameraContent && cameraAspectRatio) {
+            return 340 / cameraAspectRatio;
         }
-        // Loading/empty state: minHeight 340px (see CanvasNode.tsx Camera Angle section)
+
         return 340;
     }
 
-    // Parse aspect ratio to calculate content height for Image/Video nodes
     let aspectRatio: number;
 
-    if (hasContent && node.resultAspectRatio) {
-        // Use actual result dimensions when content exists
-        const parts = node.resultAspectRatio.split('/');
-        if (parts.length === 2) {
-            aspectRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
-        } else {
-            aspectRatio = 16 / 9;
-        }
-    } else if (hasContent && node.aspectRatio && node.aspectRatio !== 'Auto') {
-        // Use selected aspect ratio for content
-        const parts = node.aspectRatio.split(':');
-        if (parts.length === 2) {
-            aspectRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
-        } else {
-            aspectRatio = 16 / 9;
-        }
+    const resultAspectRatio = parseAspectRatio(node.resultAspectRatio);
+    const selectedAspectRatio = node.aspectRatio !== 'Auto'
+        ? parseAspectRatio(node.aspectRatio)
+        : null;
+
+    if (hasContent && resultAspectRatio) {
+        aspectRatio = resultAspectRatio;
+    } else if (hasContent && selectedAspectRatio) {
+        aspectRatio = selectedAspectRatio;
     } else {
-        // Empty/placeholder state: Both Image and Video use 4/3 (see NodeContent.tsx line 307)
         aspectRatio = 4 / 3;
     }
 
-    // Calculate content height from aspect ratio
     return baseWidth / aspectRatio;
 };
+
+/**
+ * Some node types visually size themselves from their own input node.
+ * For example, Image Editor displays the parent image, so its real visual width/height
+ * depends on the parent image aspect ratio. Connections must use that same sizing logic.
+ */
+const getNodeInputForSizing = (node: NodeData, nodes: NodeData[]): NodeData | undefined => {
+    const firstParentId = node.parentIds?.[0];
+    if (!firstParentId) return undefined;
+
+    return nodes.find(n => n.id === firstParentId);
+};
+
+const getNodeVisualSize = (
+    node: NodeData,
+    nodes: NodeData[],
+    fallbackParent?: NodeData
+) => {
+    const inputNode = getNodeInputForSizing(node, nodes) || fallbackParent;
+
+    return {
+        width: getNodeWidth(node, inputNode),
+        height: getNodeHeight(node, inputNode)
+    };
+};
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface Connection {
     parentId: string;
@@ -160,15 +294,179 @@ interface Connection {
 interface ConnectionsLayerProps {
     nodes: NodeData[];
     viewport: Viewport;
-    // Connection dragging state
     isDraggingConnection: boolean;
     connectionStart: { nodeId: string; handle: 'left' | 'right' } | null;
     tempConnectionEnd: { x: number; y: number } | null;
-    // Selection
     selectedConnection: Connection | null;
     onEdgeClick: (e: React.MouseEvent, parentId: string, childId: string) => void;
+    onDisconnectConnection?: (parentId: string, childId: string) => void;
     canvasTheme?: 'dark' | 'light';
 }
+
+// ============================================================================
+// CONNECTION ITEM
+// ============================================================================
+
+const ConnectionItem: React.FC<{
+    parent: NodeData;
+    child: NodeData;
+    path: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    isSelected: boolean;
+    viewportZoom: number;
+    canvasTheme: 'dark' | 'light';
+    onEdgeClick: (e: React.MouseEvent, parentId: string, childId: string) => void;
+    onDisconnectConnection?: (parentId: string, childId: string) => void;
+}> = ({
+    parent,
+    child,
+    path,
+    startX,
+    startY,
+    endX,
+    endY,
+    isSelected,
+    viewportZoom,
+    canvasTheme,
+    onEdgeClick,
+    onDisconnectConnection
+}) => {
+    const [isHot, setIsHot] = useState(false);
+    const { anchorRef, buttonRef } = useSvgStableMagnet(viewportZoom, isHot);
+
+    // Place disconnect button at the middle of the connection.
+    const buttonT = 0.5;
+    const buttonX = startX + (endX - startX) * buttonT;
+    const buttonY = startY + (endY - startY) * buttonT;
+
+    const highlightStroke = canvasTheme === 'dark' ? '#D8FF00' : '#2563eb';
+    const idleStroke = canvasTheme === 'dark' ? '#444' : '#d1d5db';
+
+    return (
+        <g
+            onMouseEnter={() => setIsHot(true)}
+            onMouseLeave={() => setIsHot(false)}
+            onClick={(e) => onEdgeClick(e, parent.id, child.id)}
+            className="cursor-pointer pointer-events-auto"
+            style={{ pointerEvents: 'auto' }}
+        >
+            {/* Wide invisible hit area.
+                This controls how far away the cursor can be while still triggering line color feedback. */}
+            <path
+                d={path}
+                stroke="transparent"
+                strokeWidth={LINE_HOVER_HIT_WIDTH}
+                fill="none"
+                style={{ pointerEvents: 'stroke' }}
+            />
+
+            {/* Main base connection line */}
+            <path
+                d={path}
+                stroke={isSelected || isHot ? highlightStroke : idleStroke}
+                strokeWidth={isSelected ? SELECTED_LINE_WIDTH : IDLE_LINE_WIDTH}
+                fill="none"
+                className="transition-colors duration-300 pointer-events-none"
+            />
+
+            {/* Default flowing effect.
+                It flows from parent to child when the line is not being hovered.
+                On hover, it fades out and the main line color takes over. */}
+            {!isSelected && (
+                <path
+                    d={path}
+                    stroke={highlightStroke}
+                    strokeWidth={FLOW_LINE_WIDTH}
+                    strokeDasharray={FLOW_DASH_ARRAY}
+                    strokeLinecap="round"
+                    fill="none"
+                    opacity={isHot ? 0 : 0.35}
+                    className="pointer-events-none transition-opacity duration-300"
+                >
+                    <animate
+                        attributeName="stroke-dashoffset"
+                        from="148"
+                        to="0"
+                        dur={FLOW_ANIMATION_DURATION}
+                        repeatCount="indefinite"
+                    />
+                </path>
+            )}
+
+            {/* Disconnect button anchor and magnetic visual */}
+            {onDisconnectConnection && (
+                <g
+                    transform={`translate(${buttonX}, ${buttonY})`}
+                    className="transition-opacity duration-150"
+                    style={{
+                        opacity: isHot ? 1 : 0,
+                        pointerEvents: isHot ? 'all' : 'none'
+                    }}
+                >
+                    {/* Fixed invisible anchor.
+                        It stays still and is used only for magnetic distance calculation. */}
+                    <circle
+                        ref={anchorRef}
+                        r="1"
+                        fill="transparent"
+                        style={{ pointerEvents: 'none' }}
+                    />
+
+                    {/* Moving magnetic button */}
+                    <g
+                        ref={buttonRef}
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDisconnectConnection(parent.id, child.id);
+                        }}
+                    >
+                        {/* Outer clickable hit circle */}
+                        <circle
+                            r="18"
+                            fill="transparent"
+                            style={{ pointerEvents: 'all' }}
+                        />
+
+                        {/* Visual circle */}
+                        <circle
+                            r="12"
+                            fill={canvasTheme === 'dark' ? '#050505' : '#ffffff'}
+                            stroke={highlightStroke}
+                            strokeWidth="2"
+                            style={{
+                                pointerEvents: 'none',
+                                filter:
+                                    canvasTheme === 'dark'
+                                        ? 'drop-shadow(0 0 8px rgba(216,255,0,0.65))'
+                                        : 'drop-shadow(0 2px 6px rgba(37,99,235,0.25))'
+                            }}
+                        />
+
+                        {/* Minus icon */}
+                        <line
+                            x1="-5"
+                            y1="0"
+                            x2="5"
+                            y2="0"
+                            stroke={highlightStroke}
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                            style={{ pointerEvents: 'none' }}
+                        />
+                    </g>
+                </g>
+            )}
+        </g>
+    );
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     nodes,
@@ -178,9 +476,9 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     tempConnectionEnd,
     selectedConnection,
     onEdgeClick,
+    onDisconnectConnection,
     canvasTheme = 'dark'
 }) => {
-    // Render permanent connections between nodes
     const connections: React.ReactNode[] = [];
 
     nodes.forEach(node => {
@@ -190,42 +488,51 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
             const parent = nodes.find(n => n.id === parentId);
             if (!parent) return;
 
-            const startX = parent.x + getNodeWidth(parent);
-            const startY = parent.y + getNodeHeight(parent) / 2;
+            const parentSize = getNodeVisualSize(parent, nodes);
+            const childSize = getNodeVisualSize(node, nodes, parent);
+
+            const startX = parent.x + parentSize.width;
+            const startY = parent.y + parentSize.height / 2;
             const endX = node.x;
-            const endY = node.y + getNodeHeight(node, parent) / 2;
+            const endY = node.y + childSize.height / 2;
 
             const path = calculateConnectionPath(startX, startY, endX, endY, 'right');
+            const edgeKey = `${parent.id}->${node.id}`;
             const isSelected = selectedConnection?.parentId === parentId && selectedConnection?.childId === node.id;
 
             connections.push(
-                <g
-                    key={`${parent.id}-${node.id}`}
-                    onClick={(e) => onEdgeClick(e, parent.id, node.id)}
-                    className="cursor-pointer group pointer-events-auto"
-                >
-                    <path d={path} stroke="transparent" strokeWidth="20" fill="none" />
-                    <path
-                        d={path}
-                        stroke={isSelected
-                            ? (canvasTheme === 'dark' ? '#fff' : '#2563eb')
-                            : (canvasTheme === 'dark' ? '#444' : '#d1d5db')}
-                        strokeWidth="2"
-                        fill="none"
-                        className={`transition-colors ${!isSelected ? (canvasTheme === 'dark' ? 'group-hover:stroke-neutral-300' : 'group-hover:stroke-neutral-500') : ''}`}
-                    />
-                </g>
+                <ConnectionItem
+                    key={edgeKey}
+                    parent={parent}
+                    child={node}
+                    path={path}
+                    startX={startX}
+                    startY={startY}
+                    endX={endX}
+                    endY={endY}
+                    isSelected={isSelected}
+                    viewportZoom={viewport.zoom}
+                    canvasTheme={canvasTheme}
+                    onEdgeClick={onEdgeClick}
+                    onDisconnectConnection={onDisconnectConnection}
+                />
             );
         });
     });
 
-    // Render temporary drag connection
     let tempLine = null;
+
     if (isDraggingConnection && connectionStart && tempConnectionEnd) {
         const startNode = nodes.find(n => n.id === connectionStart.nodeId);
+
         if (startNode) {
-            const startX = connectionStart.handle === 'right' ? startNode.x + getNodeWidth(startNode) : startNode.x;
-            const startY = startNode.y + getNodeHeight(startNode) / 2;
+            const startNodeSize = getNodeVisualSize(startNode, nodes);
+
+            const startX = connectionStart.handle === 'right'
+                ? startNode.x + startNodeSize.width
+                : startNode.x;
+
+            const startY = startNode.y + startNodeSize.height / 2;
             const endX = (tempConnectionEnd.x - viewport.x) / viewport.zoom;
             const endY = (tempConnectionEnd.y - viewport.y) / viewport.zoom;
 
@@ -240,12 +547,20 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
             tempLine = (
                 <path
                     d={path}
-                    stroke={canvasTheme === 'dark' ? '#fff' : '#2563eb'}
+                    stroke={canvasTheme === 'dark' ? '#D8FF00' : '#2563eb'}
                     strokeWidth="2"
                     strokeDasharray="5,5"
                     fill="none"
                     className="pointer-events-none opacity-50"
-                />
+                >
+                    <animate
+                        attributeName="stroke-dashoffset"
+                        from="16"
+                        to="0"
+                        dur="1s"
+                        repeatCount="indefinite"
+                    />
+                </path>
             );
         }
     }

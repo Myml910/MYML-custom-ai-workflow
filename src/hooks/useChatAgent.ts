@@ -202,6 +202,7 @@ export function useChatAgent(): UseChatAgentReturn {
                     message: content,
                     media: media ? media.map(m => ({
                         type: m.type,
+                        url: m.url,
                         base64: m.base64 || m.url, // Use base64 if available, otherwise URL
                     })) : undefined,
                 }),

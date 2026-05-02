@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { t } from '../../i18n/translations';
 
 // Types and constants
 import {
@@ -43,6 +44,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     initialElements,
     initialCanvasData,
     initialBackgroundUrl,
+    canvasTheme = 'dark',
+    language = 'zh',
     onClose,
     onGenerate,
     onUpdate
@@ -64,6 +67,45 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Image State (for crop undo/redo) ---
     const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(imageUrl);
+
+    // --- Theme / Language ---
+    const isDark = canvasTheme === 'dark';
+
+    const editorText = {
+        download: language === 'zh' ? '下载' : 'Download',
+        exit: language === 'zh' ? '退出图像编辑器' : 'Exit Image Editor',
+        apply: language === 'zh' ? '应用' : 'Apply',
+        noImageLoaded: language === 'zh' ? '未加载图像' : 'No image loaded',
+    };
+
+    const accentClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
+
+    const accentBgClass = isDark
+        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
+        : 'bg-lime-600 hover:bg-lime-500 text-white';
+
+    const panelClass = isDark
+        ? 'bg-[#050505] text-white'
+        : 'bg-neutral-50 text-neutral-900';
+
+    const topBarClass = isDark
+        ? 'bg-[#050505]/95 border-b border-neutral-900'
+        : 'bg-white/95 border-b border-neutral-200';
+
+    const iconButtonClass = isDark
+        ? 'hover:bg-neutral-900 text-neutral-400 hover:text-[#D8FF00]'
+        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
+
+    const canvasAreaClass = isDark
+        ? 'bg-[#030303]'
+        : 'bg-neutral-100';
+
+    const emptyCanvasClass = isDark
+        ? 'bg-[#111111] border border-neutral-800 text-neutral-500'
+        : 'bg-white border border-neutral-200 text-neutral-400';
+
+    const selectionColor = isDark ? '#D8FF00' : '#65a30d';
+    const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
 
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -229,8 +271,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         onUpdate(nodeId, updates);
     }, [nodeId, onUpdate, generateCompositeImage, localImageUrl]);
 
-
-
     const handleCropApply = async (croppedImageDataUrl: string) => {
         // Update local preview immediately
         setLocalImageUrl(croppedImageDataUrl);
@@ -298,7 +338,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
-    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements]);
+    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl]);
 
     // Restore brush canvas data from node when modal opens
     useEffect(() => {
@@ -368,8 +408,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             saveUpdate();
         }
     }, [elements, isOpen, nodeId, onUpdate, generateCompositeImage]);
-
-    // Persist canvas data to node on brush strokes (debounced via saveState already captures this)
 
     // Redraw elements canvas when elements change (for undo/redo support)
     useEffect(() => {
@@ -447,25 +485,27 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Render ---
     return (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+        <div className={`fixed inset-0 z-[9999] flex flex-col ${panelClass}`}>
             {/* Top Bar */}
-            <div className="h-14 flex items-center justify-between px-4">
+            <div className={`h-14 flex items-center justify-between px-4 ${topBarClass}`}>
                 <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded flex items-center justify-center text-neutral-400">
+                    <div className={`w-6 h-6 rounded flex items-center justify-center ${accentClass}`}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <polyline points="21 15 16 10 5 21" />
                         </svg>
                     </div>
-                    <span className="text-sm text-neutral-300">Image Editor</span>
+                    <span className={`text-sm font-medium ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
+                        {t(language, 'imageEditor')}
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                     {/* Download Button */}
                     <button
-                        className="w-10 h-10 rounded hover:bg-neutral-800 flex items-center justify-center text-neutral-400"
-                        title="Download"
+                        className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
+                        title={editorText.download}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -473,11 +513,12 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
                     </button>
+
                     {/* Exit Button */}
                     <button
                         onClick={onClose}
-                        className="w-10 h-10 rounded hover:bg-neutral-800 flex items-center justify-center text-neutral-400"
-                        title="Exit Image Editor"
+                        className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
+                        title={editorText.exit}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -491,6 +532,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 {/* Drawing Sub-Toolbar */}
                 {drawing.isDrawingMode && (
                     <DrawingToolbar
+                        canvasTheme={canvasTheme}
+                        language={language}
                         drawingTool={drawing.drawingTool}
                         setDrawingTool={drawing.setDrawingTool}
                         brushWidth={drawing.brushWidth}
@@ -508,7 +551,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 <div className="w-0"></div>
 
                 {/* Canvas Area - constrained to fit within available space */}
-                <div className="flex-1 flex items-center justify-center bg-black p-4 overflow-hidden min-h-0">
+                <div className={`flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0 ${canvasAreaClass}`}>
                     {localImageUrl ? (
                         <div
                             ref={imageContainerRef}
@@ -564,6 +607,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     }
                                 }}
                             />
+
                             {/* Main Canvas - For persistent brush drawings */}
                             <canvas
                                 ref={canvasRef}
@@ -578,6 +622,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                 onMouseUp={drawing.isDrawingMode ? () => { drawing.stopDrawing(); saveCanvasToNode(); } : undefined}
                                 onMouseLeave={drawing.isDrawingMode ? () => { drawing.stopDrawing(); saveCanvasToNode(); } : undefined}
                             />
+
                             {/* Arrow Canvas Overlay */}
                             {arrows.isArrowMode && (
                                 <canvas
@@ -589,11 +634,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     onMouseLeave={arrows.finishArrow}
                                 />
                             )}
+
                             {/* Elements Canvas - Renders all stored elements (arrows and text) */}
                             <canvas
                                 ref={elementsCanvasRef}
                                 className="absolute inset-0 pointer-events-none"
                             />
+
                             {/* Text Mode Canvas - Click to place text */}
                             {text.isTextMode && (
                                 <canvas
@@ -608,6 +655,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     onClick={text.handleTextCanvasClick}
                                 />
                             )}
+
                             {/* Text Editing Overlay */}
                             {text.editingTextId && elements.filter(el => el.type === 'text' && el.id === text.editingTextId).map(el => {
                                 if (el.type !== 'text') return null;
@@ -625,7 +673,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                             }
                                         }}
                                         autoFocus
-                                        className="absolute bg-transparent border-2 border-blue-500 outline-none text-white"
+                                        className={`absolute bg-transparent border-2 outline-none ${
+                                            isDark
+                                                ? 'border-[#D8FF00] text-white'
+                                                : 'border-lime-500 text-neutral-900'
+                                        }`}
                                         style={{
                                             left: el.x,
                                             top: el.y,
@@ -638,6 +690,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     />
                                 );
                             })}
+
                             {/* Select Mode Canvas */}
                             {selection.isSelectMode && (
                                 <canvas
@@ -656,6 +709,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     onMouseLeave={selection.handleSelectMouseUp}
                                 />
                             )}
+
                             {/* Selection UI - Shows handles for selected element */}
                             {selection.isSelectMode && selection.selectedElementId && (
                                 <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }}>
@@ -668,7 +722,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                         y1={el.startY}
                                                         x2={el.endX}
                                                         y2={el.endY}
-                                                        stroke="#3b82f6"
+                                                        stroke={selectionColor}
                                                         strokeWidth="5"
                                                         strokeDasharray="5,5"
                                                         opacity="0.6"
@@ -677,8 +731,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                         cx={el.startX}
                                                         cy={el.startY}
                                                         r="8"
-                                                        fill="#3b82f6"
-                                                        stroke="white"
+                                                        fill={selectionColor}
+                                                        stroke={selectionHandleStroke}
                                                         strokeWidth="2"
                                                         style={{ pointerEvents: 'auto', cursor: 'grab' }}
                                                     />
@@ -686,8 +740,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                         cx={el.endX}
                                                         cy={el.endY}
                                                         r="8"
-                                                        fill="#3b82f6"
-                                                        stroke="white"
+                                                        fill={selectionColor}
+                                                        stroke={selectionHandleStroke}
                                                         strokeWidth="2"
                                                         style={{ pointerEvents: 'auto', cursor: 'grab' }}
                                                     />
@@ -699,6 +753,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     })}
                                 </svg>
                             )}
+
                             {/* Crop Overlay */}
                             {crop.isCropMode && crop.cropRect && (
                                 <div
@@ -726,6 +781,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                             fill="rgba(0, 0, 0, 0.6)"
                                             mask="url(#cropMask)"
                                         />
+
                                         {/* Crop selection border */}
                                         <rect
                                             x={crop.cropRect.x}
@@ -733,56 +789,54 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                             width={crop.cropRect.width}
                                             height={crop.cropRect.height}
                                             fill="none"
-                                            stroke="white"
+                                            stroke={isDark ? '#ffffff' : '#111827'}
                                             strokeWidth="2"
                                             strokeDasharray="5,5"
                                         />
+
                                         {/* Corner handles */}
-                                        {/* NW */}
                                         <rect
                                             x={crop.cropRect.x - 5}
                                             y={crop.cropRect.y - 5}
                                             width="10"
                                             height="10"
-                                            fill="white"
-                                            stroke="#3b82f6"
+                                            fill={isDark ? '#050505' : '#ffffff'}
+                                            stroke={selectionColor}
                                             strokeWidth="2"
                                             style={{ cursor: 'nwse-resize' }}
                                         />
-                                        {/* NE */}
                                         <rect
                                             x={crop.cropRect.x + crop.cropRect.width - 5}
                                             y={crop.cropRect.y - 5}
                                             width="10"
                                             height="10"
-                                            fill="white"
-                                            stroke="#3b82f6"
+                                            fill={isDark ? '#050505' : '#ffffff'}
+                                            stroke={selectionColor}
                                             strokeWidth="2"
                                             style={{ cursor: 'nesw-resize' }}
                                         />
-                                        {/* SW */}
                                         <rect
                                             x={crop.cropRect.x - 5}
                                             y={crop.cropRect.y + crop.cropRect.height - 5}
                                             width="10"
                                             height="10"
-                                            fill="white"
-                                            stroke="#3b82f6"
+                                            fill={isDark ? '#050505' : '#ffffff'}
+                                            stroke={selectionColor}
                                             strokeWidth="2"
                                             style={{ cursor: 'nesw-resize' }}
                                         />
-                                        {/* SE */}
                                         <rect
                                             x={crop.cropRect.x + crop.cropRect.width - 5}
                                             y={crop.cropRect.y + crop.cropRect.height - 5}
                                             width="10"
                                             height="10"
-                                            fill="white"
-                                            stroke="#3b82f6"
+                                            fill={isDark ? '#050505' : '#ffffff'}
+                                            stroke={selectionColor}
                                             strokeWidth="2"
                                             style={{ cursor: 'nwse-resize' }}
                                         />
                                     </svg>
+
                                     {/* Crop Action Buttons */}
                                     <div
                                         className="absolute flex gap-2"
@@ -794,23 +848,27 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     >
                                         <button
                                             onClick={(e) => { e.stopPropagation(); crop.cancelCrop(); }}
-                                            className="px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                                isDark
+                                                    ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700'
+                                                    : 'bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200'
+                                            }`}
                                         >
-                                            Cancel
+                                            {t(language, 'cancel')}
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); crop.applyCrop(); }}
-                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${accentBgClass}`}
                                         >
-                                            Apply
+                                            {editorText.apply}
                                         </button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="w-[600px] h-[400px] bg-neutral-100 rounded flex items-center justify-center">
-                            <span className="text-neutral-400">No image loaded</span>
+                        <div className={`w-[600px] h-[400px] rounded flex items-center justify-center ${emptyCanvasClass}`}>
+                            <span>{editorText.noImageLoaded}</span>
                         </div>
                     )}
                 </div>
@@ -820,6 +878,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full max-w-6xl px-4 pointer-events-none">
                 {/* Floating Tools Palette */}
                 <BottomToolbar
+                    canvasTheme={canvasTheme}
+                    language={language}
                     isSelectMode={selection.isSelectMode}
                     setIsSelectMode={selection.setIsSelectMode}
                     isDrawingMode={drawing.isDrawingMode}
@@ -843,6 +903,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
                 {/* Prompt Bar */}
                 <PromptBar
+                    canvasTheme={canvasTheme}
+                    language={language}
                     prompt={prompt}
                     setPrompt={setPrompt}
                     selectedModel={selectedModel}

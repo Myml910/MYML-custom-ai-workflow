@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
+import { Language, t } from '../../i18n/translations';
 import { NodeConnectors } from './NodeConnectors';
 import { NodeContent } from './NodeContent';
 import { NodeControls } from './NodeControls';
@@ -38,6 +39,7 @@ interface CanvasNodeProps {
   // Image node callbacks
   onImageToImage?: (nodeId: string) => void;
   onImageToVideo?: (nodeId: string) => void;
+  onImageToEditor?: (nodeId: string) => void;
   onChangeAngleGenerate?: (nodeId: string) => void;
   zoom: number;
   // Mouse event callbacks for chat panel drag functionality
@@ -45,6 +47,8 @@ interface CanvasNodeProps {
   onMouseLeave?: () => void;
   // Theme
   canvasTheme?: 'dark' | 'light';
+  language?: Language;
+
   // Social sharing
   onPostToX?: (nodeId: string, mediaUrl: string, mediaType: 'image' | 'video') => void;
   onPostToTikTok?: (nodeId: string, mediaUrl: string) => void;
@@ -74,11 +78,13 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   onTextToImage,
   onImageToImage,
   onImageToVideo,
+  onImageToEditor,
   onChangeAngleGenerate,
   zoom,
   onMouseEnter,
   onMouseLeave,
   canvasTheme = 'dark',
+  language = 'zh',
   onPostToX,
   onPostToTikTok
 }) => {
@@ -212,7 +218,19 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Image Editor Node Card */}
         <div
-          className={`relative rounded-2xl transition-all duration-200 flex flex-col ${inputUrl ? '' : isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-2xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-blue-500/30' : ''}`}
+          className={`relative rounded-2xl transition-all duration-200 flex flex-col ${
+            inputUrl
+              ? ''
+              : isDark
+                ? 'bg-[#0f0f0f] border border-neutral-800 shadow-2xl'
+                : 'bg-white border border-neutral-200 shadow-lg'
+          } ${
+            selected
+              ? isDark
+                ? 'ring-2 ring-[#D8FF00] shadow-[0_0_22px_rgba(216,255,0,0.18)]'
+                : 'ring-2 ring-lime-500 shadow-[0_0_16px_rgba(132,204,22,0.16)]'
+              : ''
+          }`}
           style={{
             width: inputUrl ? 'auto' : '340px',
             maxWidth: inputUrl ? '500px' : 'none'
@@ -226,7 +244,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         >
           {/* Header */}
           <div className="absolute -top-8 left-0 text-sm px-2 py-0.5 rounded font-medium text-neutral-600">
-            Image Editor
+            {t(language, 'imageEditor')}
           </div>
 
           {/* Content Area */}
@@ -238,13 +256,19 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <img
                 src={data.resultUrl || inputUrl}
                 alt="Content"
-                className={`rounded-xl w-full h-full object-cover ${selected ? 'ring-2 ring-blue-500 shadow-2xl' : ''}`}
+                className={`rounded-xl w-full h-full object-cover ${
+                  selected
+                    ? isDark
+                      ? 'ring-2 ring-[#D8FF00] shadow-[0_0_22px_rgba(216,255,0,0.18)]'
+                      : 'ring-2 ring-lime-500 shadow-2xl'
+                    : ''
+                }`}
                 style={{ maxHeight: '500px' }}
                 draggable={false}
               />
             ) : (
               <div className="text-neutral-500 text-center text-sm">
-                Double click to open editor
+                {t(language, 'doubleClickOpenImageEditor')}
               </div>
             )}
           </div>
@@ -645,15 +669,27 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               </button>
-              {/* Post to X Button */}
+              {/* Image Editor Button */}
               <button
-                onClick={(e) => { e.stopPropagation(); onPostToX?.(data.id, data.resultUrl!, 'image'); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImageToEditor?.(data.id);
+                }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
-                title="Post to X"
+                title="Open Image Editor"
               >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                 </svg>
               </button>
               {/* Download Button */}
@@ -853,7 +889,17 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-all duration-300 flex flex-col shadow-2xl ${isDark ? 'bg-[#0f0f0f]' : 'bg-white'} ${selected ? 'border-blue-500/50 ring-1 ring-blue-500/30' : isDark ? 'border-neutral-800' : 'border-neutral-200'}`}
+          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-all duration-300 flex flex-col shadow-2xl ${
+            isDark ? 'bg-[#0f0f0f]' : 'bg-white'
+          } ${
+            selected
+              ? isDark
+                ? 'border-[#D8FF00]/55 ring-1 ring-[#D8FF00]/35 shadow-[0_0_18px_rgba(216,255,0,0.10)]'
+                : 'border-lime-500/60 ring-1 ring-lime-500/30 shadow-[0_0_16px_rgba(132,204,22,0.12)]'
+              : isDark
+                ? 'border-neutral-800'
+                : 'border-neutral-200'
+          }`}
         >
           {/* Header (Editable Title) - Positioned horizontally on top-left side */}
           {isEditingTitle ? (
@@ -873,12 +919,24 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute top-2 text-sm px-2 py-0.5 rounded font-medium bg-blue-500/20 text-blue-200 outline-none border border-blue-400 whitespace-nowrap"
+              className={`absolute top-2 text-sm px-2 py-0.5 rounded font-medium outline-none whitespace-nowrap ${
+                isDark
+                  ? 'bg-[#D8FF00]/15 text-[#D8FF00] border border-[#D8FF00]/45 shadow-[0_0_10px_rgba(216,255,0,0.10)]'
+                  : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
+              }`}
               style={{ right: 'calc(100% + 8px)', minWidth: '60px' }}
             />
           ) : (
             <div
-              className={`absolute top-2 text-sm px-2 py-0.5 rounded font-medium transition-colors cursor-text whitespace-nowrap ${selected ? 'bg-blue-500/20 text-blue-200' : 'text-neutral-600'}`}
+              className={`absolute top-2 text-sm px-2 py-0.5 rounded font-medium transition-colors cursor-text whitespace-nowrap ${
+                selected
+                  ? isDark
+                    ? 'bg-[#D8FF00]/15 text-[#D8FF00] border border-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.10)]'
+                    : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
+                  : isDark
+                    ? 'text-neutral-600'
+                    : 'text-neutral-500'
+              }`}
               style={{ right: 'calc(100% + 8px)' }}
               onDoubleClick={(e) => {
                 e.stopPropagation();

@@ -90,6 +90,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
     const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault();
+
         // Only set false if leaving the panel entirely
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
             setIsDragOver(false);
@@ -106,26 +107,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         // Get data from drag event
         const nodeData = e.dataTransfer.getData('application/json');
+
         if (nodeData) {
             try {
                 const { nodeId, url, type } = JSON.parse(nodeData);
+
                 if (url && (type === 'image' || type === 'video')) {
                     // Convert URL to base64 for API consumption
                     let base64Data: string | undefined;
 
                     if (type === 'image') {
                         try {
-                            // Fetch the image and convert to base64
                             const response = await fetch(url);
                             const blob = await response.blob();
+
                             base64Data = await new Promise<string>((resolve, reject) => {
                                 const reader = new FileReader();
+
                                 reader.onloadend = () => {
                                     const result = reader.result as string;
-                                    // Extract just the base64 part (remove data:image/...;base64, prefix)
                                     const base64 = result.split(',')[1];
                                     resolve(base64);
                                 };
+
                                 reader.onerror = reject;
                                 reader.readAsDataURL(blob);
                             });
@@ -145,7 +149,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             }
         }
     };
-
 
     const removeAttachment = (nodeId: string) => {
         setAttachedMedia(prev => prev.filter(m => m.nodeId !== nodeId));
@@ -173,11 +176,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         await sendMessage(
             currentMessage,
-            currentMedia.length > 0 ? currentMedia.map(m => ({
-                type: m.type,
-                url: m.url,
-                base64: m.base64,
-            })) : undefined
+            currentMedia.length > 0
+                ? currentMedia.map(m => ({
+                    type: m.type,
+                    url: m.url,
+                    base64: m.base64,
+                }))
+                : undefined
         );
     };
 
@@ -208,13 +213,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         if (diffDays === 0) {
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (diffDays === 1) {
-            return 'Yesterday';
-        } else if (diffDays < 7) {
-            return `${diffDays} days ago`;
-        } else {
-            return date.toLocaleDateString();
         }
+
+        if (diffDays === 1) {
+            return 'Yesterday';
+        }
+
+        if (diffDays < 7) {
+            return `${diffDays} days ago`;
+        }
+
+        return date.toLocaleDateString();
     };
 
     // --- Render ---
@@ -223,9 +232,32 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
     const showHighlight = isDraggingNode || isDragOver;
 
+    const accentText = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
+    const accentBorder = isDark ? 'border-[#D8FF00]' : 'border-lime-500';
+    const accentBgSoft = isDark ? 'bg-[#D8FF00]/10' : 'bg-lime-100/70';
+    const accentButton = isDark
+        ? 'bg-[#D8FF00] hover:bg-[#C8EE00] text-black shadow-[0_0_16px_rgba(216,255,0,0.22)]'
+        : 'bg-lime-500 hover:bg-lime-400 text-white shadow-[0_8px_20px_rgba(132,204,22,0.22)]';
+
+    const iconButtonClass = isDark
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
+        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
+
+    const inputIconButtonClass = isDark
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
+        : 'hover:bg-neutral-200 text-neutral-500 hover:text-lime-600';
+
+    const isSendDisabled = isLoading || (!message.trim() && attachedMedia.length === 0);
+
     return (
         <div
-            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-2xl transition-all duration-300 ${showHighlight ? 'border-cyan-500 border-2' : isDark ? 'border-neutral-800' : 'border-neutral-200'} ${isDark ? 'bg-[#1a1a1a]' : 'bg-white'}`}
+            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-2xl transition-all duration-300 ${
+                showHighlight
+                    ? `${accentBorder} border-2`
+                    : isDark
+                        ? 'border-neutral-800'
+                        : 'border-neutral-200'
+            } ${isDark ? 'bg-[#121212]' : 'bg-white'}`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -233,39 +265,50 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         >
             {/* Drag Overlay */}
             {showHighlight && (
-                <div className="absolute inset-0 bg-cyan-500/10 pointer-events-none z-10 flex items-center justify-center">
-                    <div className="bg-cyan-500/20 border-2 border-dashed border-cyan-400 rounded-2xl px-8 py-6 text-center">
-                        <Sparkles className="w-10 h-10 mx-auto mb-2 text-cyan-400" />
-                        <p className="text-cyan-300 font-medium">Drop image/video here</p>
+                <div className={`absolute inset-0 ${accentBgSoft} pointer-events-none z-10 flex items-center justify-center`}>
+                    <div
+                        className={`border-2 border-dashed rounded-2xl px-8 py-6 text-center ${
+                            isDark
+                                ? 'bg-[#D8FF00]/15 border-[#D8FF00]/70 shadow-[0_0_24px_rgba(216,255,0,0.14)]'
+                                : 'bg-lime-50 border-lime-400 shadow-[0_8px_24px_rgba(132,204,22,0.16)]'
+                        }`}
+                    >
+                        <Sparkles className={`w-10 h-10 mx-auto mb-2 ${accentText}`} />
+                        <p className={`${accentText} font-medium`}>Drop image/video here</p>
                     </div>
                 </div>
             )}
 
             {/* History Panel */}
             {showHistory && (
-                <div className={`absolute inset-0 z-20 flex flex-col ${isDark ? 'bg-[#1a1a1a]' : 'bg-white'}`}>
+                <div className={`absolute inset-0 z-20 flex flex-col ${isDark ? 'bg-[#121212]' : 'bg-white'}`}>
                     {/* History Header */}
                     <div className={`flex items-center gap-3 px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={() => setShowHistory(false)}
-                            className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                         >
                             <ChevronLeft size={18} />
                         </button>
-                        <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-neutral-900'}`}>Chat History</span>
+
+                        <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                            Chat History
+                        </span>
                     </div>
 
                     {/* History List */}
                     <div className="flex-1 overflow-y-auto p-4">
                         {isLoadingSessions ? (
                             <div className="flex items-center justify-center py-8">
-                                <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+                                <Loader2 className={`w-6 h-6 animate-spin ${accentText}`} />
                             </div>
                         ) : sessions.length === 0 ? (
                             <div className="text-center py-8">
-                                <MessageSquare className="w-12 h-12 mx-auto mb-3 text-neutral-600" />
+                                <MessageSquare className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-neutral-600' : 'text-neutral-300'}`} />
                                 <p className="text-neutral-500 text-sm">No chat history yet</p>
-                                <p className="text-neutral-600 text-xs mt-1">Start a conversation to see it here</p>
+                                <p className={`${isDark ? 'text-neutral-600' : 'text-neutral-400'} text-xs mt-1`}>
+                                    Start a conversation to see it here
+                                </p>
                             </div>
                         ) : (
                             <div className="space-y-2">
@@ -275,7 +318,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         onClick={() => handleLoadSession(session.id)}
                                         role="button"
                                         tabIndex={0}
-                                        className={`w-full text-left p-3 rounded-xl transition-colors group cursor-pointer ${isDark ? 'bg-neutral-800/50 hover:bg-neutral-800' : 'bg-neutral-100 hover:bg-neutral-200'}`}
+                                        className={`w-full text-left p-3 rounded-xl transition-colors group cursor-pointer ${
+                                            isDark
+                                                ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-transparent hover:border-[#D8FF00]/20'
+                                                : 'bg-neutral-100 hover:bg-lime-50 border border-transparent hover:border-lime-200'
+                                        }`}
                                     >
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex-1 min-w-0">
@@ -286,6 +333,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                     {session.messageCount} messages · {formatDate(session.updatedAt || session.createdAt)}
                                                 </p>
                                             </div>
+
                                             <button
                                                 onClick={(e) => handleDeleteSession(e, session.id)}
                                                 className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-lg transition-all text-neutral-500 hover:text-red-400"
@@ -304,45 +352,45 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`p-4 border-t ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={handleNewChat}
-                            className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 rounded-xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
+                            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${accentButton}`}
                         >
                             <Plus size={16} />
                             New Chat
                         </button>
                     </div>
                 </div>
-            )
-            }
+            )}
 
             {/* Header */}
-            <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800 bg-[#121212]' : 'border-neutral-200 bg-white'}`}>
                 <div className="flex items-center gap-3">
-                    {/* Topic or default title */}
                     <span className={`font-medium text-sm truncate max-w-[180px] ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                         {topic || (hasMessages ? 'New Chat' : 'ImageIdeas')}
                     </span>
                 </div>
+
                 <div className="flex items-center gap-1">
-                    {/* New Chat button - only show after messages exist */}
                     {hasMessages && (
                         <button
                             onClick={handleNewChat}
-                            className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                             title="New Chat"
                         >
                             <Plus size={18} />
                         </button>
                     )}
+
                     <button
                         onClick={() => setShowHistory(true)}
-                        className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'}`}
+                        className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                         title="Chat History"
                     >
                         <History size={18} />
                     </button>
+
                     <button
                         onClick={onClose}
-                        className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-800 text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900'}`}
+                        className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                     >
                         <X size={18} />
                     </button>
@@ -350,35 +398,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-                {/* Show greeting and tip if no messages */}
+            <div className={`flex-1 overflow-y-auto p-6 ${isDark ? 'bg-[#121212]' : 'bg-white'}`}>
                 {!hasMessages ? (
                     <>
                         {/* Greeting */}
                         <h1 className={`text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                             Hi, {userName}
                         </h1>
-                        <p className="text-cyan-400 text-lg mb-6">
+
+                        <p className={`${accentText} text-lg mb-6`}>
                             Looking for inspiration?
                         </p>
 
                         {/* Tip Card */}
                         {showTip && (
-                            <div className={`rounded-2xl p-4 mb-4 ${isDark ? 'bg-neutral-800/50' : 'bg-neutral-100'}`}>
-                                <div className={`rounded-xl overflow-hidden mb-3 flex items-center justify-center ${isDark ? 'bg-neutral-700/50' : 'bg-neutral-200'}`}>
+                            <div
+                                className={`rounded-2xl p-4 mb-4 border ${
+                                    isDark
+                                        ? 'bg-neutral-900/70 border-neutral-800'
+                                        : 'bg-neutral-50 border-neutral-200'
+                                }`}
+                            >
+                                <div
+                                    className={`rounded-xl overflow-hidden mb-3 flex items-center justify-center ${
+                                        isDark ? 'bg-neutral-800/70' : 'bg-neutral-100'
+                                    }`}
+                                >
                                     <img
                                         src="/chat-preview.gif"
                                         alt="Drag and drop preview"
                                         className="w-full h-auto object-cover rounded-xl"
                                     />
                                 </div>
+
                                 <p className={`text-sm leading-relaxed mb-3 ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
                                     Drag image/video nodes into the chat dialog to unlock advanced features like prompt generation based on node content, providing more inspiration for your creativity~
                                 </p>
+
                                 <div className="flex justify-end">
                                     <button
                                         onClick={() => setShowTip(false)}
-                                        className={`px-4 py-1.5 rounded-lg text-sm transition-colors ${isDark ? 'bg-neutral-700 hover:bg-neutral-600 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'}`}
+                                        className={`px-4 py-1.5 rounded-lg text-sm transition-colors ${
+                                            isDark
+                                                ? 'bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700'
+                                                : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'
+                                        }`}
                                     >
                                         Got it
                                     </button>
@@ -387,7 +451,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         )}
                     </>
                 ) : (
-                    /* Chat Messages */
                     <div className="space-y-1">
                         {messages.map((msg: ChatMessageType) => (
                             <ChatMessage
@@ -396,14 +459,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 content={msg.content}
                                 media={msg.media}
                                 timestamp={msg.timestamp}
+                                canvasTheme={canvasTheme}
                             />
                         ))}
 
                         {/* Loading indicator */}
                         {isLoading && (
                             <div className="flex justify-start mb-4">
-                                <div className={`rounded-2xl rounded-bl-md px-4 py-3 ${isDark ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
-                                    <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                                <div className={`rounded-2xl rounded-bl-md px-4 py-3 ${isDark ? 'bg-neutral-900 border border-neutral-800' : 'bg-neutral-100'}`}>
+                                    <Loader2 className={`w-5 h-5 animate-spin ${accentText}`} />
                                 </div>
                             </div>
                         )}
@@ -423,8 +487,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
 
             {/* Input Area */}
-            <div className={`p-4 border-t ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                <div className={`rounded-2xl p-3 ${isDark ? 'bg-neutral-800' : 'bg-neutral-100'}`}>
+            <div className={`p-4 border-t ${isDark ? 'border-neutral-800 bg-[#121212]' : 'border-neutral-200 bg-white'}`}>
+                <div
+                    className={`rounded-2xl p-3 border ${
+                        isDark
+                            ? 'bg-neutral-900 border-neutral-800 focus-within:border-[#D8FF00]/45 focus-within:shadow-[0_0_18px_rgba(216,255,0,0.08)]'
+                            : 'bg-neutral-50 border-neutral-200 focus-within:border-lime-400 focus-within:shadow-[0_8px_22px_rgba(132,204,22,0.10)]'
+                    }`}
+                >
                     {/* Attached Media Preview */}
                     {attachedMedia.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -434,14 +504,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         <img
                                             src={media.url}
                                             alt="Attached"
-                                            className="w-14 h-14 object-cover rounded-lg"
+                                            className={`w-14 h-14 object-cover rounded-lg border ${isDark ? 'border-neutral-700' : 'border-neutral-200'}`}
                                         />
                                     ) : (
                                         <video
                                             src={media.url}
-                                            className="w-14 h-14 object-cover rounded-lg"
+                                            className={`w-14 h-14 object-cover rounded-lg border ${isDark ? 'border-neutral-700' : 'border-neutral-200'}`}
                                         />
                                     )}
+
                                     <button
                                         onClick={() => removeAttachment(media.nodeId)}
                                         className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center text-white text-[10px]"
@@ -458,13 +529,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Start your journey of inspiration"
-                        className={`w-full bg-transparent text-sm outline-none mb-3 resize-none min-h-[24px] max-h-[120px] ${isDark ? 'text-white placeholder:text-neutral-500' : 'text-neutral-900 placeholder:text-neutral-400'}`}
+                        className={`w-full bg-transparent text-sm outline-none mb-3 resize-none min-h-[24px] max-h-[120px] ${
+                            isDark
+                                ? 'text-white placeholder:text-neutral-500'
+                                : 'text-neutral-900 placeholder:text-neutral-400'
+                        }`}
                         rows={1}
                         style={{ scrollbarWidth: 'none' }}
                         disabled={isLoading}
                         onInput={(e) => {
                             const target = e.target as HTMLTextAreaElement;
                             target.style.height = 'auto';
+
                             const newHeight = Math.min(target.scrollHeight, 120);
                             target.style.height = newHeight + 'px';
                             target.style.overflowY = target.scrollHeight > 120 ? 'auto' : 'hidden';
@@ -476,26 +552,33 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             }
                         }}
                     />
+
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <button className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-700 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-500'}`}>
+                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
                                 <Paperclip size={16} />
                             </button>
                         </div>
+
                         <div className="flex items-center gap-2">
-                            <button className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-700 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-500'}`}>
+                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
                                 <Globe size={16} />
                             </button>
-                            <button className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-neutral-700 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-500'}`}>
+
+                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
                                 <Settings size={16} />
                             </button>
+
                             <button
                                 onClick={handleSend}
-                                disabled={isLoading || (!message.trim() && !attachedMedia)}
-                                className={`p-2 rounded-full transition-colors text-white ${isLoading || (!message.trim() && !attachedMedia)
-                                    ? 'bg-neutral-600 cursor-not-allowed'
-                                    : 'bg-cyan-500 hover:bg-cyan-400'
-                                    }`}
+                                disabled={isSendDisabled}
+                                className={`p-2 rounded-full transition-colors ${
+                                    isSendDisabled
+                                        ? isDark
+                                            ? 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
+                                            : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                                        : accentButton
+                                }`}
                             >
                                 {isLoading ? (
                                     <Loader2 size={14} className="animate-spin" />
@@ -507,7 +590,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 
@@ -515,9 +598,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 // CHAT BUBBLE
 // ============================================================================
 
-/**
- * ChatBubble - Floating button to open chat
- */
 interface ChatBubbleProps {
     onClick: () => void;
     isOpen: boolean;
@@ -535,6 +615,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen }) => {
             }}
         >
             <Sparkles size={22} className="text-black" />
+
             <style>{`
                 @keyframes breathing {
                     0%, 100% {
