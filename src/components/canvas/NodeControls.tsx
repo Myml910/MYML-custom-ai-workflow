@@ -565,6 +565,38 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
     // Theme helper
     const isDark = canvasTheme === 'dark';
+    const selectorButtonClass = isDark
+        ? 'flex items-center gap-1.5 text-xs font-medium bg-[#1a1a1a] border border-neutral-800 text-neutral-200 hover:border-[#D8FF00]/50 hover:text-[#D8FF00] px-2.5 py-1.5 rounded-lg transition-all duration-200'
+        : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-all duration-200';
+    const dropdownClass = isDark
+        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150'
+        : 'bg-white border-neutral-200 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150';
+    const dropdownHeaderClass = isDark
+        ? 'bg-[#0f0f0f] text-neutral-400 border-neutral-800'
+        : 'bg-neutral-50 text-neutral-500 border-neutral-200';
+    const dropdownSectionHeaderClass = isDark
+        ? 'bg-[#0f0f0f] text-neutral-500 border-neutral-800'
+        : 'bg-neutral-50 text-neutral-500 border-neutral-200';
+    const dropdownItemClass = (active: boolean) => {
+        if (active) {
+            return isDark
+                ? 'text-[#D8FF00] bg-[#D8FF00]/5'
+                : 'text-lime-600 bg-lime-50';
+        }
+
+        return isDark
+            ? 'text-neutral-300 hover:bg-neutral-800'
+            : 'text-neutral-700 hover:bg-neutral-100';
+    };
+    const generateButtonClass = (blocked: boolean) => {
+        if (blocked) {
+            return 'bg-neutral-700/50 opacity-50 cursor-not-allowed text-neutral-500';
+        }
+
+        return isDark
+            ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black active:scale-[0.98]'
+            : 'bg-lime-600 hover:bg-lime-500 text-white active:scale-[0.98]';
+    };
 
     const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
         rotation: settings?.rotation ?? 0,
@@ -683,7 +715,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={modelDropdownRef}>
                                 <button
                                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     <HardDrive size={12} className="text-purple-400" />
                                     <span className="font-medium">{selectedLocalModel?.name || 'Select Model'}</span>
@@ -692,9 +724,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                                 {/* Local Model Dropdown Menu */}
                                 {showModelDropdown && (
-                                    <div className="absolute top-full mt-1 left-0 w-56 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 max-h-64 overflow-y-auto">
+                                    <div className={`absolute top-full mt-1 left-0 w-56 ${dropdownClass} max-h-64 overflow-y-auto`}>
                                         {/* Header */}
-                                        <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider bg-[#1a1a1a] border-b border-neutral-700 flex items-center gap-1.5">
+                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <HardDrive size={10} />
                                             Local Models
                                         </div>
@@ -711,7 +743,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 <button
                                                     key={model.id}
                                                     onClick={() => handleLocalModelChange(model)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${data.localModelId === model.id ? 'text-purple-400' : 'text-neutral-300'}`}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(data.localModelId === model.id)}`}
                                                 >
                                                     <span className="flex flex-col items-start gap-0.5">
                                                         <span className="flex items-center gap-2">
@@ -734,7 +766,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={modelDropdownRef}>
                                 <button
                                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     {currentVideoModel.id === 'veo-3.1' ? (
                                         <GoogleIcon size={12} className="text-white" />
@@ -749,9 +781,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                                 {/* Model Dropdown Menu */}
                                 {showModelDropdown && (
-                                    <div className="absolute top-full mt-1 left-0 w-52 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className={`absolute top-full mt-1 left-0 w-52 ${dropdownClass}`}>
                                         {/* Mode indicator */}
-                                        <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider bg-[#1a1a1a] border-b border-neutral-700 flex items-center gap-1.5">
+                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${videoGenerationMode === 'text-to-video' ? 'bg-blue-400' :
                                                 videoGenerationMode === 'image-to-video' ? 'bg-green-400' :
                                                     videoGenerationMode === 'motion-control' ? 'bg-orange-400' : 'bg-purple-400'
@@ -764,15 +796,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Google Models */}
                                         {availableVideoModels.filter(m => m.provider === 'google').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                                     Google
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'google').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentVideoModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             {model.id === 'veo-3.1' ? (
@@ -791,15 +822,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Kling Models */}
                                         {availableVideoModels.filter(m => m.provider === 'kling').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f] border-t border-neutral-700">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
                                                     Kling AI
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'kling').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentVideoModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             <KlingIcon size={14} />
@@ -817,15 +847,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Hailuo Models */}
                                         {availableVideoModels.filter(m => m.provider === 'hailuo').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f] border-t border-neutral-700">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
                                                     Hailuo AI
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'hailuo').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentVideoModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             <HailuoIcon size={14} />
@@ -843,7 +872,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={modelDropdownRef}>
                                 <button
                                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     {currentImageModel.id === 'google-veo' ? ( // Keeping consistency if there was one, but mainly checking provider
                                         <GoogleIcon size={12} className="text-white" />
@@ -862,9 +891,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                                 {/* Image Model Dropdown Menu */}
                                 {showModelDropdown && (
-                                    <div className="absolute top-full mt-1 left-0 w-48 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className={`absolute top-full mt-1 left-0 w-48 ${dropdownClass}`}>
                                         {/* Mode indicator */}
-                                        <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider bg-[#1a1a1a] border-b border-neutral-700 flex items-center gap-1.5">
+                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${imageGenerationMode === 'text-to-image' ? 'bg-blue-400' :
                                                 imageGenerationMode === 'image-to-image' ? 'bg-green-400' : 'bg-purple-400'
                                                 }`} />
@@ -875,15 +904,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* OpenAI Models */}
                                         {availableImageModels.filter(m => m.provider === 'openai').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                                     OpenAI
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'openai').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentImageModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             <OpenAIIcon size={12} className="text-green-400" />
@@ -900,15 +928,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Google Models */}
                                         {availableImageModels.filter(m => m.provider === 'google').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f] border-t border-neutral-700">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
                                                     Google
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'google').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentImageModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             {model.id === 'gemini-pro' ? (
@@ -927,15 +954,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Kling Models */}
                                         {availableImageModels.filter(m => m.provider === 'kling').length > 0 && (
                                             <>
-                                                <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f] border-t border-neutral-700">
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
                                                     Kling AI
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'kling').map(model => (
                                                     <button
                                                         key={model.id}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentImageModel.id === model.id ? 'text-blue-400' : 'text-neutral-300'
-                                                            }`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             <KlingIcon size={14} />
@@ -961,7 +987,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={dropdownRef}>
                                 <button
                                     onClick={() => setShowSizeDropdown(!showSizeDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     {isVideoNode && <Monitor size={12} className="text-green-400" />}
                                     {!isVideoNode && <Crop size={12} className="text-blue-400" />}
@@ -971,18 +997,17 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {/* Dropdown Menu */}
                                 {showSizeDropdown && (
                                     <div
-                                        className="absolute bottom-full mb-2 right-0 w-32 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-60 overflow-y-auto"
+                                        className={`absolute bottom-full mb-2 right-0 w-32 ${dropdownClass} flex flex-col max-h-60 overflow-y-auto`}
                                         onWheel={(e) => e.stopPropagation()}
                                     >
-                                        <div className="px-3 py-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                             {isVideoNode ? 'Resolution' : 'Aspect Ratio'}
                                         </div>
                                         {sizeOptions.map(option => (
                                             <button
                                                 key={option}
                                                 onClick={() => handleSizeSelect(option)}
-                                                className={`flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentSizeLabel === option ? 'text-blue-400' : 'text-neutral-300'
-                                                    }`}
+                                                className={`flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentSizeLabel === option)}`}
                                             >
                                                 <span>{option}</span>
                                                 {currentSizeLabel === option && <Check size={12} />}
@@ -998,7 +1023,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={resolutionDropdownRef}>
                                 <button
                                     onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     <Monitor size={12} className="text-green-400" />
                                     {data.resolution || 'Auto'}
@@ -1007,17 +1032,17 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {/* Dropdown Menu */}
                                 {showResolutionDropdown && (
                                     <div
-                                        className="absolute bottom-full mb-2 right-0 w-24 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                                        className={`absolute bottom-full mb-2 right-0 w-24 ${dropdownClass}`}
                                         onWheel={(e) => e.stopPropagation()}
                                     >
-                                        <div className="px-3 py-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                             Quality
                                         </div>
                                         {(currentImageModel as any).resolutions.map((res: string) => (
                                             <button
                                                 key={res}
                                                 onClick={() => handleResolutionSelect(res)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${(data.resolution || 'Auto') === res ? 'text-blue-400' : 'text-neutral-300'}`}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass((data.resolution || 'Auto') === res)}`}
                                             >
                                                 <span>{res}</span>
                                                 {(data.resolution || 'Auto') === res && <Check size={12} />}
@@ -1033,7 +1058,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={aspectRatioDropdownRef}>
                                 <button
                                     onClick={() => setShowAspectRatioDropdown(!showAspectRatioDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     <Film size={12} className="text-purple-400" />
                                     {data.aspectRatio || '16:9'}
@@ -1041,15 +1066,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                                 {/* Aspect Ratio Dropdown Menu */}
                                 {showAspectRatioDropdown && (
-                                    <div className="absolute bottom-full mb-2 right-0 w-28 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
-                                        <div className="px-3 py-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                    <div className={`absolute bottom-full mb-2 right-0 w-28 ${dropdownClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                             Size
                                         </div>
                                         {(currentVideoModel?.aspectRatios || VIDEO_ASPECT_RATIOS).map((option: string) => (
                                             <button
                                                 key={option}
                                                 onClick={() => handleAspectRatioSelect(option)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${data.aspectRatio === option ? 'text-blue-400' : 'text-neutral-300'}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(data.aspectRatio === option)}`}
                                             >
                                                 <span>{option}</span>
                                                 {data.aspectRatio === option && <Check size={12} />}
@@ -1065,7 +1090,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div className="relative" ref={durationDropdownRef}>
                                 <button
                                     onClick={() => setShowDurationDropdown(!showDurationDropdown)}
-                                    className="flex items-center gap-1.5 text-xs font-medium bg-[#252525] hover:bg-[#333] border border-neutral-700 text-white px-2.5 py-1.5 rounded-lg transition-colors"
+                                    className={selectorButtonClass}
                                 >
                                     <Clock size={12} className="text-cyan-400" />
                                     {currentDuration}s
@@ -1073,15 +1098,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                                 {/* Duration Dropdown Menu */}
                                 {showDurationDropdown && (
-                                    <div className="absolute bottom-full mb-2 right-0 w-24 bg-[#252525] border border-neutral-700 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
-                                        <div className="px-3 py-2 text-[10px] font-bold text-neutral-500 uppercase tracking-wider bg-[#1f1f1f]">
+                                    <div className={`absolute bottom-full mb-2 right-0 w-24 ${dropdownClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
                                             Duration
                                         </div>
                                         {availableDurations.map((dur: number) => (
                                             <button
                                                 key={dur}
                                                 onClick={() => handleDurationChange(dur)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[#333] transition-colors ${currentDuration === dur ? 'text-blue-400' : 'text-neutral-300'}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentDuration === dur)}`}
                                             >
                                                 <span>{dur}s</span>
                                                 {currentDuration === dur && <Check size={12} />}
@@ -1111,12 +1136,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         onGenerate(data.id);
                                     }}
                                     disabled={isFaceModeBlocked}
-                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${isFaceModeBlocked
-                                        ? 'bg-neutral-700/50 cursor-not-allowed opacity-50'
-                                        : isDark
-                                            ? 'bg-white text-neutral-900 hover:bg-neutral-100 active:scale-95'
-                                            : 'bg-neutral-900 text-white hover:bg-neutral-800 active:scale-95'
-                                        }`}
+                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${generateButtonClass(isFaceModeBlocked)}`}
                                     title={isFaceModeBlocked ? 'Cannot generate: No face detected in reference image' : 'Generate'}
                                 >
                                     <svg
