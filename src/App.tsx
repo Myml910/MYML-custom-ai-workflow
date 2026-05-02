@@ -947,7 +947,7 @@ export default function App() {
   // Context menu handlers provided by useContextMenuHandlers hook
   // handleDoubleClick, handleGlobalContextMenu, handleAddNext, handleNodeContextMenu,
   // handleContextMenuCreateAsset, handleContextMenuSelect, handleToolbarAdd
-
+  const showZoomControl = false;
 
   return (
     <div className={`w-screen h-screen ${canvasTheme === 'dark' ? 'bg-[#030303] text-white' : 'bg-neutral-50 text-neutral-900'} overflow-hidden select-none font-sans transition-colors duration-300`}>
@@ -1317,7 +1317,7 @@ export default function App() {
 
       {/* Zoom Slider */}
       {/* Zoom Slider */}
-      {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
+      {showZoomControl && !storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
         <div className={`fixed bottom-6 left-16 rounded-full px-4 py-2 flex items-center gap-3 z-50 transition-all duration-200 ${canvasTheme === 'dark' ? 'bg-black/85 border border-[#D8FF00]/20 shadow-[0_0_18px_rgba(216,255,0,0.08)]' : 'bg-white/90 backdrop-blur-sm border border-neutral-200'}`} >
           <span className={`text-xs font-black tracking-[0.12em] uppercase ${canvasTheme === 'dark' ? 'text-[#D8FF00]' : 'text-neutral-500'}`}>{t(language, 'zoom')}</span>
           <input

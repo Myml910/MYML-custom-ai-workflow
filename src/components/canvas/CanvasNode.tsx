@@ -114,6 +114,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const angleActiveButtonClass = isDark
     ? 'bg-[#D8FF00] text-black'
     : 'bg-lime-600 text-white';
+  const dragHandleClass = `p-1.5 rounded-full border cursor-grab active:cursor-grabbing transition-all duration-200 ease-out active:scale-[0.98] ${
+    isDark
+      ? 'bg-[#D8FF00]/12 text-[#D8FF00] border-[#D8FF00]/25 hover:bg-[#D8FF00] hover:text-black'
+      : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
+  }`;
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -436,7 +441,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     onDragStart?.(data.id, true);
                   }}
                   onDragEnd={() => onDragEnd?.()}
-                  className="p-1.5 bg-cyan-500/80 hover:bg-cyan-400 rounded-full text-white cursor-grab active:cursor-grabbing"
+                  className={dragHandleClass}
                   title="Drag to chat"
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -798,7 +803,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onDragStart?.(data.id, true);
                 }}
                 onDragEnd={() => onDragEnd?.()}
-                className="p-1.5 bg-cyan-500/80 hover:bg-cyan-400 rounded-full text-white cursor-grab active:cursor-grabbing"
+                className={dragHandleClass}
                 title="Drag to chat"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -917,7 +922,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onDragStart?.(data.id, true);
                 }}
                 onDragEnd={() => onDragEnd?.()}
-                className="p-1.5 bg-cyan-500/80 hover:bg-cyan-400 rounded-full text-white cursor-grab active:cursor-grabbing"
+                className={dragHandleClass}
                 title="Drag to chat"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
