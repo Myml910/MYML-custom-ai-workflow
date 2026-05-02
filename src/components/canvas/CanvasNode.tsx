@@ -245,8 +245,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           } ${
             selected
               ? isDark
-                ? 'ring-2 ring-[#D8FF00] shadow-[0_0_22px_rgba(216,255,0,0.18)]'
-                : 'ring-2 ring-lime-500 shadow-[0_0_16px_rgba(132,204,22,0.16)]'
+                ? 'ring-2 ring-[#D8FF00] shadow-[0_0_14px_rgba(216,255,0,0.12)]'
+                : 'ring-2 ring-lime-500 shadow-[0_0_12px_rgba(132,204,22,0.12)]'
               : ''
           }`}
           style={{
@@ -277,8 +277,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 className={`rounded-xl w-full h-full object-cover ${
                   selected
                     ? isDark
-                      ? 'ring-2 ring-[#D8FF00] shadow-[0_0_22px_rgba(216,255,0,0.18)]'
-                      : 'ring-2 ring-lime-500 shadow-2xl'
+                      ? 'ring-2 ring-[#D8FF00] shadow-[0_0_14px_rgba(216,255,0,0.12)]'
+                      : 'ring-2 ring-lime-500 shadow-[0_0_12px_rgba(132,204,22,0.12)]'
                     : ''
                 }`}
                 style={{ maxHeight: '500px' }}
@@ -317,13 +317,15 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
             <div
-              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 group-hover/nodecard:opacity-100 transition-opacity z-20"
-              style={{
-                transform: `scale(${localScale})`,
-                transformOrigin: 'bottom center'
-              }}
+              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
             >
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+              <div
+                style={{
+                  transform: `scale(${localScale})`,
+                  transformOrigin: 'bottom center'
+                }}
+              >
+                <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
                 {/* Change Angle Button - Re-enable tweaking */}
                 <button
                   onClick={() => onUpdate(data.id, {
@@ -445,6 +447,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     <circle cx="15" cy="12" r="1" fill="currentColor" />
                     <circle cx="15" cy="19" r="1" fill="currentColor" />
                   </svg>
+                </div>
                 </div>
               </div>
             </div>
@@ -627,13 +630,15 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 group-hover/nodecard:opacity-100 transition-opacity z-20"
-            style={{
-              transform: `scale(${localScale})`,
-              transformOrigin: 'bottom center'
-            }}
+            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
           >
-            <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+            <div
+              style={{
+                transform: `scale(${localScale})`,
+                transformOrigin: 'bottom center'
+              }}
+            >
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
               {/* Change Angle and Upload buttons - Hidden for storyboard-generated scenes */}
               {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <>
@@ -805,6 +810,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <circle cx="15" cy="19" r="1" fill="currentColor" />
                 </svg>
               </div>
+              </div>
             </div>
           </div>
         )}
@@ -812,13 +818,15 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Video Toolbar - Appears above the card for Video nodes on hover */}
         {data.type === NodeType.VIDEO && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 group-hover/nodecard:opacity-100 transition-opacity z-20"
-            style={{
-              transform: `scale(${localScale})`,
-              transformOrigin: 'bottom center'
-            }}
+            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-1 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-150 ease-out z-20"
           >
-            <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+            <div
+              style={{
+                transform: `scale(${localScale})`,
+                transformOrigin: 'bottom center'
+              }}
+            >
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
               {/* Expand Button */}
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
@@ -920,6 +928,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <circle cx="15" cy="12" r="1" fill="currentColor" />
                   <circle cx="15" cy="19" r="1" fill="currentColor" />
                 </svg>
+              </div>
               </div>
             </div>
           </div>

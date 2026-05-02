@@ -125,7 +125,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-48 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${
+        className={`w-48 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
           isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
         }`}
       >
@@ -194,7 +194,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div
         ref={menuRef}
         style={{ position: 'absolute', left: state.x, top: state.y, zIndex: 1000 }}
-        className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${
+        className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
           isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
         }`}
       >
@@ -286,7 +286,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         top: state.y,
         zIndex: 1000
       }}
-      className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${
+      className={`w-64 border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out ${
         isDark ? 'bg-[#1e1e1e] border-neutral-800' : 'bg-white border-neutral-200'
       }`}
     >
@@ -418,7 +418,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`group flex items-center gap-3 w-full p-2 rounded-lg text-left transition-colors ${
+      className={`group flex items-center gap-3 w-full p-2 rounded-lg text-left transition-all duration-150 ease-out ${
         disabled
           ? isDark
             ? 'opacity-30 cursor-not-allowed'
@@ -433,7 +433,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
       }`}
     >
       <div
-        className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
+        className={`flex items-center justify-center w-8 h-8 rounded-md transition-all duration-150 ease-out ${
           disabled
             ? 'bg-transparent'
             : active
