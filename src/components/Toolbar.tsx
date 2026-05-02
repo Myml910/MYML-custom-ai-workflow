@@ -93,10 +93,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       }`}
     >
       <button
-        className={`w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-all duration-150 mb-2 border ${
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 active:scale-[0.98] mb-2 border ${
           isDark
-            ? 'bg-[#D8FF00] text-black border-[#D8FF00] hover:bg-[#D8FF00] hover:text-black hover:shadow-[0_0_18px_rgba(216,255,0,0.65)]'
-            : 'bg-neutral-900 text-white hover:bg-neutral-700 border-neutral-900'
+            ? 'bg-[#D8FF00] text-black border-[#D8FF00] hover:bg-[#e4ff3a] hover:shadow-[0_0_16px_rgba(216,255,0,0.22)]'
+            : 'bg-lime-600 text-white hover:bg-lime-500 border-lime-600'
         }`}
         onClick={onAddClick}
         title={t(language, 'addNodes')}
@@ -106,8 +106,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="flex flex-col gap-4 py-2 px-1">
         <button
-          className={`hover:scale-125 transition-all duration-150 ${
-            isDark ? 'text-neutral-500 hover:text-[#D8FF00]' : 'text-neutral-500 hover:text-neutral-900'
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+            isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onWorkflowsClick}
           title={t(language, 'myWorkflows')}
@@ -116,8 +116,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </button>
 
         <button
-          className={`hover:scale-125 transition-all duration-150 ${
-            isDark ? 'text-neutral-500 hover:text-[#D8FF00]' : 'text-neutral-500 hover:text-neutral-900'
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+            isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           title={t(language, 'assets')}
           onClick={onAssetsClick}
@@ -126,8 +126,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </button>
 
         <button
-          className={`hover:scale-125 transition-all duration-150 ${
-            isDark ? 'text-neutral-500 hover:text-[#D8FF00]' : 'text-neutral-500 hover:text-neutral-900'
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+            isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onHistoryClick}
           title={t(language, 'history')}
@@ -138,10 +138,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         {/* Tools Dropdown */}
         <div className="relative" ref={toolsRef}>
           <button
-            className={`hover:scale-125 transition-all duration-150 ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
               isDark
-                ? `text-neutral-500 hover:text-[#D8FF00] ${isToolsOpen ? 'text-[#D8FF00]' : ''}`
-                : `text-neutral-500 hover:text-neutral-900 ${isToolsOpen ? 'text-neutral-900' : ''}`
+                ? `text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00] ${isToolsOpen ? 'text-[#D8FF00] bg-neutral-900' : ''}`
+                : `text-neutral-500 hover:bg-neutral-100 hover:text-lime-600 ${isToolsOpen ? 'text-lime-600 bg-neutral-100' : ''}`
             }`}
             onClick={() => {
               if (!isToolsOpen) {
@@ -157,24 +157,24 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           {/* Dropdown Menu */}
           {isToolsOpen && (
             <div
-              className={`absolute left-10 top-0 rounded-xl shadow-2xl py-2 min-w-[240px] z-50 ${
+              className={`absolute left-10 top-0 rounded-xl shadow-2xl py-2 min-w-[240px] z-50 animate-in fade-in zoom-in-95 duration-150 border ${
                 isDark
-                  ? 'bg-[#0A0A0A] border border-[#D8FF00]/20'
-                  : 'bg-white border border-neutral-200'
+                  ? 'bg-[#1a1a1a] border-neutral-800'
+                  : 'bg-white border-neutral-200'
               }`}
             >
               <button
                 onClick={handleToolClick(onTikTokClick)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors group ${
-                  isDark ? 'hover:bg-[#D8FF00]/10' : 'hover:bg-neutral-100'
+                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group ${
+                  isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-100'
                 }`}
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    isDark ? 'bg-black border border-[#D8FF00]/20' : 'bg-neutral-200'
+                    isDark ? 'bg-black border border-neutral-800 group-hover:border-[#D8FF00]/35' : 'bg-neutral-200'
                   }`}
                 >
-                  <TikTokIcon size={16} className={isDark ? 'text-[#D8FF00]' : 'text-neutral-700'} />
+                  <TikTokIcon size={16} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                 </div>
 
                 <div className="text-left">
@@ -182,7 +182,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     className={`text-sm font-semibold ${
                       isDark
                         ? 'text-neutral-200 group-hover:text-[#D8FF00]'
-                        : 'text-neutral-700 group-hover:text-neutral-900'
+                        : 'text-neutral-700 group-hover:text-lime-600'
                     }`}
                   >
                     {t(language, 'importTikTok')}
@@ -197,16 +197,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               {/* Storyboard Generator */}
               <button
                 onClick={handleToolClick(onStoryboardClick)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors group ${
-                  isDark ? 'hover:bg-[#D8FF00]/10' : 'hover:bg-neutral-100'
+                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group ${
+                  isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-100'
                 }`}
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    isDark ? 'bg-black border border-[#D8FF00]/20' : 'bg-neutral-200'
+                    isDark ? 'bg-black border border-neutral-800 group-hover:border-[#D8FF00]/35' : 'bg-neutral-200'
                   }`}
                 >
-                  <Film size={16} className={isDark ? 'text-[#D8FF00]' : 'text-neutral-700'} />
+                  <Film size={16} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                 </div>
 
                 <div className="text-left">
@@ -214,7 +214,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     className={`text-sm font-semibold ${
                       isDark
                         ? 'text-neutral-200 group-hover:text-[#D8FF00]'
-                        : 'text-neutral-700 group-hover:text-neutral-900'
+                        : 'text-neutral-700 group-hover:text-lime-600'
                     }`}
                   >
                     {t(language, 'storyboardGenerator')}
@@ -233,10 +233,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className={`w-8 h-[1px] my-1 ${isDark ? 'bg-[#D8FF00]/15' : 'bg-neutral-200'}`} />
 
       <button
-        className={`w-8 h-8 rounded-full overflow-hidden mb-2 hover:scale-110 transition-all duration-150 ${
+        className={`w-8 h-8 rounded-full overflow-hidden mb-2 transition-all duration-200 ${
           isDark
             ? 'border border-[#D8FF00]/25 hover:border-[#D8FF00]/60'
-            : 'border border-neutral-300'
+            : 'border border-neutral-300 hover:border-lime-500/60'
         }`}
       >
         <img src="https://picsum.photos/40/40" alt="Profile" className="w-full h-full object-cover" />

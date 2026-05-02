@@ -135,10 +135,10 @@ export const TopBar: React.FC<TopBarProps> = ({
                         />
                     ) : (
                         <span
-                            className={`text-sm font-black tracking-[0.16em] uppercase cursor-pointer transition-all duration-150 origin-left ${
+                            className={`text-sm font-black tracking-[0.16em] uppercase cursor-text transition-all duration-200 border-b border-transparent ${
                                 canvasTheme === 'dark'
-                                    ? 'text-[#D8FF00] hover:text-[#D8FF00] hover:scale-105 hover:drop-shadow-[0_0_10px_rgba(216,255,0,0.65)]'
-                                    : 'text-black hover:text-[#D8FF00] hover:scale-105'
+                                    ? 'text-[#D8FF00] hover:border-[#D8FF00]/45'
+                                    : 'text-black hover:text-lime-600 hover:border-lime-500/45'
                             }`}
                             onDoubleClick={handleTitleDoubleClick}
                             title={t(language, 'doubleClickToRename')}
@@ -169,10 +169,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={() => onSave()}
-                        className={`text-sm px-5 py-2.5 rounded-full flex items-center gap-2 hover:scale-105 transition-all duration-150 font-black tracking-[0.08em] uppercase border ${
+                        className={`text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 active:scale-[0.98] font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
-                                ? 'bg-[#D8FF00] hover:bg-[#D8FF00] text-black border-[#D8FF00] hover:shadow-[0_0_18px_rgba(216,255,0,0.65)]'
-                                : 'bg-black hover:bg-neutral-900 text-[#D8FF00] border-black shadow-sm'
+                                ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black border-[#D8FF00] hover:shadow-[0_0_16px_rgba(216,255,0,0.22)]'
+                                : 'bg-lime-600 hover:bg-lime-500 text-white border-lime-600 shadow-sm'
                         }`}
                     >
                         <Save size={16} />
@@ -181,10 +181,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={handleNewClick}
-                        className={`text-sm px-4 py-2.5 rounded-full flex items-center gap-2 transition-colors duration-150 font-black tracking-[0.08em] uppercase border ${
+                        className={`text-sm px-4 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
-                                ? 'bg-black/70 hover:bg-[#D8FF00] text-[#D8FF00] hover:text-black border-[#D8FF00]/40'
-                                : 'bg-neutral-100 hover:bg-black text-neutral-900 hover:text-[#D8FF00] border-neutral-300'
+                                ? 'bg-black/70 hover:bg-neutral-900 text-neutral-300 hover:text-[#D8FF00] border-neutral-800 hover:border-[#D8FF00]/45'
+                                : 'bg-white hover:bg-neutral-100 text-neutral-700 hover:text-lime-600 border-neutral-200 hover:border-lime-500'
                         }`}
                     >
                         <Plus size={16} />
@@ -193,10 +193,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={onToggleLanguage}
-                        className={`h-10 px-3 rounded-full flex items-center justify-center transition-all duration-150 border text-xs font-black tracking-[0.1em] uppercase hover:scale-105 ${
+                        className={`h-10 px-3 rounded-full flex items-center justify-center transition-all duration-200 border text-xs font-black tracking-[0.1em] uppercase ${
                             canvasTheme === 'dark'
-                                ? 'bg-black/70 border-[#D8FF00]/40 text-[#D8FF00] hover:bg-[#D8FF00] hover:text-black hover:shadow-[0_0_14px_rgba(216,255,0,0.45)]'
-                                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-black hover:text-[#D8FF00] shadow-sm'
+                                ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
+                                : 'bg-white border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 shadow-sm'
                         }`}
                         title={t(language, 'language')}
                     >
@@ -205,10 +205,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={onToggleTheme}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-150 border ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 border ${
                             canvasTheme === 'dark'
-                                ? 'bg-black/70 border-[#D8FF00]/40 text-[#D8FF00] hover:bg-[#D8FF00] hover:text-black'
-                                : 'bg-white border-neutral-200 text-orange-500 hover:bg-black hover:text-[#D8FF00] shadow-sm'
+                                ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
+                                : 'bg-white border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 shadow-sm'
                         }`}
                         title={
                             canvasTheme === 'dark'

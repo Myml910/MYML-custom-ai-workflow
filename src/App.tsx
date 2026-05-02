@@ -1318,7 +1318,7 @@ export default function App() {
       {/* Zoom Slider */}
       {/* Zoom Slider */}
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
-        <div className={`fixed bottom-6 left-16 rounded-full px-4 py-2 flex items-center gap-3 z-50 transition-colors duration-300 ${canvasTheme === 'dark' ? 'bg-black/85 border border-[#D8FF00]/20 shadow-[0_0_18px_rgba(216,255,0,0.08)]' : 'bg-white/90 backdrop-blur-sm border border-neutral-200'}`} >
+        <div className={`fixed bottom-6 left-16 rounded-full px-4 py-2 flex items-center gap-3 z-50 transition-all duration-200 ${canvasTheme === 'dark' ? 'bg-black/85 border border-[#D8FF00]/20 shadow-[0_0_18px_rgba(216,255,0,0.08)]' : 'bg-white/90 backdrop-blur-sm border border-neutral-200'}`} >
           <span className={`text-xs font-black tracking-[0.12em] uppercase ${canvasTheme === 'dark' ? 'text-[#D8FF00]' : 'text-neutral-500'}`}>{t(language, 'zoom')}</span>
           <input
             type="range"
@@ -1327,7 +1327,7 @@ export default function App() {
             step="0.1"
             value={viewport.zoom}
             onChange={handleSliderZoom}
-            className="w-36 accent-[#D8FF00]"
+            className={`w-36 ${canvasTheme === 'dark' ? 'accent-[#D8FF00]' : 'accent-lime-600'}`}
           />
           <span className={`text-xs font-bold w-10 ${canvasTheme === 'dark' ? 'text-[#D8FF00]' : 'text-neutral-600'}`}>{Math.round(viewport.zoom * 100)}%</span>
         </div>
