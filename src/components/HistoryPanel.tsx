@@ -211,7 +211,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
         <>
             {/* Main Panel */}
             <div
-                className={`fixed backdrop-blur-xl border rounded-2xl shadow-2xl z-40 flex flex-col overflow-hidden transition-all duration-300 ${
+                className={`fixed backdrop-blur-xl border rounded-2xl shadow-2xl z-40 flex flex-col overflow-hidden motion-panel-in transition-all duration-300 ${
                     isExpanded
                         ? 'left-24 right-24 top-20 bottom-20 max-h-none'
                         : 'left-20 w-[700px] max-h-[500px]'
@@ -260,7 +260,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
                     <button
                         onClick={() => setIsExpanded(prev => !prev)}
-                        className={`p-2 rounded-lg transition-all duration-150 ${
+                        className={`p-2 rounded-lg transition-all duration-150 motion-press ${
                             isDark
                                 ? 'text-neutral-500 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'

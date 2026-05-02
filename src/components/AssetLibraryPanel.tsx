@@ -113,7 +113,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
                         <button
                             onClick={onClose}
-                            className={`p-2 rounded-lg transition-all duration-200 ${
+                            className={`p-2 rounded-lg transition-all duration-200 motion-press ${
                                 isDark
                                     ? 'hover:bg-[#D8FF00]/10 text-neutral-400 hover:text-[#D8FF00]'
                                     : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-600'
@@ -143,7 +143,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     return (
         <div
-            className={`fixed left-20 z-40 w-[700px] backdrop-blur-xl border rounded-2xl shadow-2xl flex flex-col max-h-[500px] overflow-hidden animate-in slide-in-from-left-4 duration-200 transition-colors ${
+            className={`fixed left-20 z-40 w-[700px] backdrop-blur-xl border rounded-2xl shadow-2xl flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-colors ${
                 isDark ? 'bg-[#0a0a0a]/95 border-neutral-800' : 'bg-white/95 border-neutral-200'
             }`}
             style={{ top: Math.min(window.innerHeight - 510, Math.max(20, panelY)) }}
@@ -217,7 +217,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border motion-press ${
                             selectedCategory === cat
                                 ? isDark
                                     ? 'bg-[#D8FF00] text-black border-[#D8FF00]'
