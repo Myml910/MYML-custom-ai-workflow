@@ -135,7 +135,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
 
                     {/* Regenerating Overlay - Shows when loading with existing content */}
                     {isLoading && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                        <div className="pointer-events-none absolute inset-0 z-[1] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                             <Loader2 size={40} className="animate-spin text-[#D8FF00]" />
                             <span className="mt-3 text-sm text-white font-medium">Regenerating...</span>
                         </div>

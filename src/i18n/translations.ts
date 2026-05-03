@@ -114,6 +114,8 @@ export const translations = {
     editStoryboard: 'Edit Storyboard',
     createVideos: 'Create Videos',
     newGroup: 'New Group',
+    refPrefix: 'Ref',
+    removeReference: 'Remove reference',
 
     // Language
     language: 'Language',
@@ -234,6 +236,8 @@ export const translations = {
     editStoryboard: '编辑分镜',
     createVideos: '创建视频',
     newGroup: '新分组',
+    refPrefix: '图',
+    removeReference: '移除参考图',
 
     // Language
     language: '语言',

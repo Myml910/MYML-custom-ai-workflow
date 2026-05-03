@@ -84,13 +84,19 @@ export async function generateCustomImage({
     // GPT Image 2 image editing uses /v1/images/edits.
     if (imageBase64) {
         const endpoint = `${baseUrl}/v1/images/edits`;
+        const images = Array.isArray(imageBase64) ? imageBase64 : [imageBase64];
+        const imageBase64Array = images.filter(Boolean).slice(0, 6);
 
         const form = new FormData();
         form.append('model', model);
         form.append('prompt', prompt);
 
-        const imageBlob = base64ToBlob(imageBase64);
-        form.append('image', imageBlob, 'input.png');
+        let appendedImageCount = 0;
+        imageBase64Array.forEach((base64, idx) => {
+            const imageBlob = base64ToBlob(base64);
+            form.append('image', imageBlob, `input_${idx + 1}.png`);
+            appendedImageCount += 1;
+        });
 
         const resolvedSize = resolution && resolution !== 'Auto' ? resolution : '2k';
         form.append('size', resolvedSize);
@@ -104,7 +110,9 @@ export async function generateCustomImage({
             model,
             prompt,
             hasImage: true,
-            imageBase64Length: imageBase64.length,
+            imageCount: imageBase64Array.length,
+            imageBase64Lengths: imageBase64Array.map(base64 => base64.length),
+            appendedImageCount,
             size: resolvedSize,
             aspect_ratio: aspectRatio && aspectRatio !== 'Auto' ? aspectRatio : undefined
         });

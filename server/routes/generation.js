@@ -16,6 +16,7 @@ import { generateCustomImage, generateCustomVideo } from '../services/customApi.
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 
 const router = express.Router();
+const MAX_IMAGE_REFERENCES = 6;
 
 // ============================================================================
 // IMAGE GENERATION
@@ -46,7 +47,7 @@ router.post('/generate-image', async (req, res) => {
 
             let resolvedImages = null;
             if (rawImageBase64) {
-                const rawImages = Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64];
+                const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
             }
 
@@ -55,7 +56,7 @@ router.post('/generate-image', async (req, res) => {
 
             imageBuffer = await generateCustomImage({
                 prompt,
-                imageBase64: resolvedImages && resolvedImages.length > 0 ? resolvedImages[0] : undefined,
+                imageBase64: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
                 aspectRatio,
                 resolution,
                 modelId: imageModel,
@@ -76,7 +77,7 @@ router.post('/generate-image', async (req, res) => {
             // Resolve images if provided
             let resolvedImages = null;
             if (rawImageBase64) {
-                const rawImages = Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64];
+                const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
             }
 
@@ -152,7 +153,7 @@ router.post('/generate-image', async (req, res) => {
             // Resolve images if provided
             let imageBase64Array = null;
             if (rawImageBase64) {
-                const rawImages = Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64];
+                const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
                 imageBase64Array = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
             }
 
@@ -172,7 +173,7 @@ router.post('/generate-image', async (req, res) => {
 
             let imageBase64Array = null;
             if (rawImageBase64) {
-                const rawImages = Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64];
+                const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
                 imageBase64Array = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
             }
 

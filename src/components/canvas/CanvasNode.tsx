@@ -1039,6 +1039,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               onSelect={onSelect}
               zoom={zoom}
               canvasTheme={canvasTheme}
+              language={language}
             />
           </div>
         )}

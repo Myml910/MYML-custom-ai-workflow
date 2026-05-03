@@ -183,6 +183,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
 
     const isGrouped = !!group;
     const showGroupButton = selectedNodes.length > 1 && !isGrouped;
+    const showResizeHandles = false;
 
     // Calculate scale factor for UI elements - clamp to prevent elements from getting too large
     // At zoom 1.0: scale = 1.0 (normal size)
@@ -214,8 +215,8 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                 }
             }}
         >
-            {/* Resize Handles */}
-            {[
+            {/* Resize Handles - hidden until group layout resize is implemented */}
+            {showResizeHandles && [
                 { pos: 'top-left', cursor: 'nw-resize', top: -4, left: -4 },
                 { pos: 'top', cursor: 'n-resize', top: -4, left: '50%', transform: 'translateX(-50%)' },
                 { pos: 'top-right', cursor: 'ne-resize', top: -4, right: -4 },

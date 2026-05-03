@@ -10,6 +10,8 @@ import { generateImage, generateVideo } from '../services/generationService';
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 
+const MAX_IMAGE_REFERENCES = 6;
+
 interface UseGenerationProps {
     nodes: NodeData[];
     updateNode: (id: string, updates: Partial<NodeData>) => void;
@@ -112,36 +114,26 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
 
         try {
             if (node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR) {
-                // Collect ALL parent images for multi-input generation
+                // Collect direct IMAGE parents only; keep this aligned with the reference strip UI.
                 const imageBase64s: string[] = [];
 
-                // Get images from all direct parents (excluding TEXT nodes)
                 if (node.parentIds && node.parentIds.length > 0) {
                     for (const parentId of node.parentIds) {
-                        let currentId: string | undefined = parentId;
+                        if (imageBase64s.length >= MAX_IMAGE_REFERENCES) {
+                            break;
+                        }
 
-                        // Traverse up the chain to find an image source (skip TEXT nodes)
-                        while (currentId && imageBase64s.length < 14) { // Gemini 3 Pro limit
-                            const parent = nodes.find(n => n.id === currentId);
-                            // Skip TEXT nodes - they provide prompts, not images
-                            if (parent?.type === NodeType.TEXT) {
-                                break;
-                            }
-                            if (parent?.resultUrl) {
-                                imageBase64s.push(parent.resultUrl);
-                                break; // Found image for this parent chain
-                            } else {
-                                // Continue up this chain
-                                currentId = parent?.parentIds?.[0];
-                            }
+                        const parent = nodes.find(n => n.id === parentId);
+                        if (parent?.type === NodeType.IMAGE && parent.resultUrl) {
+                            imageBase64s.push(parent.resultUrl);
                         }
                     }
                 }
 
-                // Add character reference URLs from storyboard nodes (for maintaining character consistency)
-                if (node.characterReferenceUrls && node.characterReferenceUrls.length > 0) {
+                // Storyboard-generated nodes can carry internal references without connected parent images.
+                if (imageBase64s.length === 0 && node.characterReferenceUrls && node.characterReferenceUrls.length > 0) {
                     for (const charUrl of node.characterReferenceUrls) {
-                        if (imageBase64s.length < 14) { // Respect Gemini's limit
+                        if (imageBase64s.length < MAX_IMAGE_REFERENCES) {
                             imageBase64s.push(charUrl);
                         }
                     }

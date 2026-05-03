@@ -7,12 +7,13 @@
  */
 
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { Sparkles, Banana, Settings2, Check, ChevronDown, ChevronUp, GripVertical, Image as ImageIcon, Film, Clock, Expand, Shrink, Monitor, Crop, HardDrive } from 'lucide-react';
+import { Sparkles, Banana, Settings2, Check, ChevronDown, ChevronUp, GripVertical, Image as ImageIcon, Film, Clock, Expand, Shrink, Monitor, Crop, HardDrive, X } from 'lucide-react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
 import { OpenAIIcon, GoogleIcon, KlingIcon, HailuoIcon } from '../icons/BrandIcons';
 import { useFaceDetection } from '../../hooks/useFaceDetection';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { LocalModel, getLocalModels } from '../../services/localModelService';
+import { Language, t } from '../../i18n/translations';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -26,11 +27,14 @@ interface NodeControlsProps {
     onSelect: (id: string) => void;
     zoom: number;
     canvasTheme?: 'dark' | 'light';
+    language?: Language;
 }
 
 const IMAGE_RATIOS = [
     "Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "5:4", "4:5", "21:9"
 ];
+
+const MAX_IMAGE_REFERENCES = 6;
 
 const VIDEO_RESOLUTIONS = [
     "Auto", "1080p", "768p", "720p", "512p"
@@ -183,7 +187,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     onChangeAngleGenerate,
     onSelect,
     zoom,
-    canvasTheme = 'dark'
+    canvasTheme = 'dark',
+    language = 'zh'
 }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -348,6 +353,12 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         }
     };
 
+    const handleRemoveImageReference = (referenceId: string) => {
+        onUpdate(data.id, {
+            parentIds: (data.parentIds || []).filter(id => id !== referenceId)
+        });
+    };
+
     const handleFrameReorder = (fromIndex: number, toIndex: number) => {
         if (fromIndex === toIndex || connectedImageNodes.length < 2) return;
 
@@ -378,6 +389,17 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const isVideoNode = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     const isImageNode = data.type === NodeType.IMAGE || data.type === NodeType.LOCAL_IMAGE_MODEL;
     const hasConnectedImages = connectedImageNodes.length > 0;
+    const orderedImageReferences = (data.type === NodeType.IMAGE || data.type === NodeType.IMAGE_EDITOR)
+        ? (data.parentIds || [])
+            .map(parentId => connectedImageNodes.find(node => node.id === parentId))
+            .filter((node): node is { id: string; url: string; type?: NodeType } => Boolean(node && node.type === NodeType.IMAGE && node.url))
+            .slice(0, MAX_IMAGE_REFERENCES)
+        : [];
+    const formatReferenceLabel = (index: number) => (
+        language === 'zh'
+            ? `${t(language, 'refPrefix')}${index + 1}`
+            : `${t(language, 'refPrefix')} ${index + 1}`
+    );
 
     // Video model selection logic
     const currentVideoModel = VIDEO_MODELS.find(m => m.id === data.videoModel) || VIDEO_MODELS[0];
@@ -651,6 +673,46 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {/* Prompt Textarea with Expand Button - Hidden for storyboard-generated scenes */}
             {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <div className="mb-3">
+                    {orderedImageReferences.length > 0 && (
+                        <div className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1">
+                            {orderedImageReferences.map((reference, index) => (
+                                <div
+                                    key={reference.id}
+                                    className={`group/ref relative h-10 w-10 shrink-0 overflow-hidden rounded-lg transition-all duration-200 ${isDark
+                                        ? 'bg-neutral-900 ring-1 ring-neutral-800 hover:ring-[#D8FF00]/45'
+                                        : 'bg-white ring-1 ring-neutral-200 hover:ring-lime-500/70'
+                                        }`}
+                                >
+                                    <img
+                                        src={reference.url}
+                                        alt=""
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <div
+                                        className={`absolute left-0.5 top-0.5 rounded px-1 py-0.5 text-[8px] font-semibold leading-none shadow-sm ${isDark
+                                            ? 'bg-black/70 text-[#D8FF00]'
+                                            : 'bg-white/85 text-lime-700'
+                                            }`}
+                                    >
+                                        {formatReferenceLabel(index)}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        aria-label={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
+                                        title={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveImageReference(reference.id);
+                                        }}
+                                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/70 bg-red-500/95 text-white opacity-0 shadow-sm transition-all duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100"
+                                    >
+                                        <X size={12} strokeWidth={2.5} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <textarea
                         className={`w-full bg-transparent text-sm outline-none resize-none font-light ${isDark ? 'text-white placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
                         placeholder={
