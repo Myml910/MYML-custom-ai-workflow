@@ -103,6 +103,15 @@ const IMAGE_MODELS = [
         resolutions: ["1K", "2K", "4K"],
         aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "5:4", "4:5", "21:9"]
     },
+    {
+        id: 'custom-image-nano-banana-3-1-flash',
+        name: 'Nano Banana 3.1 Flash',
+        provider: 'custom',
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        resolutions: ['Auto', '1K', '2K', '4K'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
+    },
     // Kling AI models - Consolidated: removed legacy v1, v2, v2-new
     {
         id: 'kling-v1-5',
@@ -976,6 +985,31 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 imageGenerationMode === 'image-to-image' ? `Image → Image` :
                                                     `${inputCount} Images → Image`}
                                         </div>
+                                        {/* MYML Models */}
+                                        {availableImageModels.filter(m => m.provider === 'custom').length > 0 && (
+                                            <>
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                                    MYML
+                                                </div>
+                                                {availableImageModels.filter(m => m.provider === 'custom').map(model => (
+                                                    <button
+                                                        key={model.id}
+                                                        onClick={() => handleImageModelChange(model.id)}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
+                                                    >
+                                                        <span className="flex items-center gap-2">
+                                                            <ImageIcon size={12} className="text-[#D8FF00]" />
+                                                            {model.name}
+                                                            {model.recommended && (
+                                                                <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
+                                                            )}
+                                                        </span>
+                                                        {currentImageModel.id === model.id && <Check size={12} />}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+
                                         {/* OpenAI Models */}
                                         {availableImageModels.filter(m => m.provider === 'openai').length > 0 && (
                                             <>
