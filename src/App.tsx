@@ -1308,7 +1308,8 @@ export default function App() {
               selectedNodes={nodes.filter(n => selectedNodeIds.includes(n.id))}
               group={getCommonGroup(selectedNodeIds)}
               viewport={viewport}
-              onGroup={() => groupNodes(selectedNodeIds, setNodes)}
+              language={language}
+              onGroup={() => groupNodes(selectedNodeIds, setNodes, t(language, 'newGroup'))}
               onUngroup={() => {
                 const group = getCommonGroup(selectedNodeIds);
                 if (group) ungroupNodes(group.id, setNodes);
@@ -1347,6 +1348,7 @@ export default function App() {
                 selectedNodes={groupNodes}
                 group={group}
                 viewport={viewport}
+                language={language}
                 onGroup={() => { }} // Already grouped
                 onUngroup={() => ungroupNodes(group.id, setNodes)}
                 onBoundingBoxPointerDown={(e) => {

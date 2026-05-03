@@ -104,6 +104,17 @@ export const translations = {
     // Bottom
     zoom: 'Zoom',
 
+    // Selection / Group
+    group: 'Group',
+    ungroup: 'Ungroup',
+    sort: 'Sort',
+    sortHorizontal: 'Horizontal',
+    sortVertical: 'Vertical',
+    sortGrid: 'Grid (3 cols)',
+    editStoryboard: 'Edit Storyboard',
+    createVideos: 'Create Videos',
+    newGroup: 'New Group',
+
     // Language
     language: 'Language',
     chinese: '中文',
@@ -212,6 +223,17 @@ export const translations = {
 
     // Bottom
     zoom: '缩放',
+
+    // Selection / Group
+    group: '分组',
+    ungroup: '取消分组',
+    sort: '排序',
+    sortHorizontal: '水平排列',
+    sortVertical: '垂直排列',
+    sortGrid: '网格排列（3列）',
+    editStoryboard: '编辑分镜',
+    createVideos: '创建视频',
+    newGroup: '新分组',
 
     // Language
     language: '语言',
