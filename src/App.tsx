@@ -53,6 +53,7 @@ import { useStoryboardGenerator } from './hooks/useStoryboardGenerator';
 import { StoryboardGeneratorModal } from './components/modals/StoryboardGeneratorModal';
 import { StoryboardVideoModal } from './components/modals/StoryboardVideoModal';
 import { Language, t } from './i18n/translations';
+import { uploadAsset } from './services/assetService';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -708,6 +709,95 @@ export default function App() {
     return ratio >= 1 ? '16:9' : '9:16';
   };
 
+  const hasFileDrag = (dataTransfer: DataTransfer | null): boolean => {
+    if (!dataTransfer) return false;
+    if (dataTransfer.files && dataTransfer.files.length > 0) return true;
+    return Array.from(dataTransfer.items || []).some(item => item.kind === 'file');
+  };
+
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const detectImageAspect = (url: string): Promise<{ resultAspectRatio?: string; aspectRatio: string }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({
+          resultAspectRatio: `${img.naturalWidth}/${img.naturalHeight}`,
+          aspectRatio: getClosestAspectRatio(img.naturalWidth, img.naturalHeight)
+        });
+      };
+      img.onerror = () => resolve({ aspectRatio: '1:1' });
+      img.src = url;
+    });
+  };
+
+  const handleCanvasDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasFileDrag(e.dataTransfer)) return;
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleCanvasDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length === 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const imageFiles = files
+      .filter(file => file.type.startsWith('image/'))
+      .slice(0, 6);
+
+    if (imageFiles.length === 0) return;
+
+    const dropX = (e.clientX - viewport.x) / viewport.zoom;
+    const dropY = (e.clientY - viewport.y) / viewport.zoom;
+    const maxFileSize = 100 * 1024 * 1024;
+
+    for (let index = 0; index < imageFiles.length; index++) {
+      const file = imageFiles[index];
+
+      if (file.size > maxFileSize) {
+        console.warn(`[CanvasDrop] Skipping ${file.name}: file exceeds 100MB limit.`);
+        continue;
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const resultUrl = await uploadAsset(dataUrl, 'image', file.name);
+        const { resultAspectRatio, aspectRatio } = await detectImageAspect(resultUrl);
+        const offset = index * 32;
+
+        const newNode: NodeData = {
+          id: crypto.randomUUID(),
+          type: NodeType.IMAGE,
+          x: dropX - 170 + offset,
+          y: dropY - 150 + offset,
+          prompt: file.name,
+          status: NodeStatus.SUCCESS,
+          resultUrl,
+          resultAspectRatio,
+          model: 'Upload',
+          imageModel: 'custom-image-gpt-image-2',
+          aspectRatio,
+          resolution: 'Auto'
+        };
+
+        setNodes(prev => [...prev, newNode]);
+      } catch (error) {
+        console.error(`[CanvasDrop] Failed to import ${file.name}:`, error);
+      }
+    }
+  };
+
   /**
    * Handle selecting an asset from history - creates new node with the image/video
    */
@@ -1089,6 +1179,8 @@ export default function App() {
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleGlobalContextMenu}
+        onDragOver={handleCanvasDragOver}
+        onDrop={handleCanvasDrop}
       >
         <div
           style={{
