@@ -136,14 +136,14 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {/* Regenerating Overlay - Shows when loading with existing content */}
                     {isLoading && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                            <Loader2 size={40} className="animate-spin text-blue-400" />
+                            <Loader2 size={40} className="animate-spin text-[#D8FF00]" />
                             <span className="mt-3 text-sm text-white font-medium">Regenerating...</span>
                         </div>
                     )}
                 </div>
             ) : data.type === NodeType.TEXT ? (
                 /* Text Node - Menu or Editing Mode */
-                <div className={`relative w-full bg-[#1a1a1a] rounded-2xl overflow-hidden ${selected ? 'ring-1 ring-blue-500/30' : ''}`}>
+                <div className={`relative w-full bg-[#1a1a1a] rounded-2xl overflow-hidden ${selected ? 'ring-1 ring-[#D8FF00]/30' : ''}`}>
                     {data.textMode === 'editing' ? (
                         /* Editing Mode - Text Area */
                         <div className="p-4">
@@ -228,7 +228,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
 
                     {isLoading ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
-                            <Loader2 size={32} className="animate-spin text-blue-400" />
+                            <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
                             <span className="text-xs text-neutral-500 font-medium">Generating...</span>
                         </div>
                     ) : (

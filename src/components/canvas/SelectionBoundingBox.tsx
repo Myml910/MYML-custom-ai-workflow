@@ -156,6 +156,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
     const [isEditingLabel, setIsEditingLabel] = useState(false);
     const [editedLabel, setEditedLabel] = useState('');
     const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const accentColor = '#D8FF00';
     // ============================================================================
     // CALCULATIONS
     // ============================================================================
@@ -198,9 +199,9 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                 top: minY,
                 width,
                 height,
-                border: isGrouped ? '2px solid #6366f1' : '2px dashed #6366f1',
+                border: isGrouped ? `2px solid ${accentColor}` : `2px dashed ${accentColor}`,
                 borderRadius: '12px',
-                backgroundColor: isGrouped ? 'rgba(55, 55, 55, 0.5)' : 'transparent',
+                backgroundColor: isGrouped ? 'rgba(216, 255, 0, 0.06)' : 'transparent',
                 zIndex: 5
             }}
             onPointerDown={(e) => {
@@ -223,7 +224,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
             ].map(handle => (
                 <div
                     key={handle.pos}
-                    className="absolute w-2 h-2 bg-white border border-indigo-500 rounded-sm pointer-events-auto"
+                    className="absolute w-2 h-2 bg-black border border-[#D8FF00] rounded-sm pointer-events-auto shadow-[0_0_8px_rgba(216,255,0,0.25)]"
                     style={{
                         top: handle.top,
                         left: handle.left,
@@ -259,7 +260,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                             }
                         }}
                         autoFocus
-                        className="absolute text-sm font-medium text-white bg-indigo-600 px-3 py-1 rounded pointer-events-auto outline-none whitespace-nowrap"
+                        className="absolute text-sm font-medium text-black bg-[#D8FF00] px-3 py-1 rounded pointer-events-auto outline-none whitespace-nowrap"
                         style={{
                             top: 8,
                             right: 'calc(100% + 8px)',
@@ -269,7 +270,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                     />
                 ) : (
                     <div
-                        className="absolute text-sm font-medium text-white bg-indigo-600 px-3 py-1 rounded pointer-events-auto cursor-text whitespace-nowrap"
+                        className="absolute text-sm font-medium text-black bg-[#D8FF00] px-3 py-1 rounded pointer-events-auto cursor-text whitespace-nowrap"
                         style={{
                             top: 8,
                             right: 'calc(100% + 8px)',
@@ -425,7 +426,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                             e.stopPropagation();
                             if (onCreateVideo) onCreateVideo();
                         }}
-                        className="bg-purple-600 hover:bg-purple-500 text-white text-sm px-4 py-2.5 rounded flex items-center gap-2 transition-colors shadow-lg shadow-purple-600/20"
+                        className="bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm px-4 py-2.5 rounded flex items-center gap-2 transition-colors shadow-lg shadow-[rgba(216,255,0,0.18)]"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 10l5 5-5 5" />
