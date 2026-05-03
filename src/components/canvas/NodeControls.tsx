@@ -674,78 +674,91 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <div className="mb-3">
                     {orderedImageReferences.length > 0 && (
-                        <div className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1">
-                            {orderedImageReferences.map((reference, index) => (
-                                <div
-                                    key={reference.id}
-                                    className={`group/ref relative h-10 w-10 shrink-0 overflow-hidden rounded-lg transition-all duration-200 ${isDark
-                                        ? 'bg-neutral-900 ring-1 ring-neutral-800 hover:ring-[#D8FF00]/45'
-                                        : 'bg-white ring-1 ring-neutral-200 hover:ring-lime-500/70'
-                                        }`}
-                                >
-                                    <img
-                                        src={reference.url}
-                                        alt=""
-                                        className="h-full w-full object-cover"
-                                    />
+                        <div
+                            className={`mb-3 rounded-xl border px-2 pb-1 pt-2 ${isDark
+                                ? 'border-neutral-800 bg-neutral-950/45'
+                                : 'border-neutral-200 bg-neutral-50/80'
+                                }`}
+                        >
+                            <div className="flex max-w-full items-center gap-2 overflow-x-auto px-1 pb-1 pt-2">
+                                {orderedImageReferences.map((reference, index) => (
                                     <div
-                                        className={`absolute left-0.5 top-0.5 rounded px-1 py-0.5 text-[8px] font-semibold leading-none shadow-sm ${isDark
-                                            ? 'bg-black/70 text-[#D8FF00]'
-                                            : 'bg-white/85 text-lime-700'
-                                            }`}
+                                        key={reference.id}
+                                        className="group/ref relative h-10 w-10 shrink-0"
                                     >
-                                        {formatReferenceLabel(index)}
+                                        <div
+                                            className={`h-full w-full overflow-hidden rounded-lg transition-all duration-200 ${isDark
+                                                ? 'bg-neutral-900 ring-1 ring-neutral-800 group-hover/ref:ring-[#D8FF00]/45'
+                                                : 'bg-white ring-1 ring-neutral-200 group-hover/ref:ring-lime-500/70'
+                                                }`}
+                                        >
+                                            <img
+                                                src={reference.url}
+                                                alt=""
+                                                className="h-full w-full object-cover"
+                                            />
+                                            <div
+                                                className={`absolute left-0.5 top-0.5 rounded px-1 py-0.5 text-[8px] font-semibold leading-none shadow-sm ${isDark
+                                                    ? 'bg-black/70 text-[#D8FF00]'
+                                                    : 'bg-white/85 text-lime-700'
+                                                    }`}
+                                            >
+                                                {formatReferenceLabel(index)}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            aria-label={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
+                                            title={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveImageReference(reference.id);
+                                            }}
+                                            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/80 bg-red-500 text-white opacity-0 shadow-md transition-all duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100"
+                                        >
+                                            <X size={12} strokeWidth={2.5} />
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        aria-label={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
-                                        title={`${t(language, 'removeReference')} ${formatReferenceLabel(index)}`}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleRemoveImageReference(reference.id);
-                                        }}
-                                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/70 bg-red-500/95 text-white opacity-0 shadow-sm transition-all duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100"
-                                    >
-                                        <X size={12} strokeWidth={2.5} />
-                                    </button>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
-                    <textarea
-                        className={`w-full bg-transparent text-sm outline-none resize-none font-light ${isDark ? 'text-white placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
-                        placeholder={
-                            data.type === NodeType.VIDEO && isFrameToFrame && currentVideoModel.provider === 'kling'
-                                ? "Prompt optional for Kling frame-to-frame..."
-                                : data.type === NodeType.VIDEO && inputUrl
-                                    ? "Describe how to animate this frame..."
-                                    : "Describe what you want to generate..."
-                        }
-                        rows={data.isPromptExpanded ? 12 : 4}
-                        value={localPrompt}
-                        onChange={(e) => handlePromptChange(e.target.value)}
-                        onWheel={(e) => e.stopPropagation()}
-                        onBlur={() => {
-                            // Ensure final value is saved on blur
-                            if (updateTimeoutRef.current) {
-                                clearTimeout(updateTimeoutRef.current);
+                    <div className="relative">
+                        <textarea
+                            className={`w-full bg-transparent text-sm outline-none resize-none font-light ${isDark ? 'text-white placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
+                            placeholder={
+                                data.type === NodeType.VIDEO && isFrameToFrame && currentVideoModel.provider === 'kling'
+                                    ? "Prompt optional for Kling frame-to-frame..."
+                                    : data.type === NodeType.VIDEO && inputUrl
+                                        ? "Describe how to animate this frame..."
+                                        : "Describe what you want to generate..."
                             }
-                            if (localPrompt !== data.prompt) {
-                                onUpdate(data.id, { prompt: localPrompt });
-                            }
-                        }}
-                    />
-                    {/* Expand/Shrink Button - Below textarea */}
-                    <div className="flex justify-end mt-1">
-                        <button
-                            onClick={() => onUpdate(data.id, { isPromptExpanded: !data.isPromptExpanded })}
-                            className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded transition-colors ${isDark ? 'text-neutral-500 hover:text-white hover:bg-neutral-700' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
-                            title={data.isPromptExpanded ? 'Shrink prompt' : 'Expand prompt'}
-                        >
-                            {data.isPromptExpanded ? <Shrink size={12} /> : <Expand size={12} />}
-                            <span>{data.isPromptExpanded ? 'Shrink' : 'Expand'}</span>
-                        </button>
+                            rows={data.isPromptExpanded ? 12 : 4}
+                            value={localPrompt}
+                            onChange={(e) => handlePromptChange(e.target.value)}
+                            onWheel={(e) => e.stopPropagation()}
+                            onBlur={() => {
+                                // Ensure final value is saved on blur
+                                if (updateTimeoutRef.current) {
+                                    clearTimeout(updateTimeoutRef.current);
+                                }
+                                if (localPrompt !== data.prompt) {
+                                    onUpdate(data.id, { prompt: localPrompt });
+                                }
+                            }}
+                        />
+                        {/* Expand/Shrink Button - Below textarea */}
+                        <div className="flex justify-end mt-1">
+                            <button
+                                onClick={() => onUpdate(data.id, { isPromptExpanded: !data.isPromptExpanded })}
+                                className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded transition-colors ${isDark ? 'text-neutral-500 hover:text-white hover:bg-neutral-700' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
+                                title={data.isPromptExpanded ? 'Shrink prompt' : 'Expand prompt'}
+                            >
+                                {data.isPromptExpanded ? <Shrink size={12} /> : <Expand size={12} />}
+                                <span>{data.isPromptExpanded ? 'Shrink' : 'Expand'}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
