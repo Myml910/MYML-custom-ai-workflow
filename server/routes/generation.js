@@ -13,6 +13,7 @@ import { generateGeminiImage, generateVeoVideo } from '../services/gemini.js';
 import { generateHailuoVideo } from '../services/hailuo.js';
 import { generateOpenAIImage } from '../services/openai.js';
 import { generateCustomImage, generateCustomVideo } from '../services/customApi.js';
+import { generateSeedanceVideo } from '../services/seedance.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 
 const router = express.Router();
@@ -218,7 +219,7 @@ router.post('/generate-image', async (req, res) => {
 
 router.post('/generate-video', async (req, res) => {
     try {
-        const { nodeId, prompt, imageBase64: rawImageBase64, lastFrameBase64: rawLastFrameBase64, motionReferenceUrl: rawMotionReferenceUrl, aspectRatio, resolution, duration, videoModel } = req.body;
+        const { nodeId, prompt, imageBase64: rawImageBase64, lastFrameBase64: rawLastFrameBase64, motionReferenceUrl: rawMotionReferenceUrl, aspectRatio, resolution, duration, videoModel, generateAudio } = req.body;
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, HAILUO_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY, VIDEOS_DIR } = req.app.locals;
 
         // Resolve file URLs to base64
@@ -230,10 +231,26 @@ router.post('/generate-video', async (req, res) => {
         const isKlingModel = videoModel && videoModel.startsWith('kling-');
         const isHailuoModel = videoModel && videoModel.startsWith('hailuo-');
         const isCustomVideoModel = videoModel && videoModel.startsWith('custom-video-');
+        const isSeedanceModel = videoModel === 'custom-video-seedance-2-0';
 
         let videoBuffer;
 
-        if (isCustomVideoModel) {
+        if (isSeedanceModel) {
+            console.log(`Using Seedance 2.0 video model: ${videoModel}, duration: ${duration || 5}s`);
+
+            videoBuffer = await generateSeedanceVideo({
+                prompt,
+                imageUrl: rawImageBase64,
+                lastFrameUrl: rawLastFrameBase64,
+                aspectRatio,
+                resolution,
+                duration,
+                generateAudio,
+                apiBaseUrl: CUSTOM_API_BASE_URL,
+                apiKey: CUSTOM_API_KEY
+            });
+
+        } else if (isCustomVideoModel) {
             // --- CUSTOM VIDEO GENERATION ---
             if (!CUSTOM_API_BASE_URL || !CUSTOM_API_KEY) {
                 return res.status(500).json({
@@ -405,6 +422,13 @@ router.post('/generate-video', async (req, res) => {
             type: 'videos'
         };
         fs.writeFileSync(path.join(VIDEOS_DIR, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+
+        if (isSeedanceModel) {
+            console.log('[Seedance][saved]', {
+                model: videoModel,
+                savedUrl: saved.url
+            });
+        }
 
         console.log(`Video saved: ${saved.url} (model: ${videoModel || 'veo-3.1'})`);
         return res.json({ resultUrl: saved.url });
