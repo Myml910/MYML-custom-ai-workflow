@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NodeControls.tsx
  * 
  * Control panel for canvas nodes.
@@ -53,16 +53,17 @@ const VIDEO_DURATIONS = [5, 6, 8, 10];
 const VIDEO_ASPECT_RATIOS = ["16:9", "9:16"];
 
 const VIDEO_MODELS = [
-    { id: 'veo-3.1', name: 'Veo 3.1', provider: 'google', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [4, 6, 8], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'] },
+    { id: 'veo-3.1', name: 'Veo 3.1', provider: 'google', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [4, 6, 8], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'custom-video-seedance-2-0', name: 'Seedance 2.0', provider: 'custom', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '480p', '720p', '1080p'], aspectRatios: ['Auto', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21', 'keep_ratio', 'adaptive'], disabled: true, disabledReason: 'notConnected' },
     // Kling AI models - Consolidated: removed legacy v1, v1-5, v1-6, v2-master
-    { id: 'kling-v2-1', name: 'Kling V2.1', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, recommended: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'] },
-    { id: 'kling-v2-1-master', name: 'Kling V2.1 Master', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'] },
-    { id: 'kling-v2-5-turbo', name: 'Kling V2.5 Turbo', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'] },
-    { id: 'kling-v2-6', name: 'Kling 2.6 (Motion)', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'] },
+    { id: 'kling-v2-1', name: 'Kling V2.1', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, recommended: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'kling-v2-1-master', name: 'Kling V2.1 Master', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'kling-v2-5-turbo', name: 'Kling V2.5 Turbo', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'kling-v2-6', name: 'Kling 2.6 (Motion)', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
     // Hailuo AI (MiniMax) models - Note: API appears to only output 5s videos regardless of duration param
-    { id: 'hailuo-2.3', name: 'Hailuo 2.3', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'] },
-    { id: 'hailuo-2.3-fast', name: 'Hailuo 2.3 Fast', provider: 'hailuo', supportsTextToVideo: false, supportsImageToVideo: true, supportsMultiImage: false, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'] },
-    { id: 'hailuo-02', name: 'Hailuo 02', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'] },
+    { id: 'hailuo-2.3', name: 'Hailuo 2.3', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'hailuo-2.3-fast', name: 'Hailuo 2.3 Fast', provider: 'hailuo', supportsTextToVideo: false, supportsImageToVideo: true, supportsMultiImage: false, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'hailuo-02', name: 'Hailuo 02', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
 ];
 
 // Image model versions with metadata
@@ -90,6 +91,8 @@ const IMAGE_MODELS = [
         supportsImageToImage: true,
         supportsMultiImage: true,
         recommended: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ["Auto", "1K", "2K", "4K"],
         // OpenAI uses exact pixel sizes, not aspect ratios
         aspectRatios: ["Auto", "1024x1024", "1536x1024", "1024x1536"]
@@ -100,6 +103,8 @@ const IMAGE_MODELS = [
         provider: 'google',
         supportsImageToImage: true,
         supportsMultiImage: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ["1K", "2K", "4K"],
         aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "5:4", "4:5", "21:9"]
     },
@@ -119,6 +124,8 @@ const IMAGE_MODELS = [
         provider: 'kling',
         supportsImageToImage: true, // V1.5 supports image_reference for subject/face
         supportsMultiImage: false,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ["1K", "2K"],
         aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "21:9"]
     },
@@ -129,10 +136,23 @@ const IMAGE_MODELS = [
         supportsImageToImage: false, // V2.1 requires Multi-Image API
         supportsMultiImage: true,    // Use Multi-Image API with subject_image_list
         recommended: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ["1K", "2K"],
         aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "21:9"]
     },
 ];
+
+const isModelDisabled = (model?: any) =>
+    Boolean(model?.disabled || model?.status === 'disabled' || model?.status === 'comingSoon');
+
+const getModelDisabledReason = (model?: any, language: Language = 'en') => {
+    const reason = model?.disabledReason;
+    if (reason === 'notConfigured') return language === 'zh' ? '\u672a\u914d\u7f6e' : 'Not configured';
+    if (reason === 'notConnected') return language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected';
+    if (model?.status === 'comingSoon') return language === 'zh' ? '\u5373\u5c06\u63a8\u51fa' : 'Coming soon';
+    return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -154,13 +174,13 @@ function buildAnglePrompt(
     // Rotation (horizontal)
     if (settings.rotation !== 0) {
         const direction = settings.rotation > 0 ? 'right' : 'left';
-        parts.push(`The camera has rotated ${Math.abs(settings.rotation)}° to the ${direction}.`);
+        parts.push(`The camera has rotated ${Math.abs(settings.rotation)}掳 to the ${direction}.`);
     }
 
     // Tilt (vertical)
     if (settings.tilt !== 0) {
         const direction = settings.tilt > 0 ? 'upward' : 'downward';
-        parts.push(`The camera has tilted ${Math.abs(settings.tilt)}° ${direction}.`);
+        parts.push(`The camera has tilted ${Math.abs(settings.tilt)}掳 ${direction}.`);
     }
 
     // Zoom
@@ -439,14 +459,17 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     useEffect(() => {
         if (data.type !== NodeType.VIDEO) return;
 
-        const isCurrentModelAvailable = availableVideoModels.some(m => m.id === data.videoModel);
-        if (!isCurrentModelAvailable && availableVideoModels.length > 0) {
-            onUpdate(data.id, { videoModel: availableVideoModels[0].id });
+        const enabledVideoModels = availableVideoModels.filter(model => !isModelDisabled(model));
+        const isCurrentModelAvailable = availableVideoModels.some(m => m.id === data.videoModel && !isModelDisabled(m));
+        if (!isCurrentModelAvailable && enabledVideoModels.length > 0) {
+            onUpdate(data.id, { videoModel: enabledVideoModels[0].id });
         }
     }, [videoGenerationMode, data.videoModel, data.type, data.id, availableVideoModels, onUpdate]);
 
     const handleVideoModelChange = (modelId: string) => {
         const newModel = VIDEO_MODELS.find(m => m.id === modelId);
+        if (!newModel || isModelDisabled(newModel)) return;
+
         const updates: Partial<typeof data> = { videoModel: modelId };
 
         // Reset duration if current duration is not supported by new model
@@ -519,10 +542,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     useEffect(() => {
         if (data.type !== NodeType.IMAGE && data.type !== NodeType.IMAGE_EDITOR) return;
 
-        const isCurrentModelAvailable = availableImageModels.some(m => m.id === data.imageModel);
-        if (!isCurrentModelAvailable && availableImageModels.length > 0) {
+        const enabledImageModels = availableImageModels.filter(model => !isModelDisabled(model));
+        const isCurrentModelAvailable = availableImageModels.some(m => m.id === data.imageModel && !isModelDisabled(m));
+        if (!isCurrentModelAvailable && enabledImageModels.length > 0) {
             // Auto-select first available model
-            onUpdate(data.id, { imageModel: availableImageModels[0].id });
+            onUpdate(data.id, { imageModel: enabledImageModels[0].id });
         }
     }, [inputCount, data.imageModel, data.type, data.id, availableImageModels, onUpdate]);
 
@@ -533,6 +557,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
     const handleImageModelChange = (modelId: string) => {
         const newModel = IMAGE_MODELS.find(m => m.id === modelId);
+        if (!newModel || isModelDisabled(newModel)) return;
+
         const updates: Partial<typeof data> = { imageModel: modelId };
 
         // Reset aspect ratio if current ratio is not supported by new model
@@ -619,6 +645,24 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             ? 'text-neutral-300 hover:bg-neutral-800'
             : 'text-neutral-700 hover:bg-neutral-100';
     };
+    const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
+        if (disabled) {
+            return isDark
+                ? 'text-neutral-600 bg-transparent opacity-60 cursor-not-allowed'
+                : 'text-neutral-400 bg-transparent opacity-60 cursor-not-allowed';
+        }
+
+        return dropdownItemClass(active);
+    };
+    const disabledModelBadgeClass = isDark
+        ? 'bg-neutral-800 text-neutral-500 border border-neutral-700'
+        : 'bg-neutral-100 text-neutral-500 border border-neutral-200';
+    const renderDisabledModelBadge = (model: any) =>
+        isModelDisabled(model) ? (
+            <span className={`shrink-0 text-[9px] px-1 py-0.5 rounded ${disabledModelBadgeClass}`}>
+                {getModelDisabledReason(model, language)}
+            </span>
+        ) : null;
     const generateButtonClass = (blocked: boolean) => {
         if (blocked) {
             return 'bg-neutral-700/50 opacity-50 cursor-not-allowed text-neutral-500';
@@ -872,11 +916,36 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 videoGenerationMode === 'image-to-video' ? 'bg-green-400' :
                                                     videoGenerationMode === 'motion-control' ? 'bg-orange-400' : 'bg-purple-400'
                                                 }`} />
-                                            {videoGenerationMode === 'text-to-video' ? 'Text → Video' :
-                                                videoGenerationMode === 'image-to-video' ? 'Image → Video' :
+                                            {videoGenerationMode === 'text-to-video' ? 'Text 鈫?Video' :
+                                                videoGenerationMode === 'image-to-video' ? 'Image 鈫?Video' :
                                                     videoGenerationMode === 'motion-control' ? 'Motion Control' :
                                                         'Frame-to-Frame'}
                                         </div>
+                                        {/* MYML Models */}
+                                        {availableVideoModels.filter(m => m.provider === 'custom').length > 0 && (
+                                            <>
+                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                                    MYML
+                                                </div>
+                                                {availableVideoModels.filter(m => m.provider === 'custom').map(model => (
+                                                    <button
+                                                        key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
+                                                        onClick={() => handleVideoModelChange(model.id)}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
+                                                    >
+                                                        <span className="flex items-center gap-2 min-w-0">
+                                                            <Film size={12} className={isModelDisabled(model) ? 'text-neutral-500' : 'text-[#D8FF00]'} />
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
+                                                        </span>
+                                                        {currentVideoModel.id === model.id && <Check size={12} />}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+
                                         {/* Google Models */}
                                         {availableVideoModels.filter(m => m.provider === 'google').length > 0 && (
                                             <>
@@ -886,16 +955,19 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableVideoModels.filter(m => m.provider === 'google').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             {model.id === 'veo-3.1' ? (
                                                                 <GoogleIcon size={12} className="text-white" />
                                                             ) : (
                                                                 <Film size={12} className="text-cyan-400" />
                                                             )}
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                         </span>
                                                         {currentVideoModel.id === model.id && <Check size={12} />}
                                                     </button>
@@ -912,12 +984,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableVideoModels.filter(m => m.provider === 'kling').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             <KlingIcon size={14} />
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                             {model.recommended && (
                                                                 <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
                                                             )}
@@ -937,12 +1012,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableVideoModels.filter(m => m.provider === 'hailuo').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentVideoModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             <HailuoIcon size={14} />
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                         </span>
                                                         {currentVideoModel.id === model.id && <Check size={12} />}
                                                     </button>
@@ -981,9 +1059,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <span className={`w-1.5 h-1.5 rounded-full ${imageGenerationMode === 'text-to-image' ? 'bg-blue-400' :
                                                 imageGenerationMode === 'image-to-image' ? 'bg-green-400' : 'bg-purple-400'
                                                 }`} />
-                                            {imageGenerationMode === 'text-to-image' ? 'Text → Image' :
-                                                imageGenerationMode === 'image-to-image' ? `Image → Image` :
-                                                    `${inputCount} Images → Image`}
+                                            {imageGenerationMode === 'text-to-image' ? 'Text 鈫?Image' :
+                                                imageGenerationMode === 'image-to-image' ? `Image 鈫?Image` :
+                                                    `${inputCount} Images 鈫?Image`}
                                         </div>
                                         {/* MYML Models */}
                                         {availableImageModels.filter(m => m.provider === 'custom').length > 0 && (
@@ -994,12 +1072,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableImageModels.filter(m => m.provider === 'custom').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             <ImageIcon size={12} className="text-[#D8FF00]" />
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                             {model.recommended && (
                                                                 <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
                                                             )}
@@ -1019,12 +1100,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableImageModels.filter(m => m.provider === 'openai').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             <OpenAIIcon size={12} className="text-green-400" />
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                             {model.recommended && (
                                                                 <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
                                                             )}
@@ -1043,16 +1127,19 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableImageModels.filter(m => m.provider === 'google').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             {model.id === 'gemini-pro' ? (
                                                                 <Banana size={12} className="text-yellow-400" />
                                                             ) : (
                                                                 <GoogleIcon size={12} className="text-white" />
                                                             )}
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                         </span>
                                                         {currentImageModel.id === model.id && <Check size={12} />}
                                                     </button>
@@ -1069,12 +1156,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 {availableImageModels.filter(m => m.provider === 'kling').map(model => (
                                                     <button
                                                         key={model.id}
+                                                        disabled={isModelDisabled(model)}
+                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentImageModel.id === model.id)}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
-                                                        <span className="flex items-center gap-2">
+                                                        <span className="flex items-center gap-2 min-w-0">
                                                             <KlingIcon size={14} />
-                                                            {model.name}
+                                                            <span className="truncate">{model.name}</span>
+                                                            {renderDisabledModelBadge(model)}
                                                             {model.recommended && (
                                                                 <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
                                                             )}
@@ -1233,20 +1323,28 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 data.imageModel === 'kling-v1-5' &&
                                 data.klingReferenceMode === 'face' &&
                                 (data.faceDetectionStatus === 'error' || data.faceDetectionStatus === 'loading');
+                            const selectedModel = isVideoNode ? currentVideoModel : currentImageModel;
+                            const isSelectedModelDisabled = isModelDisabled(selectedModel);
+                            const isGenerateBlocked = isFaceModeBlocked || isSelectedModelDisabled;
+                            const generateTitle = isSelectedModelDisabled
+                                ? getModelDisabledReason(selectedModel, language)
+                                : isFaceModeBlocked
+                                    ? 'Cannot generate: No face detected in reference image'
+                                    : 'Generate';
 
                             return (
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (isFaceModeBlocked) {
+                                        if (isGenerateBlocked) {
                                             // Show a warning - this is handled by the warning component
                                             return;
                                         }
                                         onGenerate(data.id);
                                     }}
-                                    disabled={isFaceModeBlocked}
-                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${generateButtonClass(isFaceModeBlocked)}`}
-                                    title={isFaceModeBlocked ? 'Cannot generate: No face detected in reference image' : 'Generate'}
+                                    disabled={isGenerateBlocked}
+                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${generateButtonClass(isGenerateBlocked)}`}
+                                    title={generateTitle}
                                 >
                                     <svg
                                         viewBox="0 0 24 24"

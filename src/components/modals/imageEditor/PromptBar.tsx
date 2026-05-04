@@ -139,6 +139,31 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             : 'text-neutral-700 hover:bg-neutral-100 hover:text-lime-600';
     };
 
+    const isModelDisabled = (model?: ImageModel) =>
+        Boolean(model?.disabled || model?.status === 'disabled' || model?.status === 'comingSoon');
+
+    const getModelDisabledReason = (model?: ImageModel) => {
+        const reason = model?.disabledReason;
+        if (reason === 'notConfigured') return language === 'zh' ? '\u672a\u914d\u7f6e' : 'Not configured';
+        if (reason === 'notConnected') return language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected';
+        if (model?.status === 'comingSoon') return language === 'zh' ? '\u5373\u5c06\u63a8\u51fa' : 'Coming soon';
+        return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
+    };
+
+    const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
+        if (disabled) {
+            return isDark
+                ? 'text-neutral-600 bg-transparent opacity-60 cursor-not-allowed'
+                : 'text-neutral-400 bg-transparent opacity-60 cursor-not-allowed';
+        }
+
+        return dropdownItemClass(active);
+    };
+
+    const disabledModelBadgeClass = isDark
+        ? 'bg-neutral-800 text-neutral-500 border border-neutral-700'
+        : 'bg-neutral-100 text-neutral-500 border border-neutral-200';
+
     const compactButtonClass = isDark
         ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
         : 'bg-neutral-100 hover:bg-neutral-100 border border-neutral-200 text-neutral-500 hover:text-lime-600';
@@ -160,7 +185,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const inputTextClass = isDark
         ? 'text-neutral-200 placeholder-neutral-600'
         : 'text-neutral-900 placeholder-neutral-400';
-    const isGenerateDisabled = isGenerating || prompt.trim().length === 0;
+    const isGenerateDisabled = isGenerating || prompt.trim().length === 0 || isModelDisabled(currentModel);
     const displayedPromptError = promptError || (prompt.trim().length === 0 ? emptyPromptText : '');
 
     // --- Effects ---
@@ -215,12 +240,22 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 {providerModels.map(model => (
                     <button
                         key={model.id}
-                        onClick={() => onModelChange(model.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentModel.id === model.id)}`}
+                        disabled={isModelDisabled(model)}
+                        title={isModelDisabled(model) ? getModelDisabledReason(model) : undefined}
+                        onClick={() => {
+                            if (isModelDisabled(model)) return;
+                            onModelChange(model.id);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentModel.id === model.id, isModelDisabled(model))}`}
                     >
                         <span className="flex items-center gap-2 min-w-0">
                             {renderProviderIcon(model, 12)}
                             <span className="truncate">{model.name}</span>
+                            {isModelDisabled(model) && (
+                                <span className={`shrink-0 text-[9px] px-1 py-0.5 rounded ${disabledModelBadgeClass}`}>
+                                    {getModelDisabledReason(model)}
+                                </span>
+                            )}
                             {model.recommended && (
                                 <span
                                     className={`text-[9px] px-1 py-0.5 rounded flex-shrink-0 ${
@@ -373,6 +408,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <button
                     onClick={onGenerate}
                     disabled={isGenerateDisabled}
+                    title={isModelDisabled(currentModel) ? getModelDisabledReason(currentModel) : undefined}
                     className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
                 >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">

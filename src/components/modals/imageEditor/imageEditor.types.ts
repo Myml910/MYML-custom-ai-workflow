@@ -99,6 +99,9 @@ export interface ImageModel {
     supportsImageToImage: boolean;
     supportsMultiImage: boolean;
     recommended?: boolean;
+    disabled?: boolean;
+    disabledReason?: 'notConfigured' | 'notConnected' | string;
+    status?: 'available' | 'disabled' | 'comingSoon';
     resolutions: string[];
     aspectRatios: string[];
 }
@@ -138,6 +141,8 @@ export const IMAGE_MODELS: ImageModel[] = [
         supportsImageToImage: true,
         supportsMultiImage: true,
         recommended: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ['Auto', '1K', '2K', '4K'],
         aspectRatios: ['Auto', '1024x1024', '1536x1024', '1024x1536']
     },
@@ -147,6 +152,8 @@ export const IMAGE_MODELS: ImageModel[] = [
         provider: 'google',
         supportsImageToImage: true,
         supportsMultiImage: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ['1K', '2K', '4K'],
         aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9']
     },
@@ -165,6 +172,8 @@ export const IMAGE_MODELS: ImageModel[] = [
         provider: 'kling',
         supportsImageToImage: true,
         supportsMultiImage: false,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ['1K', '2K'],
         aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '21:9']
     },
@@ -175,6 +184,8 @@ export const IMAGE_MODELS: ImageModel[] = [
         supportsImageToImage: false,
         supportsMultiImage: true,
         recommended: true,
+        disabled: true,
+        disabledReason: 'notConfigured',
         resolutions: ['1K', '2K'],
         aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '21:9']
     },
