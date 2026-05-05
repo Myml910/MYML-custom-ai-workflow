@@ -12,6 +12,7 @@ import { NodeConnectors } from './NodeConnectors';
 import { NodeContent } from './NodeContent';
 import { NodeControls } from './NodeControls';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
+import { Scissors } from 'lucide-react';
 
 interface CanvasNodeProps {
   data: NodeData;
@@ -40,6 +41,7 @@ interface CanvasNodeProps {
   onImageToImage?: (nodeId: string) => void;
   onImageToVideo?: (nodeId: string) => void;
   onImageToEditor?: (nodeId: string) => void;
+  onRemoveBackground?: (nodeId: string) => void;
   onChangeAngleGenerate?: (nodeId: string) => void;
   zoom: number;
   // Mouse event callbacks for chat panel drag functionality
@@ -79,6 +81,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   onImageToImage,
   onImageToVideo,
   onImageToEditor,
+  onRemoveBackground,
   onChangeAngleGenerate,
   zoom,
   onMouseEnter,
@@ -717,6 +720,18 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               </button>
+              {/* Remove Background Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveBackground?.(data.id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-full border border-[#D8FF00]/30 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/20 hover:border-[#D8FF00]/60 hover:text-[#D8FF00] transition-colors"
+                title="抠除背景"
+              >
+                <Scissors className="w-3.5 h-3.5" strokeWidth={2} />
+              </button>
               {/* Image Editor Button */}
               <button
                 onClick={(e) => {
@@ -942,7 +957,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
           className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-all duration-300 flex flex-col shadow-2xl ${
-            isDark ? 'bg-[#0f0f0f]' : 'bg-white'
+            data.hideGenerationControls
+              ? 'bg-transparent'
+              : isDark
+                ? 'bg-[#0f0f0f]'
+                : 'bg-white'
           } ${
             selected
               ? isDark
@@ -1025,7 +1044,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Control Panel - Only show when single node is selected (not in group selection) */}
         {/* Hide controls for storyboard-generated scenes */}
-        {selected && showControls && data.type !== NodeType.TEXT && !(data.prompt && data.prompt.startsWith('Extract panel #')) && (
+        {selected && showControls && data.type !== NodeType.TEXT && !data.hideGenerationControls && !(data.prompt && data.prompt.startsWith('Extract panel #')) && (
           <div className="absolute top-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-[600px] flex justify-center z-[100]">
             <NodeControls
               data={data}

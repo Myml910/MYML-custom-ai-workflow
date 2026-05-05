@@ -13,6 +13,7 @@
 import React from 'react';
 import { NodeData, NodeType, NodeStatus } from '../types';
 import { generateCameraAngle } from '../services/cameraAngleService';
+import { removeImageBackground } from '../services/mattingService';
 
 // ============================================================================
 // TYPES
@@ -160,6 +161,74 @@ export const useImageNodeHandlers = ({
     }, [nodes, setNodes, setSelectedNodeIds]);
 
     /**
+     * Handle local background removal.
+     *
+     * Creates a plain Image result node while keeping the original image node unchanged.
+     */
+    const handleRemoveBackground = React.useCallback(async (nodeId: string) => {
+        console.log("[Matting] remove background clicked", nodeId);
+
+        const imageNode = nodes.find(n => n.id === nodeId);
+        if (!imageNode || imageNode.type !== NodeType.IMAGE || !imageNode.resultUrl) {
+            console.error('[Matting] Missing image node or result URL:', {
+                nodeId,
+                hasNode: !!imageNode,
+                type: imageNode?.type,
+                hasResultUrl: !!imageNode?.resultUrl
+            });
+            return;
+        }
+
+        const newNodeId = crypto.randomUUID();
+        const position = getNextNodePosition(imageNode);
+
+        const newImageNode: NodeData = {
+            id: newNodeId,
+            type: NodeType.IMAGE,
+            x: position.x,
+            y: position.y,
+            prompt: '抠除背景',
+            status: NodeStatus.LOADING,
+            model: 'MYML Matting',
+            imageModel: imageNode.imageModel,
+            aspectRatio: imageNode.aspectRatio || 'Auto',
+            resolution: imageNode.resolution || 'Auto',
+            parentIds: [nodeId],
+            hideGenerationControls: true
+        };
+
+        setNodes(prev => [...prev, newImageNode]);
+        setSelectedNodeIds([newNodeId]);
+
+        try {
+            const resultUrl = await removeImageBackground(imageNode.resultUrl);
+
+            setNodes(prev => prev.map(n =>
+                n.id === newNodeId
+                    ? {
+                        ...n,
+                        status: NodeStatus.SUCCESS,
+                        resultUrl,
+                        model: 'MYML Matting'
+                    }
+                    : n
+            ));
+        } catch (error: any) {
+            console.error('[Matting] Remove background error:', error);
+
+            setNodes(prev => prev.map(n =>
+                n.id === newNodeId
+                    ? {
+                        ...n,
+                        status: NodeStatus.ERROR,
+                        errorMessage: error?.message || 'Local background removal failed.'
+                    }
+                    : n
+            ));
+        }
+    }, [nodes, setNodes, setSelectedNodeIds]);
+
+    /**
      * Handle "Change Angle Generate".
      *
      * Creates a new CAMERA_ANGLE node immediately in LOADING state,
@@ -270,6 +339,7 @@ export const useImageNodeHandlers = ({
         handleImageToImage,
         handleImageToVideo,
         handleImageToEditor,
+        handleRemoveBackground,
         handleChangeAngleGenerate
     };
 };

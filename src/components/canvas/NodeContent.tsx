@@ -124,7 +124,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
             {/* Result View - Show when successful OR when regenerating (loading with existing content) */}
             {(isSuccess || isLoading) && data.resultUrl ? (
                 <div
-                    className={`relative w-full bg-black group/image ${!selected ? '' : 'rounded-xl overflow-hidden'}`}
+                    className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-xl overflow-hidden'}`}
                     style={getAspectRatioStyle()}
                 >
                     {isVideoType ? (

@@ -359,6 +359,7 @@ export default function App() {
     handleImageToImage,
     handleImageToVideo,
     handleImageToEditor,
+    handleRemoveBackground,
     handleChangeAngleGenerate
   } = useImageNodeHandlers({ nodes, setNodes, setSelectedNodeIds, onGenerateNode: handleGenerate });
 
@@ -1288,6 +1289,7 @@ export default function App() {
                 onImageToImage={handleImageToImage}
                 onImageToVideo={handleImageToVideo}
                 onImageToEditor={handleImageToEditor}
+                onRemoveBackground={handleRemoveBackground}
                 onChangeAngleGenerate={handleChangeAngleGenerate}
                 zoom={viewport.zoom}
                 onMouseEnter={() => setCanvasHoveredNodeId(node.id)}
