@@ -38,33 +38,6 @@ Built with React, TypeScript, and Vite, with support for OpenAI GPT Image, Googl
 - **⚖️ Commercial Friendly** - Dual-licensed or permissive terms for commercial growth
 
 
-## 🎥 Showcase
-
-### App Overview
-https://github.com/user-attachments/assets/7a64d4df-7ade-4bfa-b2cd-d615d267dd40
-
-### Motion Control Example (Kling V2.6)
-Transfer motion from a reference video to a character image - make anyone dance!
-
-https://github.com/user-attachments/assets/1ee6cbf3-00a5-496e-852c-3304c6ebc6c9
-
-### Output Example
-Download all the generated videos and use video editting tool like CapCut to create a final video. Check result below.
-
-https://github.com/user-attachments/assets/43cf8bb8-bf85-45f9-96da-657033126d94
-
-https://github.com/user-attachments/assets/e6f89da5-d3a6-4889-a38b-672cf37bbd79
-
-### Camera Angle Control
-Transform any image by adjusting camera rotation and tilt angles.
-
-https://github.com/user-attachments/assets/f0d678df-31ac-4431-bd7c-eea3950bfb1d
-
-### Storyboard
-Create video storyboards with consistent characters and layouts.
-
-https://github.com/user-attachments/assets/3c36de54-d37e-4875-8403-5b6e4a6216e0
-
 
 ## 🚀 Getting Started
 
@@ -278,6 +251,13 @@ source ~/.bashrc
 ```
 
 > 📖 For detailed documentation, see [docs/camera-angle-control.md](docs/camera-angle-control.md)
+
+
+### Optional: Local Matting
+
+MYML Canvas can call MYML-Matting-Engine at http://127.0.0.1:8000 for local background removal.
+
+Start MYML-Matting-Engine separately, then use the background removal tool from an image node's floating toolbar.
 
 
 ## 💾 Asset Storage
