@@ -1,7 +1,8 @@
 {
-  "name": "twitcanva",
+  "name": "myml-canvas",
   "private": true,
   "version": "0.0.0",
+  "description": "AI-powered visual workflow canvas for image generation, video generation, editing, and local matting tools.",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"vite\"",
