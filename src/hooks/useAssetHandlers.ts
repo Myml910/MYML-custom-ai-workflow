@@ -162,11 +162,14 @@ export const useAssetHandlers = ({
      */
     const handleOpenCreateAsset = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
-        if (node && (node.type === NodeType.IMAGE || node.type === NodeType.VIDEO)) {
+        const isImageOrVideoNode = node?.type === NodeType.IMAGE || node?.type === NodeType.VIDEO;
+        const isCameraAngleResultNode = node?.type === NodeType.CAMERA_ANGLE && !!node.resultUrl && node.status === NodeStatus.SUCCESS;
+
+        if (node && (isImageOrVideoNode || isCameraAngleResultNode)) {
             setNodeToSnapshot(node);
             setIsCreateAssetModalOpen(true);
         } else {
-            alert("Please select an Image or Video node to create an asset.");
+            alert("Please select an Image, Video, or Camera Angle result node to create an asset.");
         }
     }, [nodes]);
 
