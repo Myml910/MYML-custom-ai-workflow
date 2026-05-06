@@ -1109,6 +1109,8 @@ export default function App() {
         onClose={() => setIsCreateAssetModalOpen(false)}
         nodeToSnapshot={nodeToSnapshot}
         onSave={handleSaveAssetToLibrary}
+        language={language}
+        canvasTheme={canvasTheme}
       />
 
       {/* TikTok Import Modal */}

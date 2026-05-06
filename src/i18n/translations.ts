@@ -91,6 +91,16 @@ export const translations = {
     noAssetsFound: 'No assets found in this category.',
     deleteAsset: 'Delete Asset',
     deleteAssetConfirm: 'Are you sure you want to delete this asset? This action cannot be undone.',
+    addToExisting: 'Add to Existing',
+    cover: 'Cover',
+    name: 'Name',
+    category: 'Category',
+    assetNamePlaceholder: 'Asset Name',
+    defaultAssetName: 'My Assets',
+    create: 'Create',
+    saved: 'Saved!',
+    failed: 'Failed',
+    comingSoon: 'Coming soon',
 
     // History panel
     imageHistory: 'Image History',
@@ -243,6 +253,16 @@ export const translations = {
     language: '语言',
     chinese: '中文',
     english: 'English',
+    addToExisting: '添加到已有素材',
+    cover: '封面',
+    name: '名称',
+    category: '分类',
+    assetNamePlaceholder: '素材名称',
+    defaultAssetName: '我的素材',
+    create: '创建',
+    saved: '已保存',
+    failed: '失败',
+    comingSoon: '即将推出',
   },
 } as const;
 
