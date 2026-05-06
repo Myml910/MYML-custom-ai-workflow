@@ -154,6 +154,10 @@ const getModelDisabledReason = (model?: any, language: Language = 'en') => {
     return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
 };
 
+const isImageReferenceType = (type?: NodeType) => (
+    type === NodeType.IMAGE || type === NodeType.CAMERA_ANGLE
+);
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -421,7 +425,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const orderedImageReferences = (data.type === NodeType.IMAGE || data.type === NodeType.IMAGE_EDITOR)
         ? (data.parentIds || [])
             .map(parentId => connectedImageNodes.find(node => node.id === parentId))
-            .filter((node): node is { id: string; url: string; type?: NodeType } => Boolean(node && node.type === NodeType.IMAGE && node.url))
+            .filter((node): node is { id: string; url: string; type?: NodeType } => Boolean(node && isImageReferenceType(node.type) && node.url))
             .slice(0, MAX_IMAGE_REFERENCES)
         : [];
     const formatReferenceLabel = (index: number) => (
@@ -440,7 +444,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // 3. Image-to-Video: If single image parent or inputUrl (last frame)
     // 4. Text-to-Video: Otherwise
     const hasVideoParent = connectedImageNodes.some(n => n.type === NodeType.VIDEO);
-    const imageInputCount = connectedImageNodes.filter(n => n.type === NodeType.IMAGE).length;
+    const imageInputCount = connectedImageNodes.filter(n => isImageReferenceType(n.type)).length;
 
     const videoGenerationMode = hasVideoParent ? 'motion-control'
         : (isFrameToFrame || imageInputCount >= 2) ? 'frame-to-frame'

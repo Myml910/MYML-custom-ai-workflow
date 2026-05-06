@@ -17,6 +17,15 @@ interface UseGenerationProps {
     updateNode: (id: string, updates: Partial<NodeData>) => void;
 }
 
+function isImageReferenceNode(node: NodeData | undefined): node is NodeData {
+    return Boolean(
+        node &&
+        node.resultUrl &&
+        node.status === NodeStatus.SUCCESS &&
+        (node.type === NodeType.IMAGE || node.type === NodeType.CAMERA_ANGLE)
+    );
+}
+
 export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
     // ============================================================================
     // HELPERS
@@ -114,7 +123,7 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
 
         try {
             if (node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR) {
-                // Collect direct IMAGE parents only; keep this aligned with the reference strip UI.
+                // Collect direct image reference parents only; keep this aligned with the reference strip UI.
                 const imageBase64s: string[] = [];
 
                 if (node.parentIds && node.parentIds.length > 0) {
@@ -124,7 +133,7 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
                         }
 
                         const parent = nodes.find(n => n.id === parentId);
-                        if (parent?.type === NodeType.IMAGE && parent.resultUrl) {
+                        if (isImageReferenceNode(parent)) {
                             imageBase64s.push(parent.resultUrl);
                         }
                     }

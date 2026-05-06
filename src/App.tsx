@@ -78,6 +78,19 @@ const urlToBase64 = async (url: string): Promise<string> => {
   }
 };
 
+const isConnectedMediaNode = (node: NodeData | undefined): node is NodeData => (
+  Boolean(
+    node &&
+    node.resultUrl &&
+    (
+      node.type === NodeType.IMAGE ||
+      node.type === NodeType.CAMERA_ANGLE ||
+      node.type === NodeType.VIDEO
+    ) &&
+    (node.type === NodeType.VIDEO || node.status === NodeStatus.SUCCESS)
+  )
+);
+
 export default function App() {
   // ============================================================================
   // STATE
@@ -1242,11 +1255,11 @@ export default function App() {
                   return parent?.resultUrl;
                 })()}
                 connectedImageNodes={(() => {
-                  // Gather all connected parent nodes (image or video) with their URLs
+                  // Gather all connected parent nodes (image references or video) with their URLs
                   if (!node.parentIds || node.parentIds.length === 0) return [];
                   return node.parentIds
                     .map(parentId => nodes.find(n => n.id === parentId))
-                    .filter(parent => parent && (parent.type === NodeType.IMAGE || parent.type === NodeType.VIDEO) && parent.resultUrl)
+                    .filter(isConnectedMediaNode)
                     .map(parent => ({
                       id: parent!.id,
                       url: (parent!.type === NodeType.VIDEO ? parent!.lastFrame : parent!.resultUrl) || parent!.resultUrl!,
