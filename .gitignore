@@ -53,3 +53,5 @@ models/
 venv/
 *.log
 MYML-Matting-Engine/
+
+package-lock.json
