@@ -5,7 +5,7 @@
   "description": "AI-powered visual workflow canvas for image generation, video generation, editing, and local matting tools.",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"vite\"",
+    "dev": "concurrently \"npm run server\" \"vite --host 0.0.0.0 --port 4246\"",
     "server": "node server/index.js",
     "start": "node server/index.js",
     "build": "vite build",
