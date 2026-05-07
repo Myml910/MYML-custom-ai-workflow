@@ -1239,9 +1239,19 @@ if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));
 
-    // Handle SPA routing: serve index.html for any unknown routes
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
+    // Handle SPA routing without intercepting API or library routes.
+    app.use((req, res, next) => {
+        if (
+            !['GET', 'HEAD'].includes(req.method) ||
+            req.path.startsWith('/api/') ||
+            req.path === '/api' ||
+            req.path.startsWith('/library/') ||
+            req.path === '/library'
+        ) {
+            return next();
+        }
+
+        return res.sendFile(path.join(distPath, 'index.html'));
     });
 }
 
