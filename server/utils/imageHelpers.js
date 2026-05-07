@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { LIBRARY_DIR } from '../config/paths.js';
 
 // ============================================================================
 // BASE64 HELPERS
@@ -44,10 +45,8 @@ export function resolveImageToBase64(input) {
             // Strip query string (e.g., ?t=1234567890) used for cache-busting
             const pathWithoutQuery = filePath.split('?')[0];
 
-            // Get the library directory from environment or default
-            const libraryDir = process.env.LIBRARY_DIR || path.join(process.cwd(), 'library');
             const relativePath = pathWithoutQuery.replace('/library/', '');
-            const absolutePath = path.join(libraryDir, relativePath);
+            const absolutePath = path.join(LIBRARY_DIR, relativePath);
 
             if (fs.existsSync(absolutePath)) {
                 const fileBuffer = fs.readFileSync(absolutePath);

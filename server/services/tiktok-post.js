@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { TEMP_DIR } from '../config/paths.js';
 
 // ============================================================================
 // TYPES & STATE
@@ -373,7 +374,7 @@ export async function postVideoFromUrl(sessionId, mediaUrl, postInfo, libraryDir
 
         const buffer = Buffer.from(matches[2], 'base64');
 
-        const tempDir = path.join(libraryDir, 'temp');
+        const tempDir = TEMP_DIR;
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }

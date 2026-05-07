@@ -9,14 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const LIBRARY_DIR = path.join(__dirname, '..', 'library');
-const IMAGES_DIR = path.join(LIBRARY_DIR, 'images');
-const VIDEOS_DIR = path.join(LIBRARY_DIR, 'videos');
+import { IMAGES_DIR, VIDEOS_DIR } from './config/paths.js';
 
 function fixMetadataInDirectory(dir, type) {
     if (!fs.existsSync(dir)) {

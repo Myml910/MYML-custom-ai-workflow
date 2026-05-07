@@ -18,6 +18,15 @@ import { processTikTokVideo, isValidTikTokUrl } from './tools/tiktok.js';
 import localModelsRoutes from './routes/local-models.js';
 import storyboardRoutes from './routes/storyboard.js';
 import mattingRoutes from './routes/matting.js';
+import {
+    ASSETS_DIR,
+    CHATS_DIR,
+    IMAGES_DIR,
+    LIBRARY_DIR,
+    TEMP_DIR,
+    VIDEOS_DIR,
+    WORKFLOWS_DIR
+} from './config/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,14 +36,7 @@ const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
 
 // Ensure library directories exist
-const LIBRARY_DIR = path.join(__dirname, '..', 'library');
-const WORKFLOWS_DIR = path.join(LIBRARY_DIR, 'workflows');
-const IMAGES_DIR = path.join(LIBRARY_DIR, 'images');
-const VIDEOS_DIR = path.join(LIBRARY_DIR, 'videos');
-const CHATS_DIR = path.join(LIBRARY_DIR, 'chats');
-const LIBRARY_ASSETS_DIR = path.join(LIBRARY_DIR, 'assets');
-
-[LIBRARY_DIR, WORKFLOWS_DIR, IMAGES_DIR, VIDEOS_DIR, CHATS_DIR, LIBRARY_ASSETS_DIR].forEach(dir => {
+[LIBRARY_DIR, WORKFLOWS_DIR, IMAGES_DIR, VIDEOS_DIR, CHATS_DIR, ASSETS_DIR, TEMP_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
@@ -128,6 +130,10 @@ app.locals.CUSTOM_API_KEY = CUSTOM_API_KEY;
 app.locals.IMAGES_DIR = IMAGES_DIR;
 app.locals.VIDEOS_DIR = VIDEOS_DIR;
 app.locals.LIBRARY_DIR = LIBRARY_DIR;
+app.locals.WORKFLOWS_DIR = WORKFLOWS_DIR;
+app.locals.CHATS_DIR = CHATS_DIR;
+app.locals.ASSETS_DIR = ASSETS_DIR;
+app.locals.TEMP_DIR = TEMP_DIR;
 
 // ============================================================================
 // WORKFLOW SANITIZATION HELPERS
@@ -268,7 +274,7 @@ app.post('/api/library', async (req, res) => {
         }
 
         // Determine destination directory
-        const destDir = path.join(LIBRARY_ASSETS_DIR, category);
+        const destDir = path.join(ASSETS_DIR, category);
         if (!fs.existsSync(destDir)) {
             fs.mkdirSync(destDir, { recursive: true });
         }
@@ -351,7 +357,7 @@ app.post('/api/library', async (req, res) => {
         }
 
         // Update assets.json
-        const libraryJsonPath = path.join(LIBRARY_ASSETS_DIR, 'assets.json');
+        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
         let libraryData = [];
         if (fs.existsSync(libraryJsonPath)) {
             libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
@@ -380,7 +386,7 @@ app.post('/api/library', async (req, res) => {
 // List library assets
 app.get('/api/library', async (req, res) => {
     try {
-        const libraryJsonPath = path.join(LIBRARY_ASSETS_DIR, 'assets.json');
+        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
         if (!fs.existsSync(libraryJsonPath)) {
             return res.json([]);
         }
@@ -398,7 +404,7 @@ app.get('/api/library', async (req, res) => {
 app.delete('/api/library/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const libraryJsonPath = path.join(LIBRARY_ASSETS_DIR, 'assets.json');
+        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
 
         if (!fs.existsSync(libraryJsonPath)) {
             return res.status(404).json({ error: "Library not found" });
@@ -417,7 +423,7 @@ app.delete('/api/library/:id', async (req, res) => {
         // asset.url usually looks like /library/assets/Category/file.ext
         if (asset.url && asset.url.startsWith('/library/assets/')) {
             const relativePath = asset.url.replace('/library/assets/', '');
-            const filePath = path.join(LIBRARY_ASSETS_DIR, relativePath);
+            const filePath = path.join(ASSETS_DIR, relativePath);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
             }

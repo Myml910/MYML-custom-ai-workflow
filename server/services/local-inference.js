@@ -8,10 +8,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { IMAGES_DIR } from '../config/paths.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -26,7 +23,7 @@ const VENV_PYTHON = process.platform === 'win32'
 const INFERENCE_SCRIPT = path.join(process.cwd(), 'scripts', 'inference.py');
 
 // Output directory for generated images
-const OUTPUT_DIR = path.join(process.cwd(), 'library', 'images');
+const OUTPUT_DIR = IMAGES_DIR;
 
 // ============================================================================
 // HELPER FUNCTIONS

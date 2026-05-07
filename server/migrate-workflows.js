@@ -9,14 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const WORKFLOWS_DIR = path.join(__dirname, '..', 'library', 'workflows');
-const IMAGES_DIR = path.join(__dirname, '..', 'library', 'images');
-const VIDEOS_DIR = path.join(__dirname, '..', 'library', 'videos');
+import { IMAGES_DIR, VIDEOS_DIR, WORKFLOWS_DIR } from './config/paths.js';
 
 // Ensure directories exist
 [IMAGES_DIR, VIDEOS_DIR].forEach(dir => {

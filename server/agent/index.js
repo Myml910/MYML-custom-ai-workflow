@@ -12,18 +12,13 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createChatGraph, generateTopicTitle } from "./graph/chatGraph.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { CHATS_DIR, IMAGES_DIR } from '../config/paths.js';
 
 // ============================================================================
 // FILE PATHS
 // ============================================================================
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const CHATS_DIR = path.join(__dirname, '..', '..', 'library', 'chats');
-const IMAGES_DIR = path.join(__dirname, '..', '..', 'library', 'images');
 
 // Ensure chats directory exists
 if (!fs.existsSync(CHATS_DIR)) {

@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
+import { TEMP_DIR } from '../config/paths.js';
 
 // ============================================================================
 // TYPES & STATE
@@ -276,7 +277,7 @@ export async function uploadMediaFromUrl(sessionId, mediaUrl, mediaType, library
         const base64Data = matches[1];
         const buffer = Buffer.from(matches[2], 'base64');
 
-        const tempDir = path.join(libraryDir, 'temp');
+        const tempDir = TEMP_DIR;
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }

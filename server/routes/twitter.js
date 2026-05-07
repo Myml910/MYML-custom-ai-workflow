@@ -6,7 +6,6 @@
  */
 
 import { Router } from 'express';
-import path from 'path';
 import {
     generateAuthUrl,
     handleCallback,
@@ -15,6 +14,7 @@ import {
     postTweet,
     clearSession
 } from '../services/twitter.js';
+import { LIBRARY_DIR } from '../config/paths.js';
 
 const router = Router();
 
@@ -191,7 +191,7 @@ router.post('/post', async (req, res) => {
         }
 
         // Get library directory from app locals
-        const libraryDir = req.app.locals.LIBRARY_DIR || path.join(process.cwd(), 'library');
+        const libraryDir = req.app.locals.LIBRARY_DIR || LIBRARY_DIR;
 
         let mediaId = null;
 

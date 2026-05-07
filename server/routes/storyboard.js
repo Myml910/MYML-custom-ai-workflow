@@ -7,6 +7,7 @@
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { IMAGES_DIR } from '../config/paths.js';
 
 const router = express.Router();
 
@@ -760,7 +761,7 @@ CRITICAL:
                 const fileName = `storyboard_composite_${timestamp}.png`;
                 const fs = await import('fs/promises');
                 const path = await import('path');
-                const assetsDir = req.app.locals.IMAGES_DIR || './library/images';
+                const assetsDir = req.app.locals.IMAGES_DIR || IMAGES_DIR;
                 const filePath = path.join(assetsDir, fileName);
 
                 await fs.writeFile(filePath, imageBuffer);
