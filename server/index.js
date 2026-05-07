@@ -23,7 +23,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Ensure library directories exist
 const LIBRARY_DIR = path.join(__dirname, '..', 'library');
@@ -1255,6 +1256,6 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-app.listen(PORT, '127.0.0.1', () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+    console.log(`Backend server running on http://${HOST}:${PORT}`);
 });
