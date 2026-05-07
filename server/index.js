@@ -17,6 +17,7 @@ import tiktokPostRoutes from './routes/tiktok-post.js';
 import { processTikTokVideo, isValidTikTokUrl } from './tools/tiktok.js';
 import localModelsRoutes from './routes/local-models.js';
 import storyboardRoutes from './routes/storyboard.js';
+import mattingRoutes from './routes/matting.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -248,6 +249,9 @@ app.use('/api/local-models', localModelsRoutes);
 
 // Mount Storyboard routes (AI script generation)
 app.use('/api/storyboard', storyboardRoutes);
+
+// Mount Matting proxy routes (local background removal engine)
+app.use('/api/matting', mattingRoutes);
 
 // NOTE: Old Kling helpers removed - now in server/services/kling.js
 

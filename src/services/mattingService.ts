@@ -1,8 +1,4 @@
-const DEFAULT_MATTING_BASE_URL = 'http://127.0.0.1:8000';
-
-function getMattingBaseUrl() {
-  return ((import.meta as any).env?.VITE_MYML_MATTING_BASE_URL || DEFAULT_MATTING_BASE_URL).replace(/\/$/, '');
-}
+const MATTING_REMOVE_BG_ENDPOINT = '/api/matting/remove-bg';
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -70,7 +66,7 @@ async function readErrorBody(response: Response) {
 export async function removeImageBackground(imageUrl: string): Promise<string> {
   const imageFile = await imageUrlToFile(imageUrl);
   const formData = new FormData();
-  const endpoint = `${getMattingBaseUrl()}/api/matting/remove-bg`;
+  const endpoint = MATTING_REMOVE_BG_ENDPOINT;
 
   formData.append('file', imageFile);
   formData.append('model', 'inspyrenet');
