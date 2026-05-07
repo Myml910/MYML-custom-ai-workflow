@@ -23,11 +23,13 @@ import { uploadAsset } from '../../services/assetService';
 import { useImageEditorSelection } from '../../hooks/useImageEditorSelection';
 import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
+import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
 import { NodeStatus } from '../../types';
 
 // Sub-components
 import { DrawingToolbar } from './imageEditor/DrawingToolbar';
 import { BottomToolbar } from './imageEditor/BottomToolbar';
+import { MarkupToolbar } from './imageEditor/MarkupToolbar';
 import { PromptBar } from './imageEditor/PromptBar';
 
 // ============================================================================
@@ -113,6 +115,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const arrowCanvasRef = useRef<HTMLCanvasElement>(null);
+    const shapeCanvasRef = useRef<HTMLCanvasElement>(null);
     const selectCanvasRef = useRef<HTMLCanvasElement>(null);
     const textCanvasRef = useRef<HTMLCanvasElement>(null);
     const elementsCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,6 +168,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setElements
     });
 
+    const shapes = useImageEditorShapes({
+        shapeCanvasRef,
+        imageRef,
+        saveState,
+        setElements,
+        strokeColor: drawing.brushColor,
+        strokeWidth: drawing.brushWidth
+    });
+
     // Helper to generate composite image (Background + Brush + Elements)
     const generateCompositeImage = useCallback(async () => {
         if (!imageRef.current) return null;
@@ -215,6 +227,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ctx.fillStyle = element.color;
                 ctx.textBaseline = 'top';
                 ctx.fillText(element.text, element.x, element.y);
+            } else if (element.type === 'shape') {
+                drawShapeElement(ctx, element);
             }
         });
 
@@ -364,6 +378,31 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         onCropApply: handleCropApply
     });
 
+    const clearPrimaryModes = useCallback(() => {
+        drawing.setIsDrawingMode(false);
+        drawing.setShowToolSettings(false);
+        selection.setIsSelectMode(false);
+        selection.setSelectedElementId(null);
+        text.setIsTextMode(false);
+        text.setShowTextSettings(false);
+        crop.setIsCropMode(false);
+    }, [crop, drawing, selection, text]);
+
+    const handleSelectArrowMarkup = useCallback(() => {
+        const nextActive = !arrows.isArrowMode;
+        clearPrimaryModes();
+        shapes.setIsShapeMode(false);
+        arrows.setIsArrowMode(nextActive);
+    }, [arrows, clearPrimaryModes, shapes]);
+
+    const handleSelectShapeMarkup = useCallback((shapeType: 'rectangle' | 'ellipse') => {
+        const nextActive = !(shapes.isShapeMode && shapes.shapeType === shapeType);
+        clearPrimaryModes();
+        arrows.setIsArrowMode(false);
+        shapes.setShapeType(shapeType);
+        shapes.setIsShapeMode(nextActive);
+    }, [arrows, clearPrimaryModes, shapes]);
+
     const currentModel = IMAGE_MODELS.find(m => m.id === selectedModel) || IMAGE_MODELS[0];
     const hasInputImage = !!imageUrl;
 
@@ -503,6 +542,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ctx.fillStyle = element.color;
                 ctx.textBaseline = 'top';
                 ctx.fillText(element.text, element.x, element.y);
+            } else if (element.type === 'shape') {
+                drawShapeElement(ctx, element);
             }
         });
     }, [elements, text.editingTextId]);
@@ -663,6 +704,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             className="relative max-w-full max-h-full flex items-center justify-center"
                             style={{ maxHeight: 'calc(100vh - 350px)' }}
                         >
+                            <MarkupToolbar
+                                canvasTheme={canvasTheme}
+                                language={language}
+                                activeTool={arrows.isArrowMode ? 'arrow' : shapes.isShapeMode ? shapes.shapeType : null}
+                                filled={shapes.filled}
+                                onSelectArrow={handleSelectArrowMarkup}
+                                onSelectRectangle={() => handleSelectShapeMarkup('rectangle')}
+                                onSelectEllipse={() => handleSelectShapeMarkup('ellipse')}
+                                onToggleFilled={() => shapes.setFilled(!shapes.filled)}
+                            />
+
                             <img
                                 ref={imageRef}
                                 src={localImageUrl}
@@ -673,6 +725,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     const img = e.currentTarget;
                                     const canvas = canvasRef.current;
                                     const arrowCanvas = arrowCanvasRef.current;
+                                    const shapeCanvas = shapeCanvasRef.current;
                                     const elementsCanvas = elementsCanvasRef.current;
 
                                     if (canvas) {
@@ -682,6 +735,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     if (arrowCanvas) {
                                         arrowCanvas.width = img.clientWidth;
                                         arrowCanvas.height = img.clientHeight;
+                                    }
+                                    if (shapeCanvas) {
+                                        shapeCanvas.width = img.clientWidth;
+                                        shapeCanvas.height = img.clientHeight;
                                     }
                                     if (elementsCanvas) {
                                         elementsCanvas.width = img.clientWidth;
@@ -706,6 +763,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                     ctx.fillStyle = element.color;
                                                     ctx.textBaseline = 'top';
                                                     ctx.fillText(element.text, element.x, element.y);
+                                                } else if (element.type === 'shape') {
+                                                    drawShapeElement(ctx, element);
                                                 }
                                             });
                                         }
@@ -737,6 +796,18 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     onMouseMove={arrows.drawArrowPreview}
                                     onMouseUp={arrows.finishArrow}
                                     onMouseLeave={arrows.finishArrow}
+                                />
+                            )}
+
+                            {/* Shape Canvas Overlay */}
+                            {shapes.isShapeMode && (
+                                <canvas
+                                    ref={shapeCanvasRef}
+                                    className="absolute inset-0 cursor-crosshair"
+                                    onMouseDown={shapes.startShape}
+                                    onMouseMove={shapes.drawShapePreview}
+                                    onMouseUp={shapes.finishShape}
+                                    onMouseLeave={shapes.finishShape}
                                 />
                             )}
 
@@ -989,8 +1060,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     setIsSelectMode={selection.setIsSelectMode}
                     isDrawingMode={drawing.isDrawingMode}
                     setIsDrawingMode={drawing.setIsDrawingMode}
-                    isArrowMode={arrows.isArrowMode}
                     setIsArrowMode={arrows.setIsArrowMode}
+                    setIsShapeMode={shapes.setIsShapeMode}
                     isTextMode={text.isTextMode}
                     setIsTextMode={text.setIsTextMode}
                     isCropMode={crop.isCropMode}

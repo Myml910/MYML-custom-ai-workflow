@@ -70,7 +70,7 @@ export interface NodeData {
   // Image Editor state persistence
   editorElements?: Array<{
     id: string;
-    type: 'arrow' | 'text';
+    type: 'arrow' | 'text' | 'shape';
     // Arrow properties
     startX?: number;
     startY?: number;
@@ -84,6 +84,15 @@ export interface NodeData {
     text?: string;
     fontSize?: number;
     fontFamily?: string;
+    // Shape properties
+    shape?: 'rectangle' | 'ellipse';
+    width?: number;
+    height?: number;
+    strokeColor?: string;
+    strokeWidth?: number;
+    fillColor?: string;
+    fillOpacity?: number;
+    filled?: boolean;
   }>; // Elements (arrows, text) drawn in image editor
   editorCanvasData?: string; // Base64 brush/eraser canvas data
   editorCanvasSize?: { width: number; height: number }; // Size of the canvas when elements were saved (for scaling)
