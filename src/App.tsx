@@ -85,6 +85,7 @@ const isConnectedMediaNode = (node: NodeData | undefined): node is NodeData => (
     (
       node.type === NodeType.IMAGE ||
       node.type === NodeType.CAMERA_ANGLE ||
+      node.type === NodeType.IMAGE_EDITOR ||
       node.type === NodeType.VIDEO
     ) &&
     (node.type === NodeType.VIDEO || node.status === NodeStatus.SUCCESS)

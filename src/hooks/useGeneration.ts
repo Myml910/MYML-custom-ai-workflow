@@ -22,7 +22,11 @@ function isImageReferenceNode(node: NodeData | undefined): node is NodeData {
         node &&
         node.resultUrl &&
         node.status === NodeStatus.SUCCESS &&
-        (node.type === NodeType.IMAGE || node.type === NodeType.CAMERA_ANGLE)
+        (
+            node.type === NodeType.IMAGE ||
+            node.type === NodeType.CAMERA_ANGLE ||
+            node.type === NodeType.IMAGE_EDITOR
+        )
     );
 }
 

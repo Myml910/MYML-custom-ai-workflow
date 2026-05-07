@@ -23,6 +23,7 @@ import { uploadAsset } from '../../services/assetService';
 import { useImageEditorSelection } from '../../hooks/useImageEditorSelection';
 import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
+import { NodeStatus } from '../../types';
 
 // Sub-components
 import { DrawingToolbar } from './imageEditor/DrawingToolbar';
@@ -135,7 +136,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         isOpen,
         imageUrl: localImageUrl,
         setImageUrl: setLocalImageUrl,
-        onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url })
+        onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url, status: NodeStatus.SUCCESS })
     });
 
     const drawing = useImageEditorDrawing({
@@ -220,23 +221,47 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         return canvas.toDataURL('image/png');
     }, [elements, localImageUrl]);
 
-    // Helper to persist canvas brush data AND composite image to node
-    const saveCanvasToNode = useCallback(async () => {
-        const canvas = canvasRef.current;
-        if (!canvas || !nodeId) return;
+    const hasCanvasContent = useCallback((canvas: HTMLCanvasElement | null) => {
+        if (!canvas || canvas.width === 0 || canvas.height === 0) return false;
 
-        // 1. Get Brush Layer
-        const canvasData = canvas.toDataURL('image/png');
+        try {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return false;
+
+            const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let index = 3; index < data.length; index += 4) {
+                if (data[index] > 0) return true;
+            }
+        } catch (error) {
+            console.error("Failed to inspect image editor canvas:", error);
+            return false;
+        }
+
+        return false;
+    }, []);
+
+    const persistCompositeToNode = useCallback(async (force = false) => {
+        const canvas = canvasRef.current;
+        if (!nodeId) return;
+
+        const hasBrushContent = hasCanvasContent(canvas);
+        const hasElementContent = elements.length > 0;
+
+        if (!force && !hasBrushContent && !hasElementContent) {
+            return;
+        }
+
+        const canvasData = canvas ? canvas.toDataURL('image/png') : undefined;
 
         let savedCanvasDataUrl = canvasData;
         let savedCompositeUrl = '';
         let savedBackgroundUrl = localImageUrl || '';
 
         try {
-            // Upload Brush Layer (if it has content)
-            savedCanvasDataUrl = await uploadAsset(canvasData, 'image', 'brush-layer');
+            if (canvasData && hasBrushContent) {
+                savedCanvasDataUrl = await uploadAsset(canvasData, 'image', 'brush-layer');
+            }
 
-            // 2. Generate and Upload Composite
             const compositeDataUrl = await generateCompositeImage();
             if (compositeDataUrl) {
                 savedCompositeUrl = await uploadAsset(compositeDataUrl, 'image', 'composite-result');
@@ -257,21 +282,53 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             }
         }
 
-        // Save URLs + size
         const updates: any = {
-            editorCanvasData: savedCanvasDataUrl,
-            editorCanvasSize: { width: canvas.width, height: canvas.height }
+            editorElements: elements
         };
+
+        if (savedCanvasDataUrl) {
+            updates.editorCanvasData = savedCanvasDataUrl;
+        }
+
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+            updates.editorCanvasSize = { width: canvas.width, height: canvas.height };
+        } else if (imageRef.current) {
+            updates.editorCanvasSize = {
+                width: imageRef.current.clientWidth,
+                height: imageRef.current.clientHeight
+            };
+        }
 
         if (savedCompositeUrl) {
             updates.resultUrl = savedCompositeUrl;
+            updates.status = NodeStatus.SUCCESS;
             if (savedBackgroundUrl) {
                 updates.editorBackgroundUrl = savedBackgroundUrl;
             }
         }
 
         onUpdate(nodeId, updates);
-    }, [nodeId, onUpdate, generateCompositeImage, localImageUrl]);
+
+        if (updates.resultUrl) {
+            console.log('[ImageEditor] persisted composite result', {
+                nodeId,
+                hasResultUrl: true,
+                status: NodeStatus.SUCCESS
+            });
+        }
+
+        await Promise.resolve();
+    }, [nodeId, onUpdate, generateCompositeImage, localImageUrl, elements, hasCanvasContent]);
+
+    // Helper to persist canvas brush data AND composite image to node
+    const saveCanvasToNode = useCallback(async () => {
+        await persistCompositeToNode();
+    }, [persistCompositeToNode]);
+
+    const handleCloseClick = useCallback(async () => {
+        await persistCompositeToNode();
+        onClose();
+    }, [persistCompositeToNode, onClose]);
 
     const handleCropApply = async (croppedImageDataUrl: string) => {
         // Update local preview immediately
@@ -287,6 +344,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             // Save clean crop as background and initial result
             onUpdate(nodeId, {
                 resultUrl: savedCropUrl,
+                status: NodeStatus.SUCCESS,
                 editorBackgroundUrl: savedCropUrl
             });
         } catch (error) {
@@ -294,6 +352,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             // Fallback
             onUpdate(nodeId, {
                 resultUrl: croppedImageDataUrl,
+                status: NodeStatus.SUCCESS,
                 editorBackgroundUrl: croppedImageDataUrl
             });
         }
@@ -390,9 +449,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     try {
                         const uploadedCompositeUrl = await uploadAsset(compositeUrl, 'image', 'composite-result');
                         updates.resultUrl = uploadedCompositeUrl;
+                        updates.status = NodeStatus.SUCCESS;
                     } catch (e) {
                         console.error("Failed to upload composite update:", e);
                         updates.resultUrl = compositeUrl; // Fallback
+                        updates.status = NodeStatus.SUCCESS;
                     }
 
                     // Capture canvas size for accurate scaling in overlay
@@ -560,7 +621,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
                     {/* Exit Button */}
                     <button
-                        onClick={onClose}
+                        onClick={handleCloseClick}
                         className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
                         title={editorText.exit}
                     >

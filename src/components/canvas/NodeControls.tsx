@@ -155,7 +155,9 @@ const getModelDisabledReason = (model?: any, language: Language = 'en') => {
 };
 
 const isImageReferenceType = (type?: NodeType) => (
-    type === NodeType.IMAGE || type === NodeType.CAMERA_ANGLE
+    type === NodeType.IMAGE ||
+    type === NodeType.CAMERA_ANGLE ||
+    type === NodeType.IMAGE_EDITOR
 );
 
 // ============================================================================
