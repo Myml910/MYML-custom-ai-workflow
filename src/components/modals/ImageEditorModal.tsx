@@ -23,10 +23,13 @@ import { uploadAsset } from '../../services/assetService';
 import { useImageEditorSelection } from '../../hooks/useImageEditorSelection';
 import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
+import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
+import { NodeStatus } from '../../types';
 
 // Sub-components
 import { DrawingToolbar } from './imageEditor/DrawingToolbar';
 import { BottomToolbar } from './imageEditor/BottomToolbar';
+import { MarkupToolbar } from './imageEditor/MarkupToolbar';
 import { PromptBar } from './imageEditor/PromptBar';
 
 // ============================================================================
@@ -112,6 +115,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const arrowCanvasRef = useRef<HTMLCanvasElement>(null);
+    const shapeCanvasRef = useRef<HTMLCanvasElement>(null);
     const selectCanvasRef = useRef<HTMLCanvasElement>(null);
     const textCanvasRef = useRef<HTMLCanvasElement>(null);
     const elementsCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,7 +139,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         isOpen,
         imageUrl: localImageUrl,
         setImageUrl: setLocalImageUrl,
-        onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url })
+        onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url, status: NodeStatus.SUCCESS })
     });
 
     const drawing = useImageEditorDrawing({
@@ -162,6 +166,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         imageRef,
         saveState,
         setElements
+    });
+
+    const shapes = useImageEditorShapes({
+        shapeCanvasRef,
+        imageRef,
+        saveState,
+        setElements,
+        strokeColor: drawing.brushColor,
+        strokeWidth: drawing.brushWidth
     });
 
     // Helper to generate composite image (Background + Brush + Elements)
@@ -214,29 +227,55 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ctx.fillStyle = element.color;
                 ctx.textBaseline = 'top';
                 ctx.fillText(element.text, element.x, element.y);
+            } else if (element.type === 'shape') {
+                drawShapeElement(ctx, element);
             }
         });
 
         return canvas.toDataURL('image/png');
     }, [elements, localImageUrl]);
 
-    // Helper to persist canvas brush data AND composite image to node
-    const saveCanvasToNode = useCallback(async () => {
-        const canvas = canvasRef.current;
-        if (!canvas || !nodeId) return;
+    const hasCanvasContent = useCallback((canvas: HTMLCanvasElement | null) => {
+        if (!canvas || canvas.width === 0 || canvas.height === 0) return false;
 
-        // 1. Get Brush Layer
-        const canvasData = canvas.toDataURL('image/png');
+        try {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return false;
+
+            const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let index = 3; index < data.length; index += 4) {
+                if (data[index] > 0) return true;
+            }
+        } catch (error) {
+            console.error("Failed to inspect image editor canvas:", error);
+            return false;
+        }
+
+        return false;
+    }, []);
+
+    const persistCompositeToNode = useCallback(async (force = false) => {
+        const canvas = canvasRef.current;
+        if (!nodeId) return;
+
+        const hasBrushContent = hasCanvasContent(canvas);
+        const hasElementContent = elements.length > 0;
+
+        if (!force && !hasBrushContent && !hasElementContent) {
+            return;
+        }
+
+        const canvasData = canvas ? canvas.toDataURL('image/png') : undefined;
 
         let savedCanvasDataUrl = canvasData;
         let savedCompositeUrl = '';
         let savedBackgroundUrl = localImageUrl || '';
 
         try {
-            // Upload Brush Layer (if it has content)
-            savedCanvasDataUrl = await uploadAsset(canvasData, 'image', 'brush-layer');
+            if (canvasData && hasBrushContent) {
+                savedCanvasDataUrl = await uploadAsset(canvasData, 'image', 'brush-layer');
+            }
 
-            // 2. Generate and Upload Composite
             const compositeDataUrl = await generateCompositeImage();
             if (compositeDataUrl) {
                 savedCompositeUrl = await uploadAsset(compositeDataUrl, 'image', 'composite-result');
@@ -257,21 +296,53 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             }
         }
 
-        // Save URLs + size
         const updates: any = {
-            editorCanvasData: savedCanvasDataUrl,
-            editorCanvasSize: { width: canvas.width, height: canvas.height }
+            editorElements: elements
         };
+
+        if (savedCanvasDataUrl) {
+            updates.editorCanvasData = savedCanvasDataUrl;
+        }
+
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+            updates.editorCanvasSize = { width: canvas.width, height: canvas.height };
+        } else if (imageRef.current) {
+            updates.editorCanvasSize = {
+                width: imageRef.current.clientWidth,
+                height: imageRef.current.clientHeight
+            };
+        }
 
         if (savedCompositeUrl) {
             updates.resultUrl = savedCompositeUrl;
+            updates.status = NodeStatus.SUCCESS;
             if (savedBackgroundUrl) {
                 updates.editorBackgroundUrl = savedBackgroundUrl;
             }
         }
 
         onUpdate(nodeId, updates);
-    }, [nodeId, onUpdate, generateCompositeImage, localImageUrl]);
+
+        if (updates.resultUrl) {
+            console.log('[ImageEditor] persisted composite result', {
+                nodeId,
+                hasResultUrl: true,
+                status: NodeStatus.SUCCESS
+            });
+        }
+
+        await Promise.resolve();
+    }, [nodeId, onUpdate, generateCompositeImage, localImageUrl, elements, hasCanvasContent]);
+
+    // Helper to persist canvas brush data AND composite image to node
+    const saveCanvasToNode = useCallback(async () => {
+        await persistCompositeToNode();
+    }, [persistCompositeToNode]);
+
+    const handleCloseClick = useCallback(async () => {
+        await persistCompositeToNode();
+        onClose();
+    }, [persistCompositeToNode, onClose]);
 
     const handleCropApply = async (croppedImageDataUrl: string) => {
         // Update local preview immediately
@@ -287,6 +358,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             // Save clean crop as background and initial result
             onUpdate(nodeId, {
                 resultUrl: savedCropUrl,
+                status: NodeStatus.SUCCESS,
                 editorBackgroundUrl: savedCropUrl
             });
         } catch (error) {
@@ -294,6 +366,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             // Fallback
             onUpdate(nodeId, {
                 resultUrl: croppedImageDataUrl,
+                status: NodeStatus.SUCCESS,
                 editorBackgroundUrl: croppedImageDataUrl
             });
         }
@@ -304,6 +377,31 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         saveState,
         onCropApply: handleCropApply
     });
+
+    const clearPrimaryModes = useCallback(() => {
+        drawing.setIsDrawingMode(false);
+        drawing.setShowToolSettings(false);
+        selection.setIsSelectMode(false);
+        selection.setSelectedElementId(null);
+        text.setIsTextMode(false);
+        text.setShowTextSettings(false);
+        crop.setIsCropMode(false);
+    }, [crop, drawing, selection, text]);
+
+    const handleSelectArrowMarkup = useCallback(() => {
+        const nextActive = !arrows.isArrowMode;
+        clearPrimaryModes();
+        shapes.setIsShapeMode(false);
+        arrows.setIsArrowMode(nextActive);
+    }, [arrows, clearPrimaryModes, shapes]);
+
+    const handleSelectShapeMarkup = useCallback((shapeType: 'rectangle' | 'ellipse') => {
+        const nextActive = !(shapes.isShapeMode && shapes.shapeType === shapeType);
+        clearPrimaryModes();
+        arrows.setIsArrowMode(false);
+        shapes.setShapeType(shapeType);
+        shapes.setIsShapeMode(nextActive);
+    }, [arrows, clearPrimaryModes, shapes]);
 
     const currentModel = IMAGE_MODELS.find(m => m.id === selectedModel) || IMAGE_MODELS[0];
     const hasInputImage = !!imageUrl;
@@ -390,9 +488,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     try {
                         const uploadedCompositeUrl = await uploadAsset(compositeUrl, 'image', 'composite-result');
                         updates.resultUrl = uploadedCompositeUrl;
+                        updates.status = NodeStatus.SUCCESS;
                     } catch (e) {
                         console.error("Failed to upload composite update:", e);
                         updates.resultUrl = compositeUrl; // Fallback
+                        updates.status = NodeStatus.SUCCESS;
                     }
 
                     // Capture canvas size for accurate scaling in overlay
@@ -442,6 +542,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ctx.fillStyle = element.color;
                 ctx.textBaseline = 'top';
                 ctx.fillText(element.text, element.x, element.y);
+            } else if (element.type === 'shape') {
+                drawShapeElement(ctx, element);
             }
         });
     }, [elements, text.editingTextId]);
@@ -560,7 +662,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
                     {/* Exit Button */}
                     <button
-                        onClick={onClose}
+                        onClick={handleCloseClick}
                         className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
                         title={editorText.exit}
                     >
@@ -602,6 +704,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             className="relative max-w-full max-h-full flex items-center justify-center"
                             style={{ maxHeight: 'calc(100vh - 350px)' }}
                         >
+                            <MarkupToolbar
+                                canvasTheme={canvasTheme}
+                                language={language}
+                                activeTool={arrows.isArrowMode ? 'arrow' : shapes.isShapeMode ? shapes.shapeType : null}
+                                filled={shapes.filled}
+                                onSelectArrow={handleSelectArrowMarkup}
+                                onSelectRectangle={() => handleSelectShapeMarkup('rectangle')}
+                                onSelectEllipse={() => handleSelectShapeMarkup('ellipse')}
+                                onToggleFilled={() => shapes.setFilled(!shapes.filled)}
+                            />
+
                             <img
                                 ref={imageRef}
                                 src={localImageUrl}
@@ -612,6 +725,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     const img = e.currentTarget;
                                     const canvas = canvasRef.current;
                                     const arrowCanvas = arrowCanvasRef.current;
+                                    const shapeCanvas = shapeCanvasRef.current;
                                     const elementsCanvas = elementsCanvasRef.current;
 
                                     if (canvas) {
@@ -621,6 +735,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     if (arrowCanvas) {
                                         arrowCanvas.width = img.clientWidth;
                                         arrowCanvas.height = img.clientHeight;
+                                    }
+                                    if (shapeCanvas) {
+                                        shapeCanvas.width = img.clientWidth;
+                                        shapeCanvas.height = img.clientHeight;
                                     }
                                     if (elementsCanvas) {
                                         elementsCanvas.width = img.clientWidth;
@@ -645,6 +763,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                     ctx.fillStyle = element.color;
                                                     ctx.textBaseline = 'top';
                                                     ctx.fillText(element.text, element.x, element.y);
+                                                } else if (element.type === 'shape') {
+                                                    drawShapeElement(ctx, element);
                                                 }
                                             });
                                         }
@@ -676,6 +796,18 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     onMouseMove={arrows.drawArrowPreview}
                                     onMouseUp={arrows.finishArrow}
                                     onMouseLeave={arrows.finishArrow}
+                                />
+                            )}
+
+                            {/* Shape Canvas Overlay */}
+                            {shapes.isShapeMode && (
+                                <canvas
+                                    ref={shapeCanvasRef}
+                                    className="absolute inset-0 cursor-crosshair"
+                                    onMouseDown={shapes.startShape}
+                                    onMouseMove={shapes.drawShapePreview}
+                                    onMouseUp={shapes.finishShape}
+                                    onMouseLeave={shapes.finishShape}
                                 />
                             )}
 
@@ -928,8 +1060,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     setIsSelectMode={selection.setIsSelectMode}
                     isDrawingMode={drawing.isDrawingMode}
                     setIsDrawingMode={drawing.setIsDrawingMode}
-                    isArrowMode={arrows.isArrowMode}
                     setIsArrowMode={arrows.setIsArrowMode}
+                    setIsShapeMode={shapes.setIsShapeMode}
                     isTextMode={text.isTextMode}
                     setIsTextMode={text.setIsTextMode}
                     isCropMode={crop.isCropMode}
