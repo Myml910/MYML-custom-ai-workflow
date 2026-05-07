@@ -9,25 +9,13 @@ import { NodeData, NodeType, NodeStatus } from '../types';
 import { generateImage, generateVideo } from '../services/generationService';
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
+import { getEffectiveImageReference } from '../utils/imageReferences';
 
 const MAX_IMAGE_REFERENCES = 6;
 
 interface UseGenerationProps {
     nodes: NodeData[];
     updateNode: (id: string, updates: Partial<NodeData>) => void;
-}
-
-function isImageReferenceNode(node: NodeData | undefined): node is NodeData {
-    return Boolean(
-        node &&
-        node.resultUrl &&
-        node.status === NodeStatus.SUCCESS &&
-        (
-            node.type === NodeType.IMAGE ||
-            node.type === NodeType.CAMERA_ANGLE ||
-            node.type === NodeType.IMAGE_EDITOR
-        )
-    );
 }
 
 export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
@@ -100,6 +88,7 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
     const handleGenerate = async (id: string) => {
         const node = nodes.find(n => n.id === id);
         if (!node) return;
+        const nodesById = new Map(nodes.map(n => [n.id, n]));
 
         // Get prompts from connected TEXT nodes (if any)
         const getTextNodePrompts = (): string[] => {
@@ -137,8 +126,9 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
                         }
 
                         const parent = nodes.find(n => n.id === parentId);
-                        if (isImageReferenceNode(parent)) {
-                            imageBase64s.push(parent.resultUrl);
+                        const reference = getEffectiveImageReference(parent, nodesById);
+                        if (reference) {
+                            imageBase64s.push(reference.url);
                         }
                     }
                 }

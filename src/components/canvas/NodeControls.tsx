@@ -14,13 +14,23 @@ import { useFaceDetection } from '../../hooks/useFaceDetection';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { LocalModel, getLocalModels } from '../../services/localModelService';
 import { Language, t } from '../../i18n/translations';
+import { isImageReferenceType } from '../../utils/imageReferences';
 
 interface NodeControlsProps {
     data: NodeData;
     inputUrl?: string;
     isLoading: boolean;
     isSuccess: boolean;
-    connectedImageNodes?: { id: string; url: string; type?: NodeType }[]; // Connected parent nodes
+    connectedImageNodes?: {
+        id: string;
+        url: string;
+        type?: NodeType;
+        status?: NodeStatus;
+        resultUrl?: string;
+        referenceSourceId?: string;
+        referenceSourceType?: NodeType;
+        isFallbackReference?: boolean;
+    }[]; // Connected parent nodes
     onUpdate: (id: string, updates: Partial<NodeData>) => void;
     onGenerate: (id: string) => void;
     onChangeAngleGenerate?: (nodeId: string) => void;
@@ -153,12 +163,6 @@ const getModelDisabledReason = (model?: any, language: Language = 'en') => {
     if (model?.status === 'comingSoon') return language === 'zh' ? '\u5373\u5c06\u63a8\u51fa' : 'Coming soon';
     return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
 };
-
-const isImageReferenceType = (type?: NodeType) => (
-    type === NodeType.IMAGE ||
-    type === NodeType.CAMERA_ANGLE ||
-    type === NodeType.IMAGE_EDITOR
-);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -427,7 +431,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const orderedImageReferences = (data.type === NodeType.IMAGE || data.type === NodeType.IMAGE_EDITOR)
         ? (data.parentIds || [])
             .map(parentId => connectedImageNodes.find(node => node.id === parentId))
-            .filter((node): node is { id: string; url: string; type?: NodeType } => Boolean(node && isImageReferenceType(node.type) && node.url))
+            .filter((node): node is NonNullable<typeof node> => Boolean(node && isImageReferenceType(node.type) && node.url))
             .slice(0, MAX_IMAGE_REFERENCES)
         : [];
     const formatReferenceLabel = (index: number) => (

@@ -54,6 +54,7 @@ import { StoryboardGeneratorModal } from './components/modals/StoryboardGenerato
 import { StoryboardVideoModal } from './components/modals/StoryboardVideoModal';
 import { Language, t } from './i18n/translations';
 import { uploadAsset } from './services/assetService';
+import { getEffectiveImageReference } from './utils/imageReferences';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -78,19 +79,36 @@ const urlToBase64 = async (url: string): Promise<string> => {
   }
 };
 
-const isConnectedMediaNode = (node: NodeData | undefined): node is NodeData => (
-  Boolean(
-    node &&
-    node.resultUrl &&
-    (
-      node.type === NodeType.IMAGE ||
-      node.type === NodeType.CAMERA_ANGLE ||
-      node.type === NodeType.IMAGE_EDITOR ||
-      node.type === NodeType.VIDEO
-    ) &&
-    (node.type === NodeType.VIDEO || node.status === NodeStatus.SUCCESS)
-  )
-);
+const getConnectedMediaReference = (node: NodeData | undefined, nodesById: Map<string, NodeData>) => {
+  if (!node) return null;
+
+  if (node.type === NodeType.VIDEO && node.resultUrl) {
+    return {
+      id: node.id,
+      url: node.lastFrame || node.resultUrl,
+      type: node.type,
+      status: node.status,
+      resultUrl: node.resultUrl,
+      referenceSourceId: node.id,
+      referenceSourceType: node.type,
+      isFallbackReference: false
+    };
+  }
+
+  const imageReference = getEffectiveImageReference(node, nodesById);
+  if (!imageReference) return null;
+
+  return {
+    id: node.id,
+    url: imageReference.url,
+    type: node.type,
+    status: node.status,
+    resultUrl: node.resultUrl,
+    referenceSourceId: imageReference.sourceNodeId,
+    referenceSourceType: imageReference.sourceNodeType,
+    isFallbackReference: imageReference.isFallback
+  };
+};
 
 export default function App() {
   // ============================================================================
@@ -1259,15 +1277,17 @@ export default function App() {
                 })()}
                 connectedImageNodes={(() => {
                   // Gather all connected parent nodes (image references or video) with their URLs
-                  if (!node.parentIds || node.parentIds.length === 0) return [];
-                  return node.parentIds
-                    .map(parentId => nodes.find(n => n.id === parentId))
-                    .filter(isConnectedMediaNode)
-                    .map(parent => ({
-                      id: parent!.id,
-                      url: (parent!.type === NodeType.VIDEO ? parent!.lastFrame : parent!.resultUrl) || parent!.resultUrl!,
-                      type: parent!.type
-                    }));
+                  if (!node.parentIds || node.parentIds.length === 0) {
+                    return [];
+                  }
+
+                  const nodesById = new Map(nodes.map(n => [n.id, n]));
+                  const parentNodes = node.parentIds.map(parentId => nodesById.get(parentId));
+                  const connectedReferences = parentNodes
+                    .map(parent => getConnectedMediaReference(parent, nodesById))
+                    .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
+
+                  return connectedReferences;
                 })()}
                 onUpdate={updateNodeWithSync}
                 onGenerate={handleGenerate}
