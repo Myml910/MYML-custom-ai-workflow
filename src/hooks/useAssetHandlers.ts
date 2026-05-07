@@ -180,7 +180,7 @@ export const useAssetHandlers = ({
         if (!nodeToSnapshot?.resultUrl) return;
 
         try {
-            const response = await fetch('http://localhost:3001/api/library', {
+            const response = await fetch('/api/library', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

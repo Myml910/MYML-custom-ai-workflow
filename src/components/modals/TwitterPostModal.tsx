@@ -114,7 +114,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
 
     const checkAuthStatus = async (session: string) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/twitter/status?sessionId=${session}`);
+            const response = await fetch(`/api/twitter/status?sessionId=${session}`);
             const data = await response.json();
 
             if (data.authenticated && data.user) {
@@ -137,7 +137,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
         setError(null);
 
         try {
-            const response = await fetch('http://localhost:3001/api/twitter/auth');
+            const response = await fetch('/api/twitter/auth');
             const data = await response.json();
 
             if (!response.ok) {
@@ -165,7 +165,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
     const handleLogout = async () => {
         if (sessionId) {
             try {
-                await fetch('http://localhost:3001/api/twitter/logout', {
+                await fetch('/api/twitter/logout', {
                     method: 'POST',
                     headers: { 'X-Twitter-Session': sessionId }
                 });
@@ -201,7 +201,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                 body.mediaType = mediaType;
             }
 
-            const response = await fetch('http://localhost:3001/api/twitter/post', {
+            const response = await fetch('/api/twitter/post', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
     // Build the full media URL for display
     const fullMediaUrl = mediaUrl?.startsWith('http')
         ? mediaUrl
-        : `http://localhost:3001${mediaUrl}`;
+        : mediaUrl;
 
     return (
         <div

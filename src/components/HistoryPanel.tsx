@@ -84,8 +84,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     const fetchCounts = async () => {
         try {
             const [imgRes, vidRes] = await Promise.all([
-                fetch('http://localhost:3001/api/assets/images?limit=1'),
-                fetch('http://localhost:3001/api/assets/videos?limit=1')
+                fetch('/api/assets/images?limit=1'),
+                fetch('/api/assets/videos?limit=1')
             ]);
 
             if (imgRes.ok) {
@@ -128,7 +128,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
         try {
             const response = await fetch(
-                `http://localhost:3001/api/assets/${activeTab}?limit=${PAGE_SIZE}&offset=${pageOffset}`
+                `/api/assets/${activeTab}?limit=${PAGE_SIZE}&offset=${pageOffset}`
             );
 
             if (response.ok) {
@@ -165,7 +165,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
     const handleDelete = async (id: string) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/assets/${activeTab}/${id}`, {
+            const response = await fetch(`/api/assets/${activeTab}/${id}`, {
                 method: 'DELETE'
             });
 
@@ -186,7 +186,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     };
 
     const handleSelectAsset = (asset: AssetMetadata) => {
-        const fullUrl = `http://localhost:3001${asset.url}`;
+        const fullUrl = asset.url;
         onSelectAsset(activeTab, fullUrl, asset.prompt || '', asset.model);
     };
 
@@ -323,14 +323,14 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                             >
                                                 {activeTab === 'images' ? (
                                                     <img
-                                                        src={`http://localhost:3001${asset.url}`}
+                                                        src={asset.url}
                                                         alt={asset.prompt || t(language, 'generatedImage')}
                                                         className="w-full h-full object-cover"
                                                         loading="lazy"
                                                     />
                                                 ) : (
                                                     <video
-                                                        src={`http://localhost:3001${asset.url}`}
+                                                        src={asset.url}
                                                         className="w-full h-full object-cover"
                                                         muted
                                                         preload="metadata"
