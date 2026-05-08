@@ -21,8 +21,8 @@ interface BottomToolbarProps {
     setIsSelectMode: (mode: boolean) => void;
     isDrawingMode: boolean;
     setIsDrawingMode: (mode: boolean) => void;
-    isArrowMode: boolean;
     setIsArrowMode: (mode: boolean) => void;
+    setIsShapeMode: (mode: boolean) => void;
     isTextMode: boolean;
     setIsTextMode: (mode: boolean) => void;
     isCropMode: boolean;
@@ -53,8 +53,8 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     setIsSelectMode,
     isDrawingMode,
     setIsDrawingMode,
-    isArrowMode,
     setIsArrowMode,
+    setIsShapeMode,
     isTextMode,
     setIsTextMode,
     isCropMode,
@@ -74,7 +74,6 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     const text = {
         select: language === 'zh' ? '选择' : 'Select',
         drawingMode: language === 'zh' ? '绘制模式' : 'Drawing Mode',
-        arrow: language === 'zh' ? '箭头' : 'Arrow',
         addText: language === 'zh' ? '添加文字' : 'Add Text',
         crop: language === 'zh' ? '裁剪' : 'Crop',
         undo: language === 'zh' ? '撤销' : 'Undo',
@@ -110,6 +109,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
         if (!isSelectMode) {
             setIsDrawingMode(false);
             setIsArrowMode(false);
+            setIsShapeMode(false);
             setIsTextMode(false);
             setIsCropMode(false);
             setShowToolSettings(false);
@@ -125,21 +125,10 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             setShowToolSettings(false);
             setShowTextSettings(false);
             setIsArrowMode(false);
+            setIsShapeMode(false);
             setIsSelectMode(false);
             setIsTextMode(false);
             setIsCropMode(false);
-        }
-    };
-
-    const handleArrowModeClick = () => {
-        setIsArrowMode(!isArrowMode);
-        if (!isArrowMode) {
-            setIsDrawingMode(false);
-            setIsSelectMode(false);
-            setIsTextMode(false);
-            setIsCropMode(false);
-            setShowToolSettings(false);
-            setShowTextSettings(false);
         }
     };
 
@@ -149,6 +138,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             setIsDrawingMode(false);
             setIsSelectMode(false);
             setIsArrowMode(false);
+            setIsShapeMode(false);
             setIsCropMode(false);
             setShowToolSettings(false);
             setShowTextSettings(true);
@@ -163,6 +153,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             setIsDrawingMode(false);
             setIsSelectMode(false);
             setIsArrowMode(false);
+            setIsShapeMode(false);
             setIsTextMode(false);
             setShowToolSettings(false);
             setShowTextSettings(false);
@@ -194,17 +185,6 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
-            </button>
-
-            {/* Arrow Tool */}
-            <button
-                onClick={handleArrowModeClick}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(isArrowMode)}`}
-                title={text.arrow}
-            >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
             </button>
 

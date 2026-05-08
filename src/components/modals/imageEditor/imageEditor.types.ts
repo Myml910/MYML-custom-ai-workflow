@@ -39,9 +39,27 @@ export interface TextElement {
 }
 
 /**
+ * Shape element for rectangle and ellipse annotations
+ */
+export interface ShapeElement {
+    id: string;
+    type: 'shape';
+    shape: 'rectangle' | 'ellipse';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    strokeColor: string;
+    strokeWidth: number;
+    fillColor?: string;
+    fillOpacity?: number;
+    filled: boolean;
+}
+
+/**
  * Union type for all drawable elements
  */
-export type EditorElement = ArrowElement | TextElement;
+export type EditorElement = ArrowElement | TextElement | ShapeElement;
 
 /**
  * Snapshot of editor state for undo/redo
