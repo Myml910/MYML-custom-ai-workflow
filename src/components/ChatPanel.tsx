@@ -243,22 +243,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const accentBorder = isDark ? 'border-[#D8FF00]' : 'border-lime-500';
     const accentBgSoft = isDark ? 'bg-[#D8FF00]/10' : 'bg-lime-100/70';
     const accentButton = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#C8EE00] text-black shadow-[0_0_16px_rgba(216,255,0,0.22)]'
-        : 'bg-lime-500 hover:bg-lime-400 text-white shadow-[0_8px_20px_rgba(132,204,22,0.22)]';
+        ? 'bg-[#D8FF00] hover:bg-[#C8EE00] text-black shadow-[0_0_10px_rgba(216,255,0,0.14)]'
+        : 'bg-lime-500 hover:bg-lime-400 text-white shadow-[0_6px_16px_rgba(132,204,22,0.16)]';
 
     const iconButtonClass = isDark
-        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00] transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
+        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600 transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
 
     const inputIconButtonClass = isDark
-        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'hover:bg-neutral-200 text-neutral-500 hover:text-lime-600';
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00] transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
+        : 'hover:bg-neutral-200 text-neutral-500 hover:text-lime-600 transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
 
     const isSendDisabled = isLoading || (!message.trim() && attachedMedia.length === 0);
 
     return (
         <div
-            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-2xl transition-all duration-300 ${
+            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-xl motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
                 showHighlight
                     ? `${accentBorder} border-2`
                     : isDark
@@ -276,8 +276,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div
                         className={`border-2 border-dashed rounded-2xl px-8 py-6 text-center ${
                             isDark
-                                ? 'bg-[#D8FF00]/15 border-[#D8FF00]/70 shadow-[0_0_24px_rgba(216,255,0,0.14)]'
-                                : 'bg-lime-50 border-lime-400 shadow-[0_8px_24px_rgba(132,204,22,0.16)]'
+                                ? 'bg-[#D8FF00]/12 border-[#D8FF00]/60 shadow-[0_0_16px_rgba(216,255,0,0.10)]'
+                                : 'bg-lime-50 border-lime-400 shadow-[0_6px_18px_rgba(132,204,22,0.12)]'
                         }`}
                     >
                         <Sparkles className={`w-10 h-10 mx-auto mb-2 ${accentText}`} />
@@ -328,7 +328,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         role="button"
                                         tabIndex={0}
                                         aria-label={`Open chat: ${session.topic}`}
-                                        className={`w-full text-left p-3 rounded-xl transition-colors group cursor-pointer ${
+                                        className={`w-full text-left p-3 rounded-xl transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group cursor-pointer ${
                                             isDark
                                                 ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-transparent hover:border-[#D8FF00]/20'
                                                 : 'bg-neutral-100 hover:bg-lime-50 border border-transparent hover:border-lime-200'
@@ -347,7 +347,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                             <button
                                                 onClick={(e) => handleDeleteSession(e, session.id)}
                                                 aria-label={`Delete chat: ${session.topic}`}
-                                                className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-lg transition-all text-neutral-500 hover:text-red-400"
+                                                className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-lg transition-[background-color,color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 text-neutral-500 hover:text-red-400"
                                                 title="Delete chat"
                                             >
                                                 <Trash2 size={14} />
@@ -364,7 +364,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <button
                             onClick={handleNewChat}
                             aria-label="New chat"
-                            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${accentButton}`}
+                            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 flex items-center justify-center gap-2 ${accentButton}`}
                         >
                             <Plus size={16} />
                             New Chat
@@ -385,7 +385,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     {hasMessages && (
                         <button
                             onClick={handleNewChat}
-                            className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
+                            className={`p-1.5 rounded-lg ${iconButtonClass}`}
                             aria-label="New chat"
                             title="New Chat"
                         >
@@ -395,7 +395,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                     <button
                         onClick={() => setShowHistory(true)}
-                        className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
+                        className={`p-1.5 rounded-lg ${iconButtonClass}`}
                         aria-label="Open chat history"
                         aria-pressed={showHistory}
                         title="Chat History"
@@ -406,7 +406,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <button
                         onClick={onClose}
                         aria-label="Close chat"
-                        className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
+                        className={`p-1.5 rounded-lg ${iconButtonClass}`}
                     >
                         <X size={18} />
                     </button>
@@ -508,8 +508,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 <div
                     className={`rounded-2xl p-3 border ${
                         isDark
-                            ? 'bg-neutral-900 border-neutral-800 focus-within:border-[#D8FF00]/45 focus-within:shadow-[0_0_18px_rgba(216,255,0,0.08)]'
-                            : 'bg-neutral-50 border-neutral-200 focus-within:border-lime-400 focus-within:shadow-[0_8px_22px_rgba(132,204,22,0.10)]'
+                            ? 'bg-neutral-900 border-neutral-800 focus-within:border-[#D8FF00]/45 focus-within:shadow-[0_0_12px_rgba(216,255,0,0.06)]'
+                            : 'bg-neutral-50 border-neutral-200 focus-within:border-lime-400 focus-within:shadow-[0_6px_18px_rgba(132,204,22,0.08)]'
                     }`}
                 >
                     {/* Attached Media Preview */}
@@ -533,7 +533,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     <button
                                         onClick={() => removeAttachment(media.nodeId)}
                                         aria-label={`Remove attached ${media.type}`}
-                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center text-white text-[10px]"
+                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center text-white text-[10px] transition-[background-color,transform] duration-150 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                     >
                                         <X size={10} aria-hidden="true" />
                                     </button>
@@ -574,7 +574,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <button
-                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                className={`p-1.5 rounded-lg ${inputIconButtonClass}`}
                                 aria-label="Attach media"
                             >
                                 <Paperclip size={16} />
@@ -583,14 +583,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                         <div className="flex items-center gap-2">
                             <button
-                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                className={`p-1.5 rounded-lg ${inputIconButtonClass}`}
                                 aria-label="Web search"
                             >
                                 <Globe size={16} />
                             </button>
 
                             <button
-                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                className={`p-1.5 rounded-lg ${inputIconButtonClass}`}
                                 aria-label="Chat settings"
                             >
                                 <Settings size={16} />
@@ -600,7 +600,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 onClick={handleSend}
                                 disabled={isSendDisabled}
                                 aria-label="Send message"
-                                className={`p-2 rounded-full transition-colors ${
+                                className={`p-2 rounded-full transition-[background-color,color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${
                                     isSendDisabled
                                         ? isDark
                                             ? 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
@@ -639,7 +639,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen }) => {
             onClick={onClick}
             aria-label="Open chat"
             aria-pressed={isOpen}
-            className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-full flex items-center justify-center shadow-[0_10px_24px_rgba(216,255,0,0.18)] hover:shadow-[0_12px_30px_rgba(216,255,0,0.24)] transition-all duration-200 ease-out active:scale-[0.98] z-50"
+            className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(216,255,0,0.14)] hover:shadow-[0_10px_24px_rgba(216,255,0,0.18)] transition-[background-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black z-50"
         >
             <Sparkles size={22} className="text-black" />
         </button>

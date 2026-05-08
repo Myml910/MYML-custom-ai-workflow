@@ -100,9 +100,9 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     if (variant === 'modal') {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm motion-modal-overlay-in">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm motion-modal-overlay-in">
                 <div
-                    className={`flex flex-col w-[800px] h-[600px] border rounded-2xl shadow-2xl overflow-hidden transition-colors duration-300 motion-modal-dialog-in ${
+                    className={`flex flex-col w-[800px] h-[600px] border rounded-2xl shadow-xl overflow-hidden transition-colors duration-200 motion-modal-dialog-in ${
                         isDark ? 'bg-[#0a0a0a] border-neutral-800' : 'bg-white border-neutral-200'
                     }`}
                     onClick={(e) => e.stopPropagation()}
@@ -115,7 +115,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                         <button
                             onClick={onClose}
                             aria-label={language === 'zh' ? '关闭素材库' : 'Close asset library'}
-                            className={`p-2 rounded-lg transition-all duration-200 motion-press ${
+                            className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                 isDark
                                     ? 'hover:bg-[#D8FF00]/10 text-neutral-400 hover:text-[#D8FF00]'
                                     : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-600'
@@ -145,7 +145,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     return (
         <div
-            className={`fixed left-20 z-40 w-[700px] backdrop-blur-xl border rounded-2xl shadow-2xl flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-colors ${
+            className={`fixed left-20 z-40 w-[700px] backdrop-blur-md border rounded-2xl shadow-xl flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
                 isDark ? 'bg-[#0a0a0a]/95 border-neutral-800' : 'bg-white/95 border-neutral-200'
             }`}
             style={{ top: Math.min(window.innerHeight - 510, Math.max(20, panelY)) }}
@@ -219,7 +219,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border motion-press ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 border motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             selectedCategory === cat
                                 ? isDark
                                     ? 'bg-[#D8FF00] text-black border-[#D8FF00]'
@@ -258,7 +258,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     filteredAssets.map((asset: LibraryAsset) => (
                         <div
                             key={asset.id}
-                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-all duration-200 ${
+                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] ${
                                 isDark
                                     ? 'bg-neutral-900 border-neutral-800 hover:border-[#D8FF00]/50'
                                     : 'bg-white border-neutral-200 hover:border-lime-500'
@@ -295,7 +295,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
 
                                     <div className="flex gap-2">
                                         <button
-                                            className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
+                                            className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                             onClick={(e) => handleConfirmDelete(e, asset.id)}
                                             aria-label={`${t(language, 'delete')} ${asset.name}`}
                                         >
@@ -303,7 +303,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         </button>
 
                                         <button
-                                            className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-colors"
+                                            className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                             onClick={handleCancelDelete}
                                             aria-label={t(language, 'cancel')}
                                         >
@@ -313,7 +313,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                 </div>
                             ) : (
                                 <button
-                                    className="absolute top-1 right-1 p-1.5 bg-black/60 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80 z-10"
+                                    className="absolute top-1 right-1 p-1.5 bg-black/60 text-white rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] hover:bg-red-500/80 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                     onClick={(e) => handleDeleteClick(e, asset.id)}
                                     aria-label={`${t(language, 'delete')} ${asset.name}`}
                                     title={t(language, 'delete')}

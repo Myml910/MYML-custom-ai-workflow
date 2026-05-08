@@ -132,10 +132,10 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
+            className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
             onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[500px] shadow-2xl overflow-hidden motion-modal-dialog-in">
+            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[500px] shadow-xl overflow-hidden motion-modal-dialog-in">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-neutral-800">
@@ -152,7 +152,8 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 motion-press"
+                        aria-label="Close TikTok import modal"
+                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                     >
                         <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
                     </button>
@@ -175,7 +176,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                                 onKeyDown={handleKeyDown}
                                 placeholder="Paste TikTok video URL here (Ctrl+V)"
                                 disabled={status === 'loading' || status === 'success'}
-                                className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:border-[#00f2ea] transition-colors disabled:opacity-50"
+                                className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:border-[#00f2ea] focus:ring-2 focus:ring-[#00f2ea]/15 transition-[background-color,border-color,box-shadow,opacity] duration-150 disabled:opacity-50"
                             />
                         </div>
                         <p className="text-xs text-neutral-500">
@@ -246,7 +247,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                 <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 motion-press"
+                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                     >
                         Cancel
                     </button>
@@ -254,7 +255,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     {status === 'success' ? (
                         <button
                             onClick={handleAddToCanvas}
-                            className="flex items-center gap-2 px-6 py-2 bg-[#00f2ea] hover:bg-[#00d4d4] text-black font-medium rounded-lg transition-colors motion-press"
+                            className="flex items-center gap-2 px-6 py-2 bg-[#00f2ea] hover:bg-[#00d4d4] text-black font-medium rounded-lg transition-[background-color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00f2ea]/35"
                         >
                             <CheckCircle size={18} />
                             Add to Canvas
@@ -263,7 +264,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                         <button
                             onClick={handleImport}
                             disabled={status === 'loading' || !url.trim()}
-                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] hover:opacity-90 text-white font-medium rounded-lg transition-opacity motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] hover:opacity-90 text-white font-medium rounded-lg transition-[opacity,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00f2ea]/35 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                         >
                             {status === 'loading' ? (
                                 <>

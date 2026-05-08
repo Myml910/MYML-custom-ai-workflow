@@ -195,7 +195,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
         <>
             {/* Main Panel */}
             <div
-                className={`fixed backdrop-blur-xl border rounded-2xl shadow-2xl z-40 flex flex-col overflow-hidden motion-panel-in transition-all duration-300 ${
+                className={`fixed backdrop-blur-md border rounded-2xl shadow-xl z-40 flex flex-col overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
                     isExpanded
                         ? 'left-24 right-24 top-20 bottom-20 max-h-none'
                         : 'left-20 w-[700px] max-h-[500px]'
@@ -211,7 +211,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                     <div className="flex items-center gap-6">
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`font-medium pb-1 transition-colors ${
+                            className={`font-medium pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'my'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
@@ -226,7 +226,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                         <button
                             onClick={() => setActiveTab('public')}
-                            className={`font-medium pb-1 transition-colors ${
+                            className={`font-medium pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'public'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b-2 border-[#D8FF00]'
@@ -242,7 +242,9 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                     <button
                         onClick={() => setIsExpanded(prev => !prev)}
-                        className={`p-2 rounded-lg transition-all duration-150 motion-press ${
+                        aria-label={isExpanded ? 'Collapse workflows panel' : 'Expand workflows panel'}
+                        aria-expanded={isExpanded}
+                        className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
@@ -276,7 +278,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <div
                                         key={workflow.id}
                                         onClick={() => onLoadWorkflow(workflow.id)}
-                                        className={`rounded-xl overflow-hidden cursor-pointer transition-all group ${
+                                        className={`rounded-xl overflow-hidden cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] group ${
                                             workflow.id === currentWorkflowId
                                                 ? isDark
                                                     ? 'ring-2 ring-[#D8FF00]'
@@ -302,14 +304,15 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                                 <button
                                                     onClick={(e) => openCoverEditor(workflow.id, e)}
-                                                    className={`group/edit p-1.5 bg-black/50 rounded-lg transition-all ${
+                                                    className={`group/edit p-1.5 bg-black/50 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                                         isDark
                                                             ? 'hover:bg-[#D8FF00] hover:text-black'
                                                             : 'hover:bg-lime-600 hover:text-white'
                                                     }`}
+                                                    aria-label={t(language, 'editCover')}
                                                     title={t(language, 'editCover')}
                                                 >
                                                     <Pencil size={14} className={isDark ? 'text-white group-hover/edit:text-black' : 'text-white'} />
@@ -320,7 +323,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                                         e.stopPropagation();
                                                         setDeleteConfirm(workflow.id);
                                                     }}
-                                                    className="p-1.5 bg-black/50 hover:bg-red-500 rounded-lg transition-all"
+                                                    className="p-1.5 bg-black/50 hover:bg-red-500 rounded-lg transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                                    aria-label={t(language, 'deleteWorkflowTitle')}
                                                     title={t(language, 'deleteWorkflowTitle')}
                                                 >
                                                     <Trash2 size={14} className="text-white" />
@@ -354,7 +358,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <div
                                         key={workflow.id}
                                         onClick={() => onLoadWorkflow(`public:${workflow.id}`)}
-                                        className="rounded-xl overflow-hidden cursor-pointer transition-all group"
+                                        className="rounded-xl overflow-hidden cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] group"
                                     >
                                         <div className="aspect-[4/3] bg-gradient-to-br from-green-800/30 to-emerald-900/30 flex items-center justify-center relative overflow-hidden">
                                             {workflow.coverUrl ? (
@@ -394,8 +398,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-[#1a1a1a] border border-neutral-700 rounded-2xl p-6 w-[340px] shadow-2xl">
+                <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
+                    <div className="bg-[#1a1a1a] border border-neutral-700 rounded-2xl p-6 w-[340px] shadow-xl motion-modal-dialog-in">
                         <h3 className="text-lg font-semibold text-white mb-2">
                             {t(language, 'deleteWorkflow')}
                         </h3>
@@ -407,14 +411,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setDeleteConfirm(null)}
-                                className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-colors"
+                                className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-sm transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                             >
                                 {t(language, 'cancel')}
                             </button>
 
                             <button
                                 onClick={() => handleDelete(deleteConfirm)}
-                                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm transition-colors"
+                                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                             >
                                 {t(language, 'delete')}
                             </button>
@@ -425,8 +429,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
             {/* Cover Selection Modal */}
             {editingCoverFor && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-[#1a1a1a] border border-neutral-700 rounded-2xl p-6 w-[500px] max-h-[500px] shadow-2xl flex flex-col">
+                <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
+                    <div className="bg-[#1a1a1a] border border-neutral-700 rounded-2xl p-6 w-[500px] max-h-[500px] shadow-xl flex flex-col motion-modal-dialog-in">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-white">
                                 {t(language, 'selectCoverImage')}
@@ -434,7 +438,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                             <button
                                 onClick={() => setEditingCoverFor(null)}
-                                className="p-1.5 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition-colors"
+                                aria-label={language === 'zh' ? '关闭封面选择' : 'Close cover selection'}
+                                className="p-1.5 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                             >
                                 <X size={18} />
                             </button>
@@ -454,7 +459,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <button
                                         key={asset.id}
                                         onClick={() => selectCover(asset.url)}
-                                        className="h-32 w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all relative group bg-neutral-900"
+                                        className="h-32 w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-[#D8FF00]/40 transition-[box-shadow,transform] duration-150 active:scale-[0.99] relative group bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     >
                                         <LazyImage
                                             src={asset.url}
