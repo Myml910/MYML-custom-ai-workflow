@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export interface AuthUser {
+    id: string;
     username: string;
     role: string;
+    status: string;
 }
 
 interface AuthContextValue {

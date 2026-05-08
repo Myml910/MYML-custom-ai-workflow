@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { findUserById, getPublicUserFromRow } from '../db/users.js';
 
 export const AUTH_COOKIE_NAME = 'myml_auth';
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -50,6 +51,7 @@ export function createAuthToken(user) {
 
     const now = Math.floor(Date.now() / 1000);
     const payload = {
+        id: user.id,
         username: user.username,
         role: user.role || 'admin',
         iat: now,
@@ -81,11 +83,12 @@ export function verifyAuthToken(token) {
         const payload = JSON.parse(base64UrlDecode(encodedPayload));
         const now = Math.floor(Date.now() / 1000);
 
-        if (!payload.username || !payload.exp || payload.exp < now) {
+        if (!payload.id || !payload.username || !payload.exp || payload.exp < now) {
             return null;
         }
 
         return {
+            id: payload.id,
             username: payload.username,
             role: payload.role || 'admin'
         };
@@ -110,19 +113,29 @@ export function getAuthCookieOptions() {
 }
 
 export function requireAuth(req, res, next) {
-    const user = getAuthUser(req);
+    const tokenUser = getAuthUser(req);
 
-    if (!user) {
+    if (!tokenUser?.id) {
         return res.status(401).json({ error: 'Authentication required' });
     }
 
+    const userRow = findUserById(tokenUser.id);
+    if (!userRow) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (userRow.status !== 'active') {
+        return res.status(403).json({ error: 'User is disabled' });
+    }
+
+    const user = getPublicUserFromRow(userRow);
     req.user = user;
     return next();
 }
 
 export function requireRole(...roles) {
     return (req, res, next) => {
-        const user = req.user || getAuthUser(req);
+        const user = req.user;
 
         if (!user) {
             return res.status(401).json({ error: 'Authentication required' });

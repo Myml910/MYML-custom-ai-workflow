@@ -5,39 +5,35 @@ import {
     getAuthCookieOptions,
     getAuthUser
 } from '../middleware/auth.js';
+import {
+    findUserById,
+    findUserByUsername,
+    getPublicUserFromRow,
+    verifyUserPassword
+} from '../db/users.js';
 
 const router = Router();
 
-function getConfiguredCredentials() {
-    return {
-        username: process.env.MYML_ADMIN_USERNAME,
-        password: process.env.MYML_ADMIN_PASSWORD
-    };
-}
-
-function getPublicUser(username) {
-    return {
-        username,
-        role: 'admin'
-    };
-}
-
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body || {};
-        const configured = getConfiguredCredentials();
 
-        if (!process.env.MYML_AUTH_SECRET || !configured.username || !configured.password) {
+        if (!process.env.MYML_AUTH_SECRET) {
             return res.status(500).json({
-                error: 'Auth is not configured. Set MYML_AUTH_SECRET, MYML_ADMIN_USERNAME, and MYML_ADMIN_PASSWORD.'
+                error: 'Auth is not configured. Set MYML_AUTH_SECRET.'
             });
         }
 
-        if (username !== configured.username || password !== configured.password) {
+        const userRow = username ? findUserByUsername(username) : null;
+        const passwordMatches = userRow
+            ? await verifyUserPassword(userRow, password)
+            : false;
+
+        if (!userRow || !passwordMatches || userRow.status !== 'active') {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
-        const user = getPublicUser(configured.username);
+        const user = getPublicUserFromRow(userRow);
         const token = createAuthToken(user);
 
         res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
@@ -57,12 +53,18 @@ router.post('/logout', (_req, res) => {
 });
 
 router.get('/me', (req, res) => {
-    const user = getAuthUser(req);
+    const tokenUser = getAuthUser(req);
 
-    if (!user) {
+    if (!tokenUser?.id) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    const userRow = findUserById(tokenUser.id);
+    if (!userRow || userRow.status !== 'active') {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const user = getPublicUserFromRow(userRow);
     return res.json({ user });
 });
 

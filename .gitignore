@@ -29,6 +29,10 @@ dist-ssr
 
 # data
 library/
+library/database/
+*.db
+*.sqlite
+*.sqlite3
 
 # docs
 docs/cloud_migration_plan.md

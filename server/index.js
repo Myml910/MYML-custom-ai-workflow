@@ -13,6 +13,9 @@ import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
+import { getDatabasePath, getDb } from './db/index.js';
+import { runMigrations } from './db/migrations.js';
+import { seedInitialAdmin } from './db/users.js';
 import generationRoutes from './routes/generation.js';
 import twitterRoutes from './routes/twitter.js';
 import tiktokPostRoutes from './routes/tiktok-post.js';
@@ -36,6 +39,16 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
+
+try {
+    const db = getDb();
+    runMigrations(db);
+    await seedInitialAdmin();
+    console.log(`[DB] SQLite ready: ${getDatabasePath()}`);
+} catch (error) {
+    console.error('[DB] Failed to initialize database:', error.message);
+    process.exit(1);
+}
 
 // Ensure library directories exist
 [LIBRARY_DIR, WORKFLOWS_DIR, IMAGES_DIR, VIDEOS_DIR, CHATS_DIR, ASSETS_DIR, TEMP_DIR].forEach(dir => {
