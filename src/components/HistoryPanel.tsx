@@ -225,10 +225,10 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                 style={isExpanded ? undefined : { top: panelY }}
             >
                 {/* Header */}
-                <div className={`flex items-center justify-between px-5 py-4 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                    <div className="flex items-center gap-6">
+                <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
+                    <div className="flex items-center gap-5">
                         <button
-                            className={`text-sm font-medium transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`text-[15px] font-semibold leading-5 transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'images'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -244,7 +244,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                         </button>
 
                         <button
-                            className={`text-sm font-medium transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`text-[15px] font-semibold leading-5 transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'videos'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -289,18 +289,18 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                             <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={24} />
                         </div>
                     ) : assets.length === 0 ? (
-                        <div className={`flex flex-col items-center justify-center h-40 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                        <div className={`flex flex-col items-center justify-center h-40 rounded-lg border ${isDark ? 'bg-[#151815] border-neutral-800 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-400'}`}>
                             <div className={`w-16 h-16 rounded-lg flex items-center justify-center mb-3 ${isDark ? 'bg-[#151815] border border-neutral-800' : 'bg-neutral-100'}`}>
                                 {activeTab === 'images' ? <ImageIcon size={24} /> : <Video size={24} />}
                             </div>
 
-                            <p>
+                            <p className="text-sm font-medium leading-5">
                                 {activeTab === 'images'
                                     ? t(language, 'noImagesFound')
                                     : t(language, 'noVideosFound')}
                             </p>
 
-                            <p className="text-xs mt-1">
+                            <p className="mt-1 text-[11px] leading-4 text-neutral-600">
                                 {activeTab === 'images'
                                     ? t(language, 'generatedImagesAppearHere')
                                     : t(language, 'generatedVideosAppearHere')}
@@ -310,7 +310,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                         <div className="space-y-6">
                             {sortedDates.map(date => (
                                 <div key={date}>
-                                    <h3 className={`text-sm mb-3 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                                    <h3 className={`mb-3 text-[11px] font-semibold leading-4 ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
                                         {date}
                                     </h3>
 
@@ -319,7 +319,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                             <div
                                                 key={asset.id}
                                                 onClick={() => handleSelectAsset(asset)}
-                                                className={`aspect-square rounded-lg overflow-hidden cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] group relative border ${
+                                                className={`aspect-square rounded-lg overflow-hidden cursor-pointer transition-[border-color,background-color,opacity] duration-150 group relative border ${
                                                     isDark
                                                         ? 'bg-[#151815] border-neutral-800 hover:border-[#D8FF00]/35'
                                                         : 'bg-white border-neutral-200 hover:border-lime-500'
@@ -352,7 +352,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                                                         setDeleteConfirm(asset.id);
                                                     }}
                                                     aria-label={t(language, 'delete')}
-                                                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center bg-black/50 hover:bg-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                                     title={t(language, 'delete')}
                                                 >
                                                     <Trash2 size={14} className="text-white" />
@@ -382,7 +382,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
                     <div className={`border rounded-xl p-6 w-[340px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] motion-modal-dialog-in ${isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'}`}>
-                        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                        <h3 className={`text-base font-semibold leading-5 mb-2 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                             {t(language, 'deleteAsset')}
                         </h3>
 

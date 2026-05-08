@@ -207,11 +207,11 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                 style={isExpanded ? undefined : { top: panelY }}
             >
                 {/* Header with Tabs */}
-                <div className={`flex items-center justify-between px-5 py-4 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                    <div className="flex items-center gap-6">
+                <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
+                    <div className="flex items-center gap-5">
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`font-medium pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`text-[15px] font-semibold leading-5 pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'my'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -226,7 +226,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                         <button
                             onClick={() => setActiveTab('public')}
-                            className={`font-medium pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`text-[15px] font-semibold leading-5 pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'public'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -269,8 +269,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                         </div>
                     ) : activeTab === 'my' ? (
                         workflows.length === 0 ? (
-                            <div className="flex items-center justify-center h-40 text-neutral-500">
-                                {t(language, 'noWorkflowsFound')}
+                            <div className={`flex items-center justify-center h-40 rounded-lg border text-sm ${isDark ? 'bg-[#151815] border-neutral-800 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-500'}`}>
+                                <span>{t(language, 'noWorkflowsFound')}</span>
                             </div>
                         ) : (
                             <div className={`grid gap-4 ${isExpanded ? 'grid-cols-5' : 'grid-cols-3'}`}>
@@ -278,12 +278,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <div
                                         key={workflow.id}
                                         onClick={() => onLoadWorkflow(workflow.id)}
-                                        className={`rounded-lg overflow-hidden cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] group ${
+                                        className={`rounded-lg overflow-hidden cursor-pointer border transition-[border-color,background-color,opacity] duration-150 group ${
                                             workflow.id === currentWorkflowId
                                                 ? isDark
-                                                    ? 'ring-1 ring-[#D8FF00]/70'
-                                                    : 'ring-1 ring-lime-500'
-                                                : ''
+                                                    ? 'border-[#D8FF00]/50 ring-1 ring-[#D8FF00]/35'
+                                                    : 'border-lime-500 ring-1 ring-lime-500/40'
+                                                : isDark
+                                                    ? 'border-neutral-800 hover:border-[#D8FF00]/30 hover:bg-[#151815]'
+                                                    : 'border-neutral-200 hover:border-lime-500/50'
                                         }`}
                                     >
                                         <div className="aspect-[4/3] bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative overflow-hidden">
@@ -332,12 +334,12 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                             </div>
                                         </div>
 
-                                        <div className={`p-3 ${isDark ? 'bg-[#151815]' : 'bg-neutral-100/90'}`}>
-                                            <h3 className={`font-medium text-sm truncate ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                                        <div className={`px-3 py-2.5 ${isDark ? 'bg-[#151815]' : 'bg-neutral-100/90'}`}>
+                                            <h3 className={`text-sm font-semibold leading-5 truncate ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
                                                 {workflow.title || t(language, 'untitled')}
                                             </h3>
 
-                                            <p className={`text-xs mt-0.5 ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}>
+                                            <p className={`mt-0.5 text-[11px] leading-4 ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}>
                                                 {workflow.nodeCount} {t(language, 'nodes')}
                                             </p>
                                         </div>
@@ -347,10 +349,10 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                         )
                     ) : (
                         publicWorkflows.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-40 text-neutral-500 gap-2">
-                                <FileText size={32} className="opacity-50" />
-                                <p>{t(language, 'noPublicWorkflows')}</p>
-                                <p className="text-xs text-neutral-600">{t(language, 'addWorkflowJsons')}</p>
+                            <div className={`flex flex-col items-center justify-center h-40 rounded-lg border gap-2 ${isDark ? 'bg-[#151815] border-neutral-800 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-500'}`}>
+                                <FileText size={28} className="opacity-45" />
+                                <p className="text-sm font-medium leading-5">{t(language, 'noPublicWorkflows')}</p>
+                                <p className="text-[11px] leading-4 text-neutral-600">{t(language, 'addWorkflowJsons')}</p>
                             </div>
                         ) : (
                             <div className={`grid gap-4 ${isExpanded ? 'grid-cols-5' : 'grid-cols-3'}`}>
@@ -358,7 +360,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <div
                                         key={workflow.id}
                                         onClick={() => onLoadWorkflow(`public:${workflow.id}`)}
-                                        className="rounded-lg overflow-hidden cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] group"
+                                        className={`rounded-lg overflow-hidden cursor-pointer border transition-[border-color,background-color,opacity] duration-150 group ${isDark ? 'border-neutral-800 hover:border-[#D8FF00]/30 hover:bg-[#151815]' : 'border-neutral-200 hover:border-lime-500/50'}`}
                                     >
                                         <div className="aspect-[4/3] bg-gradient-to-br from-green-800/30 to-emerald-900/30 flex items-center justify-center relative overflow-hidden">
                                             {workflow.coverUrl ? (
@@ -374,17 +376,17 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="absolute top-2 left-2 px-2 py-0.5 bg-green-600/80 rounded text-[10px] font-medium text-white">
+                                            <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500/15 border border-emerald-400/25 rounded-md text-[10px] font-semibold text-emerald-300">
                                                 {t(language, 'publicBadge')}
                                             </div>
                                         </div>
 
-                                        <div className={`p-3 ${isDark ? 'bg-[#151815]' : 'bg-neutral-100/90'}`}>
-                                            <h3 className={`font-medium text-sm truncate ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                                        <div className={`px-3 py-2.5 ${isDark ? 'bg-[#151815]' : 'bg-neutral-100/90'}`}>
+                                            <h3 className={`text-sm font-semibold leading-5 truncate ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
                                                 {workflow.title || t(language, 'untitled')}
                                             </h3>
 
-                                            <p className={`text-xs mt-0.5 ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}>
+                                            <p className={`mt-0.5 text-[11px] leading-4 ${isDark ? 'text-neutral-500' : 'text-neutral-600'}`}>
                                                 {workflow.description || `${workflow.nodeCount} ${t(language, 'nodes')}`}
                                             </p>
                                         </div>
@@ -400,7 +402,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
                     <div className="bg-[#101210] border border-neutral-800 rounded-xl p-6 w-[340px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] motion-modal-dialog-in">
-                        <h3 className="text-lg font-semibold text-white mb-2">
+                        <h3 className="text-base font-semibold leading-5 text-white mb-2">
                             {t(language, 'deleteWorkflow')}
                         </h3>
 
@@ -432,7 +434,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
                     <div className="bg-[#101210] border border-neutral-800 rounded-xl p-6 w-[500px] max-h-[500px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] flex flex-col motion-modal-dialog-in">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-white">
+                            <h3 className="text-base font-semibold leading-5 text-white">
                                 {t(language, 'selectCoverImage')}
                             </h3>
 
@@ -459,7 +461,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <button
                                         key={asset.id}
                                         onClick={() => selectCover(asset.url)}
-                                        className="h-32 w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-[#D8FF00]/40 transition-[box-shadow,transform] duration-150 active:scale-[0.99] relative group bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                        className="h-32 w-full rounded-lg overflow-hidden hover:ring-1 hover:ring-[#D8FF00]/35 transition-[box-shadow] duration-150 relative group bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     >
                                         <LazyImage
                                             src={asset.url}

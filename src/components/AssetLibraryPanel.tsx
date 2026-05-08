@@ -107,8 +107,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                     }`}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                        <h2 className={`text-lg font-medium pl-2 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                    <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
+                        <h2 className={`text-base font-semibold leading-5 ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
                             {t(language, 'assets')}
                         </h2>
 
@@ -212,17 +212,17 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
     };
 
     return (
-        <div className="p-4 flex flex-col gap-4 h-full overflow-hidden">
+        <div className="p-4 flex flex-col gap-3 h-full overflow-hidden">
             {/* Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide shrink-0">
                 {ASSET_CATEGORIES.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 border motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                        className={`h-7 px-3 rounded-lg text-[11px] font-semibold leading-none whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 border motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             selectedCategory === cat
                                 ? isDark
-                                    ? 'bg-[#D8FF00] text-black border-[#D8FF00]'
+                                    ? 'bg-[#D8FF00]/90 text-black border-[#D8FF00]/70'
                                     : 'bg-lime-600 text-white border-lime-600'
                                 : isDark
                                     ? 'bg-[#151815] text-neutral-400 border-neutral-800 hover:bg-[#1A1D1A] hover:text-neutral-100 hover:border-[#D8FF00]/30'
@@ -244,21 +244,21 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                 }}
             >
                 {loading ? (
-                    <div className={`col-span-full flex flex-col items-center justify-center gap-2 py-10 text-sm ${
-                        isDark ? 'text-neutral-400' : 'text-neutral-500'
+                    <div className={`col-span-full flex flex-col items-center justify-center gap-2 py-10 rounded-lg border text-sm ${
+                        isDark ? 'bg-[#151815] border-neutral-800 text-neutral-400' : 'bg-neutral-50 border-neutral-200 text-neutral-500'
                     }`}>
                         <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={22} />
                         <span>{language === 'zh' ? '加载中...' : 'Loading...'}</span>
                     </div>
                 ) : filteredAssets.length === 0 ? (
-                    <div className="col-span-full text-center py-10 text-neutral-500 text-sm">
+                    <div className={`col-span-full text-center py-10 rounded-lg border text-sm ${isDark ? 'bg-[#151815] border-neutral-800 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-500'}`}>
                         {t(language, 'noAssetsFound')}
                     </div>
                 ) : (
                     filteredAssets.map((asset: LibraryAsset) => (
                         <div
                             key={asset.id}
-                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] ${
+                            className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-[border-color,background-color,opacity] duration-150 ${
                                 isDark
                                     ? 'bg-[#151815] border-neutral-800 hover:border-[#D8FF00]/35'
                                     : 'bg-white border-neutral-200 hover:border-lime-500'
@@ -277,8 +277,8 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                 }}
                             />
 
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
-                                <span className="text-white text-xs font-medium truncate">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
+                                <span className="text-neutral-100 text-[11px] font-semibold leading-4 truncate">
                                     {asset.name}
                                 </span>
                             </div>
@@ -295,7 +295,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
 
                                     <div className="flex gap-2">
                                         <button
-                                            className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                            className="h-7 px-2 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                             onClick={(e) => handleConfirmDelete(e, asset.id)}
                                             aria-label={`${t(language, 'delete')} ${asset.name}`}
                                         >
@@ -303,7 +303,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         </button>
 
                                         <button
-                                            className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                            className="h-7 px-2 rounded-md bg-neutral-700 hover:bg-neutral-600 text-white text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                             onClick={handleCancelDelete}
                                             aria-label={t(language, 'cancel')}
                                         >
@@ -313,7 +313,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                 </div>
                             ) : (
                                 <button
-                                    className="absolute top-1 right-1 p-1.5 bg-black/60 text-white rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] hover:bg-red-500/80 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                    className="absolute top-1 right-1 flex h-7 w-7 items-center justify-center bg-black/55 text-white rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] hover:bg-red-500/80 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                     onClick={(e) => handleDeleteClick(e, asset.id)}
                                     aria-label={`${t(language, 'delete')} ${asset.name}`}
                                     title={t(language, 'delete')}
