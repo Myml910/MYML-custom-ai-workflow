@@ -11,6 +11,8 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
+import { requireAuth } from './middleware/auth.js';
+import authRoutes from './routes/auth.js';
 import generationRoutes from './routes/generation.js';
 import twitterRoutes from './routes/twitter.js';
 import tiktokPostRoutes from './routes/tiktok-post.js';
@@ -43,8 +45,23 @@ const HOST = process.env.HOST || '127.0.0.1';
 });
 
 // Enable CORS for all routes (must come before static file serving)
-app.use(cors());
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
 app.use(express.json({ limit: '100mb' }));
+
+// Application authentication routes must stay public.
+app.use('/api/auth', authRoutes);
+
+// Protect core app APIs while leaving third-party OAuth callbacks untouched.
+app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/twitter/') || req.path.startsWith('/tiktok-post/')) {
+        return next();
+    }
+
+    return requireAuth(req, res, next);
+});
 
 // Serve static assets from library with CORS headers for cross-origin image access
 app.use('/library', (req, res, next) => {

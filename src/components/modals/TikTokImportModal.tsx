@@ -81,6 +81,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
             const response = await fetch('/api/tiktok/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ url: url.trim(), enableTrim: true })
             });
 

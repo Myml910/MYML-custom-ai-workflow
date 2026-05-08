@@ -62,6 +62,7 @@ export const useWorkflow = ({
             const response = await fetch('/api/workflows', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(workflow)
             });
 
@@ -89,7 +90,7 @@ export const useWorkflow = ({
                 ? `/api/public-workflows/${workflowId}`
                 : `/api/workflows/${workflowId}`;
 
-            const response = await fetch(endpoint);
+            const response = await fetch(endpoint, { credentials: 'include' });
             if (response.ok) {
                 const workflow = await response.json();
 

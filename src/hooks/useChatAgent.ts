@@ -101,7 +101,7 @@ export function useChatAgent(): UseChatAgentReturn {
     const refreshSessions = useCallback(async () => {
         setIsLoadingSessions(true);
         try {
-            const response = await fetch('/api/chat/sessions');
+            const response = await fetch('/api/chat/sessions', { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setSessions(data);
@@ -121,7 +121,7 @@ export function useChatAgent(): UseChatAgentReturn {
         setError(null);
 
         try {
-            const response = await fetch(`/api/chat/sessions/${targetSessionId}`);
+            const response = await fetch(`/api/chat/sessions/${targetSessionId}`, { credentials: 'include' });
             if (!response.ok) {
                 throw new Error('Session not found');
             }
@@ -156,6 +156,7 @@ export function useChatAgent(): UseChatAgentReturn {
         try {
             await fetch(`/api/chat/sessions/${targetSessionId}`, {
                 method: 'DELETE',
+                credentials: 'include'
             });
 
             // Refresh sessions list
@@ -197,6 +198,7 @@ export function useChatAgent(): UseChatAgentReturn {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     sessionId: currentSessionId,
                     message: content,

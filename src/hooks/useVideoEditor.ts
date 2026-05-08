@@ -98,6 +98,7 @@ export const useVideoEditor = ({ nodes, updateNode }: UseVideoEditorOptions) => 
             const response = await fetch('/api/trim-video', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     videoUrl,
                     startTime: trimStart,

@@ -64,7 +64,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
     const fetchLibrary = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/library');
+            const res = await fetch('/api/library', { credentials: 'include' });
             if (res.ok) {
                 setAssets(await res.json());
             }
@@ -80,7 +80,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
         try {
             const res = await fetch(`/api/library/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
 
             if (res.ok) {

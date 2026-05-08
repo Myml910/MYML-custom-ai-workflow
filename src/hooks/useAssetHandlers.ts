@@ -183,6 +183,7 @@ export const useAssetHandlers = ({
             const response = await fetch('/api/library', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     sourceUrl: nodeToSnapshot.resultUrl,
                     name: name,
@@ -223,6 +224,7 @@ export const useAssetHandlers = ({
                 const response = await fetch(`/api/assets/${type}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                         data: base64Data,
                         prompt: file.name

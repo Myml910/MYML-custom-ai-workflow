@@ -24,7 +24,7 @@ export const useGenerationRecovery = ({
 
     const checkStatus = useCallback(async (nodeId: string) => {
         try {
-            const response = await fetch(`/api/generation-status/${nodeId}`);
+            const response = await fetch(`/api/generation-status/${nodeId}`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === 'success' && data.resultUrl) {

@@ -104,7 +104,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
         const fetchAssets = async () => {
             setIsLoadingAssets(true);
             try {
-                const response = await fetch('/api/library');
+                const response = await fetch('/api/library', { credentials: 'include' });
                 if (response.ok) {
                     const assets = await response.json();
                     // Filter to show all image assets and include category info

@@ -84,8 +84,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     const fetchCounts = async () => {
         try {
             const [imgRes, vidRes] = await Promise.all([
-                fetch('/api/assets/images?limit=1'),
-                fetch('/api/assets/videos?limit=1')
+                fetch('/api/assets/images?limit=1', { credentials: 'include' }),
+                fetch('/api/assets/videos?limit=1', { credentials: 'include' })
             ]);
 
             if (imgRes.ok) {
@@ -128,7 +128,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
         try {
             const response = await fetch(
-                `/api/assets/${activeTab}?limit=${PAGE_SIZE}&offset=${pageOffset}`
+                `/api/assets/${activeTab}?limit=${PAGE_SIZE}&offset=${pageOffset}`,
+                { credentials: 'include' }
             );
 
             if (response.ok) {
@@ -166,7 +167,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     const handleDelete = async (id: string) => {
         try {
             const response = await fetch(`/api/assets/${activeTab}/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
 
             if (response.ok) {

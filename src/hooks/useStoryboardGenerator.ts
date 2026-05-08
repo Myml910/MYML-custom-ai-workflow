@@ -192,6 +192,7 @@ export const useStoryboardGenerator = ({ onCreateNodes, viewport }: UseStoryboar
             const response = await fetch('/api/storyboard/generate-scripts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     story: state.story,
                     characterDescriptions: state.selectedCharacters.map(c => ({
@@ -240,6 +241,7 @@ export const useStoryboardGenerator = ({ onCreateNodes, viewport }: UseStoryboar
             const response = await fetch('/api/storyboard/brainstorm-story', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     characterDescriptions: state.selectedCharacters.map(c => ({
                         name: c.name,
@@ -287,6 +289,7 @@ export const useStoryboardGenerator = ({ onCreateNodes, viewport }: UseStoryboar
             const response = await fetch('/api/storyboard/optimize-story', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     story: state.story,
                     characterNames: state.selectedCharacters.map(c => c.name)
@@ -322,6 +325,7 @@ export const useStoryboardGenerator = ({ onCreateNodes, viewport }: UseStoryboar
             const response = await fetch('/api/storyboard/generate-composite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     scripts: state.scripts,
                     styleAnchor: state.styleAnchor,

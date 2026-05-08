@@ -5,8 +5,9 @@
  */
 
 import React, { useState } from 'react';
-import { Plus, Save, Loader2 } from 'lucide-react';
+import { LogOut, Plus, Save, Loader2 } from 'lucide-react';
 import { Language, t } from '../i18n/translations';
+import { AuthUser } from '../auth/AuthContext';
 
 interface TopBarProps {
     // Title
@@ -34,6 +35,10 @@ interface TopBarProps {
     // Language
     language: Language;
     onToggleLanguage: () => void;
+
+    // Auth
+    currentUser: AuthUser;
+    onLogout: () => void | Promise<void>;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -52,7 +57,9 @@ export const TopBar: React.FC<TopBarProps> = ({
     canvasTheme,
     onToggleTheme,
     language,
-    onToggleLanguage
+    onToggleLanguage,
+    currentUser,
+    onLogout
 }) => {
     const [showNewConfirm, setShowNewConfirm] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -234,6 +241,27 @@ export const TopBar: React.FC<TopBarProps> = ({
                             </svg>
                         )}
                     </button>
+
+                    <div
+                        className={`h-10 px-3 rounded-full flex items-center gap-2 border text-xs font-black tracking-[0.08em] uppercase ${
+                            canvasTheme === 'dark'
+                                ? 'bg-black/70 border-neutral-800 text-neutral-300'
+                                : 'bg-white border-neutral-200 text-neutral-700 shadow-sm'
+                        }`}
+                    >
+                        <span>{currentUser.username}</span>
+                        <button
+                            onClick={() => onLogout()}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                                canvasTheme === 'dark'
+                                    ? 'hover:bg-[#D8FF00] hover:text-black'
+                                    : 'hover:bg-lime-600 hover:text-white'
+                            }`}
+                            title="Logout"
+                        >
+                            <LogOut size={15} />
+                        </button>
+                    </div>
                 </div>
             </div>
 

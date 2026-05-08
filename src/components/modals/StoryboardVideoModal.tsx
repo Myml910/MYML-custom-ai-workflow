@@ -191,6 +191,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
             const response = await fetch('/api/gemini/describe-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     imageUrl: scene.resultUrl,
                     prompt: systemPrompt
@@ -220,6 +221,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
             const response = await fetch('/api/gemini/optimize-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                     prompt: currentPrompt
                 })

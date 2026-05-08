@@ -41,6 +41,7 @@ export const generateImage = async (params: GenerateImageParams): Promise<string
     const response = await fetch('/api/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(params)
     });
 
@@ -69,6 +70,7 @@ export const generateVideo = async (params: GenerateVideoParams): Promise<string
     const response = await fetch('/api/generate-video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(params)
     });
 
