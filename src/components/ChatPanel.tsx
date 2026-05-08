@@ -200,6 +200,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         setShowTip(false);
     };
 
+    const handleSessionKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            void handleLoadSession(sessionId);
+        }
+    };
+
     const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
         e.stopPropagation();
         await deleteSession(sessionId);
@@ -286,6 +293,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`flex items-center gap-3 px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={() => setShowHistory(false)}
+                            aria-label="Back to chat"
                             className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                         >
                             <ChevronLeft size={18} />
@@ -316,8 +324,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     <div
                                         key={session.id}
                                         onClick={() => handleLoadSession(session.id)}
+                                        onKeyDown={(e) => handleSessionKeyDown(e, session.id)}
                                         role="button"
                                         tabIndex={0}
+                                        aria-label={`Open chat: ${session.topic}`}
                                         className={`w-full text-left p-3 rounded-xl transition-colors group cursor-pointer ${
                                             isDark
                                                 ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-transparent hover:border-[#D8FF00]/20'
@@ -336,6 +346,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                                             <button
                                                 onClick={(e) => handleDeleteSession(e, session.id)}
+                                                aria-label={`Delete chat: ${session.topic}`}
                                                 className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-lg transition-all text-neutral-500 hover:text-red-400"
                                                 title="Delete chat"
                                             >
@@ -352,6 +363,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`p-4 border-t ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={handleNewChat}
+                            aria-label="New chat"
                             className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${accentButton}`}
                         >
                             <Plus size={16} />
@@ -374,6 +386,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <button
                             onClick={handleNewChat}
                             className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
+                            aria-label="New chat"
                             title="New Chat"
                         >
                             <Plus size={18} />
@@ -383,6 +396,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <button
                         onClick={() => setShowHistory(true)}
                         className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
+                        aria-label="Open chat history"
+                        aria-pressed={showHistory}
                         title="Chat History"
                     >
                         <History size={18} />
@@ -390,6 +405,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                     <button
                         onClick={onClose}
+                        aria-label="Close chat"
                         className={`p-1.5 rounded-lg transition-colors ${iconButtonClass}`}
                     >
                         <X size={18} />
@@ -438,6 +454,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 <div className="flex justify-end">
                                     <button
                                         onClick={() => setShowTip(false)}
+                                        aria-label="Dismiss chat tip"
                                         className={`px-4 py-1.5 rounded-lg text-sm transition-colors ${
                                             isDark
                                                 ? 'bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700'
@@ -515,9 +532,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                                     <button
                                         onClick={() => removeAttachment(media.nodeId)}
+                                        aria-label={`Remove attached ${media.type}`}
                                         className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center text-white text-[10px]"
                                     >
-                                        ×
+                                        <X size={10} aria-hidden="true" />
                                     </button>
                                 </div>
                             ))}
@@ -555,23 +573,33 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
+                            <button
+                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                aria-label="Attach media"
+                            >
                                 <Paperclip size={16} />
                             </button>
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
+                            <button
+                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                aria-label="Web search"
+                            >
                                 <Globe size={16} />
                             </button>
 
-                            <button className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}>
+                            <button
+                                className={`p-1.5 rounded-lg transition-colors ${inputIconButtonClass}`}
+                                aria-label="Chat settings"
+                            >
                                 <Settings size={16} />
                             </button>
 
                             <button
                                 onClick={handleSend}
                                 disabled={isSendDisabled}
+                                aria-label="Send message"
                                 className={`p-2 rounded-full transition-colors ${
                                     isSendDisabled
                                         ? isDark
@@ -609,6 +637,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen }) => {
     return (
         <button
             onClick={onClick}
+            aria-label="Open chat"
+            aria-pressed={isOpen}
             className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-full flex items-center justify-center shadow-[0_10px_24px_rgba(216,255,0,0.18)] hover:shadow-[0_12px_30px_rgba(216,255,0,0.24)] transition-all duration-200 ease-out active:scale-[0.98] z-50"
         >
             <Sparkles size={22} className="text-black" />

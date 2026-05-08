@@ -99,6 +99,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             : 'bg-lime-600 text-white hover:bg-lime-500 border-lime-600'
         }`}
         onClick={onAddClick}
+        aria-label={t(language, 'addNodes')}
         title={t(language, 'addNodes')}
       >
         <Plus size={20} />
@@ -110,6 +111,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onWorkflowsClick}
+          aria-label={t(language, 'myWorkflows')}
           title={t(language, 'myWorkflows')}
         >
           <LayoutGrid size={20} />
@@ -120,6 +122,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           title={t(language, 'assets')}
+          aria-label={t(language, 'assets')}
           onClick={onAssetsClick}
         >
           <ImageIcon size={20} />
@@ -130,6 +133,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             isDark ? 'text-neutral-500 hover:bg-neutral-900 hover:text-[#D8FF00]' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onHistoryClick}
+          aria-label={t(language, 'history')}
           title={t(language, 'history')}
         >
           <History size={20} />
@@ -149,6 +153,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               }
               setIsToolsOpen(!isToolsOpen);
             }}
+            aria-label={t(language, 'tools')}
+            aria-pressed={isToolsOpen}
             title={t(language, 'tools')}
           >
             <Wrench size={20} />
@@ -165,6 +171,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             >
               <button
                 onClick={handleToolClick(onTikTokClick)}
+                aria-label={t(language, 'importTikTok')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group ${
                   isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-100'
                 }`}
@@ -197,6 +204,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               {/* Storyboard Generator */}
               <button
                 onClick={handleToolClick(onStoryboardClick)}
+                aria-label={t(language, 'storyboardGenerator')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group ${
                   isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-100'
                 }`}
@@ -233,6 +241,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className={`w-8 h-[1px] my-1 ${isDark ? 'bg-[#D8FF00]/15' : 'bg-neutral-200'}`} />
 
       <button
+        aria-label={language === 'zh' ? '个人资料' : 'Profile'}
         className={`w-8 h-8 rounded-full overflow-hidden mb-2 transition-all duration-200 ${
           isDark
             ? 'border border-[#D8FF00]/25 hover:border-[#D8FF00]/60'

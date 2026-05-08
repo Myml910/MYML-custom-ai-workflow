@@ -114,6 +114,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
                         <button
                             onClick={onClose}
+                            aria-label={language === 'zh' ? '关闭素材库' : 'Close asset library'}
                             className={`p-2 rounded-lg transition-all duration-200 motion-press ${
                                 isDark
                                     ? 'hover:bg-[#D8FF00]/10 text-neutral-400 hover:text-[#D8FF00]'
@@ -227,6 +228,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                     ? 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-[#D8FF00]'
                                     : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-lime-600'
                         }`}
+                        aria-pressed={selectedCategory === cat}
                     >
                         {t(language, cat)}
                     </button>
@@ -295,6 +297,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         <button
                                             className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
                                             onClick={(e) => handleConfirmDelete(e, asset.id)}
+                                            aria-label={`${t(language, 'delete')} ${asset.name}`}
                                         >
                                             {t(language, 'delete')}
                                         </button>
@@ -302,6 +305,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         <button
                                             className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-colors"
                                             onClick={handleCancelDelete}
+                                            aria-label={t(language, 'cancel')}
                                         >
                                             {t(language, 'cancel')}
                                         </button>
@@ -311,6 +315,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                 <button
                                     className="absolute top-1 right-1 p-1.5 bg-black/60 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80 z-10"
                                     onClick={(e) => handleDeleteClick(e, asset.id)}
+                                    aria-label={`${t(language, 'delete')} ${asset.name}`}
                                     title={t(language, 'delete')}
                                 >
                                     <Trash2 size={14} />

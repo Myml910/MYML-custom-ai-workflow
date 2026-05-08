@@ -89,6 +89,8 @@ export const LoginPage: React.FC = () => {
                         key={option}
                         type="button"
                         onClick={() => handleLangChange(option)}
+                        aria-label={option === 'zh' ? '切换到中文' : 'Switch to English'}
+                        aria-pressed={lang === option}
                         className={`h-8 px-3 rounded-full text-xs font-black uppercase tracking-[0.1em] transition-colors ${
                             lang === option
                                 ? 'bg-[#D8FF00] text-black'

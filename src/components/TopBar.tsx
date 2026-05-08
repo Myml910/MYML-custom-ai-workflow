@@ -63,6 +63,9 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
     const [showNewConfirm, setShowNewConfirm] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const themeToggleLabel = canvasTheme === 'dark'
+        ? t(language, 'switchToDayMode')
+        : t(language, 'switchToNightMode');
 
     const handleTitleBlur = () => {
         if (editingTitleValue.trim()) {
@@ -138,6 +141,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             onChange={(e) => setEditingTitleValue(e.target.value)}
                             onBlur={handleTitleBlur}
                             onKeyDown={handleTitleKeyDown}
+                            aria-label={language === 'zh' ? '画布标题' : 'Canvas title'}
                             className="text-sm font-black tracking-[0.16em] uppercase text-[#D8FF00] bg-transparent border-b border-[#D8FF00] outline-none min-w-[120px]"
                         />
                     ) : (
@@ -176,6 +180,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={() => onSave()}
+                        aria-label={t(language, 'save')}
                         className={`text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 active:scale-[0.98] font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
                                 ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black border-[#D8FF00] hover:shadow-[0_0_16px_rgba(216,255,0,0.22)]'
@@ -188,6 +193,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={handleNewClick}
+                        aria-label={t(language, 'new')}
                         className={`text-sm px-4 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 hover:bg-neutral-900 text-neutral-300 hover:text-[#D8FF00] border-neutral-800 hover:border-[#D8FF00]/45'
@@ -200,6 +206,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={onToggleLanguage}
+                        aria-label={language === 'zh' ? 'Switch to English' : '切换到中文'}
                         className={`h-10 px-3 rounded-full flex items-center justify-center transition-all duration-200 border text-xs font-black tracking-[0.1em] uppercase ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
@@ -207,21 +214,19 @@ export const TopBar: React.FC<TopBarProps> = ({
                         }`}
                         title={t(language, 'language')}
                     >
-                        {language === 'zh' ? 'EN' : '中'}
+                        {language === 'zh' ? 'EN' : '中文'}
                     </button>
 
                     <button
                         onClick={onToggleTheme}
+                        aria-label={themeToggleLabel}
+                        aria-pressed={canvasTheme === 'dark'}
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 border ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
                                 : 'bg-white border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 shadow-sm'
                         }`}
-                        title={
-                            canvasTheme === 'dark'
-                                ? t(language, 'switchToDayMode')
-                                : t(language, 'switchToNightMode')
-                        }
+                        title={themeToggleLabel}
                     >
                         {canvasTheme === 'dark' ? (
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -252,6 +257,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <span>{currentUser.username}</span>
                         <button
                             onClick={() => onLogout()}
+                            aria-label={language === 'zh' ? '退出登录' : 'Logout'}
                             className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
                                 canvasTheme === 'dark'
                                     ? 'hover:bg-[#D8FF00] hover:text-black'
@@ -281,6 +287,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 onClick={() => setShowNewConfirm(false)}
                                 disabled={isSaving}
+                                aria-label={t(language, 'cancel')}
                                 className="px-4 py-2 rounded-lg bg-black border border-white/10 hover:border-[#D8FF00]/40 text-neutral-300 hover:text-[#D8FF00] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {t(language, 'cancel')}
@@ -289,6 +296,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 onClick={handleDiscardAndNew}
                                 disabled={isSaving}
+                                aria-label={t(language, 'discard')}
                                 className="px-4 py-2 rounded-lg bg-[#FF4D00] hover:bg-orange-500 text-black font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {t(language, 'discard')}
@@ -297,6 +305,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 onClick={handleSaveAndNew}
                                 disabled={isSaving}
+                                aria-label={t(language, 'saveAndNew')}
                                 className="px-4 py-2 rounded-lg bg-[#D8FF00] hover:bg-[#D8FF00] text-black font-bold text-sm transition-all hover:shadow-[0_0_14px_rgba(216,255,0,0.45)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isSaving ? (
