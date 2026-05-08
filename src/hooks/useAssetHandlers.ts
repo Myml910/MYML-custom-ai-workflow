@@ -292,7 +292,7 @@ export const useAssetHandlers = ({
 
             } catch (error) {
                 console.error("Upload failed:", error);
-                alert("Failed to upload file to server.");
+                alert("fuck Failed to upload file to server." +error);
             }
         };
         reader.readAsDataURL(file);
