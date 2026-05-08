@@ -122,7 +122,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     return (
         <>
             <div
-                className="fixed top-0 left-0 h-14 flex items-center justify-between px-6 z-50 pointer-events-none transition-all duration-300"
+                className="fixed top-0 left-0 h-14 flex items-center justify-between px-6 z-50 pointer-events-none transition-colors duration-150"
                 style={{ width: isChatOpen ? 'calc(100% - 400px)' : '100%' }}
             >
                 {/* Left: Logo & Title */}
@@ -142,11 +142,11 @@ export const TopBar: React.FC<TopBarProps> = ({
                             onBlur={handleTitleBlur}
                             onKeyDown={handleTitleKeyDown}
                             aria-label={language === 'zh' ? '画布标题' : 'Canvas title'}
-                            className="text-sm font-black tracking-[0.16em] uppercase text-[#D8FF00] bg-transparent border-b border-[#D8FF00] outline-none min-w-[120px]"
+                            className="text-sm font-black tracking-[0.16em] uppercase text-[#D8FF00] bg-transparent border-b border-[#D8FF00] outline-none min-w-[120px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                         />
                     ) : (
                         <span
-                            className={`text-sm font-black tracking-[0.16em] uppercase cursor-text transition-all duration-200 border-b border-transparent ${
+                            className={`text-sm font-black tracking-[0.16em] uppercase cursor-text transition-colors duration-150 border-b border-transparent ${
                                 canvasTheme === 'dark'
                                     ? 'text-[#D8FF00] hover:border-[#D8FF00]/45'
                                     : 'text-black hover:text-lime-600 hover:border-lime-500/45'
@@ -181,9 +181,9 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <button
                         onClick={() => onSave()}
                         aria-label={t(language, 'save')}
-                        className={`text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 active:scale-[0.98] font-black tracking-[0.08em] uppercase border ${
+                        className={`text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
-                                ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black border-[#D8FF00] hover:shadow-[0_0_16px_rgba(216,255,0,0.22)]'
+                                ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black border-[#D8FF00] hover:shadow-[0_0_10px_rgba(216,255,0,0.16)]'
                                 : 'bg-lime-600 hover:bg-lime-500 text-white border-lime-600 shadow-sm'
                         }`}
                     >
@@ -194,7 +194,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <button
                         onClick={handleNewClick}
                         aria-label={t(language, 'new')}
-                        className={`text-sm px-4 py-2.5 rounded-full flex items-center gap-2 transition-all duration-200 font-black tracking-[0.08em] uppercase border ${
+                        className={`text-sm px-4 py-2.5 rounded-full flex items-center gap-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black font-black tracking-[0.08em] uppercase border ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 hover:bg-neutral-900 text-neutral-300 hover:text-[#D8FF00] border-neutral-800 hover:border-[#D8FF00]/45'
                                 : 'bg-white hover:bg-neutral-100 text-neutral-700 hover:text-lime-600 border-neutral-200 hover:border-lime-500'
@@ -207,7 +207,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <button
                         onClick={onToggleLanguage}
                         aria-label={language === 'zh' ? 'Switch to English' : '切换到中文'}
-                        className={`h-10 px-3 rounded-full flex items-center justify-center transition-all duration-200 border text-xs font-black tracking-[0.1em] uppercase ${
+                        className={`h-10 px-3 rounded-full flex items-center justify-center transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black border text-xs font-black tracking-[0.1em] uppercase ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
                                 : 'bg-white border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 shadow-sm'
@@ -221,7 +221,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                         onClick={onToggleTheme}
                         aria-label={themeToggleLabel}
                         aria-pressed={canvasTheme === 'dark'}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 border ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black border ${
                             canvasTheme === 'dark'
                                 ? 'bg-black/70 border-neutral-800 text-neutral-300 hover:border-[#D8FF00]/45 hover:text-[#D8FF00]'
                                 : 'bg-white border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 shadow-sm'
@@ -258,7 +258,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <button
                             onClick={() => onLogout()}
                             aria-label={language === 'zh' ? '退出登录' : 'Logout'}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                 canvasTheme === 'dark'
                                     ? 'hover:bg-[#D8FF00] hover:text-black'
                                     : 'hover:bg-lime-600 hover:text-white'
@@ -288,7 +288,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={() => setShowNewConfirm(false)}
                                 disabled={isSaving}
                                 aria-label={t(language, 'cancel')}
-                                className="px-4 py-2 rounded-lg bg-black border border-white/10 hover:border-[#D8FF00]/40 text-neutral-300 hover:text-[#D8FF00] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-black border border-white/10 hover:border-[#D8FF00]/40 text-neutral-300 hover:text-[#D8FF00] text-sm transition-[border-color,color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                             >
                                 {t(language, 'cancel')}
                             </button>
@@ -297,7 +297,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={handleDiscardAndNew}
                                 disabled={isSaving}
                                 aria-label={t(language, 'discard')}
-                                className="px-4 py-2 rounded-lg bg-[#FF4D00] hover:bg-orange-500 text-black font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-[#FF4D00] hover:bg-orange-500 text-black font-bold text-sm transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                             >
                                 {t(language, 'discard')}
                             </button>
@@ -306,7 +306,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={handleSaveAndNew}
                                 disabled={isSaving}
                                 aria-label={t(language, 'saveAndNew')}
-                                className="px-4 py-2 rounded-lg bg-[#D8FF00] hover:bg-[#D8FF00] text-black font-bold text-sm transition-all hover:shadow-[0_0_14px_rgba(216,255,0,0.45)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-[#D8FF00] hover:bg-[#e4ff3a] text-black font-bold text-sm transition-[background-color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] hover:shadow-[0_0_10px_rgba(216,255,0,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                             >
                                 {isSaving ? (
                                     <>
