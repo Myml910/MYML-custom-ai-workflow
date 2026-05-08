@@ -633,26 +633,26 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // Theme helper
     const isDark = canvasTheme === 'dark';
     const selectorButtonClass = isDark
-        ? 'flex items-center gap-1.5 text-xs font-medium bg-[#1a1a1a] border border-neutral-800 text-neutral-200 hover:border-[#D8FF00]/50 hover:text-[#D8FF00] px-2.5 py-1.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
+        ? 'flex h-8 items-center gap-1.5 text-xs font-medium bg-[#151815] border border-neutral-800 text-neutral-200 hover:bg-[#1A1D1A] hover:border-[#D8FF00]/35 hover:text-neutral-100 px-2.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
         : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
     const dropdownClass = isDark
-        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50 motion-menu-in'
-        : 'bg-white border-neutral-200 rounded-xl shadow-xl overflow-hidden z-50 motion-menu-in';
+        ? 'bg-[#151815] border-neutral-800 rounded-xl shadow-[0_14px_32px_rgba(0,0,0,0.36)] overflow-hidden z-50 motion-menu-in'
+        : 'bg-white border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50 motion-menu-in';
     const dropdownHeaderClass = isDark
-        ? 'bg-[#0f0f0f] text-neutral-400 border-neutral-800'
+        ? 'bg-[#101210] text-neutral-400 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
     const dropdownSectionHeaderClass = isDark
-        ? 'bg-[#0f0f0f] text-neutral-500 border-neutral-800'
+        ? 'bg-[#101210] text-neutral-500 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
     const dropdownItemClass = (active: boolean) => {
         if (active) {
             return isDark
-                ? 'text-[#D8FF00] bg-[#D8FF00]/5'
+                ? 'text-[#D8FF00] bg-[#D8FF00]/10'
                 : 'text-lime-600 bg-lime-50';
         }
 
         return isDark
-            ? 'text-neutral-300 hover:bg-neutral-800'
+            ? 'text-neutral-300 hover:bg-[#1A1D1A]'
             : 'text-neutral-700 hover:bg-neutral-100';
     };
     const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
@@ -675,11 +675,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         ) : null;
     const generateButtonClass = (blocked: boolean) => {
         if (blocked) {
-            return 'bg-neutral-700/50 opacity-50 cursor-not-allowed text-neutral-500';
+            return 'bg-neutral-800/70 border border-neutral-700 text-neutral-500 opacity-70 cursor-not-allowed';
         }
 
         return isDark
-            ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black active:scale-[0.98]'
+            ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black shadow-[0_0_8px_rgba(216,255,0,0.12)] active:scale-[0.98]'
             : 'bg-lime-600 hover:bg-lime-500 text-white active:scale-[0.98]';
     };
 
@@ -724,7 +724,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
     return (
         <div
-            className={`p-4 rounded-2xl shadow-xl cursor-default w-full transition-colors duration-200 ${isDark ? 'bg-[#1a1a1a] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
+            className={`p-4 rounded-xl shadow-[0_12px_28px_rgba(0,0,0,0.32)] cursor-default w-full transition-colors duration-200 ${isDark ? 'bg-[#151815] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
             style={{
                 transform: `scale(${localScale})`,
                 transformOrigin: 'top center',
@@ -738,8 +738,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                 <div className="mb-3">
                     {orderedImageReferences.length > 0 && (
                         <div
-                            className={`mb-3 rounded-xl border px-2 pb-1 pt-2 ${isDark
-                                ? 'border-neutral-800 bg-neutral-950/45'
+                            className={`mb-3 rounded-lg border px-2 pb-1 pt-2 ${isDark
+                                ? 'border-neutral-800 bg-[#101210]'
                                 : 'border-neutral-200 bg-neutral-50/80'
                                 }`}
                         >
@@ -751,7 +751,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     >
                                         <div
                                             className={`h-full w-full overflow-hidden rounded-lg transition-[box-shadow,opacity] duration-150 ${isDark
-                                                ? 'bg-neutral-900 ring-1 ring-neutral-800 group-hover/ref:ring-[#D8FF00]/45'
+                                                ? 'bg-[#151815] ring-1 ring-neutral-800 group-hover/ref:ring-[#D8FF00]/35'
                                                 : 'bg-white ring-1 ring-neutral-200 group-hover/ref:ring-lime-500/70'
                                                 }`}
                                         >
@@ -762,7 +762,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             />
                                             <div
                                                 className={`absolute left-0.5 top-0.5 rounded px-1 py-0.5 text-[8px] font-semibold leading-none shadow-sm ${isDark
-                                                    ? 'bg-black/70 text-[#D8FF00]'
+                                                    ? 'bg-[#101210]/85 text-[#D8FF00]'
                                                     : 'bg-white/85 text-lime-700'
                                                     }`}
                                             >
@@ -778,7 +778,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 e.stopPropagation();
                                                 handleRemoveImageReference(reference.id);
                                             }}
-                                            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/80 bg-red-500 text-white opacity-0 shadow-md transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border border-red-400/60 bg-red-500 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                         >
                                             <X size={12} strokeWidth={2.5} />
                                         </button>
@@ -789,7 +789,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                     )}
                     <div className="relative">
                         <textarea
-                            className={`w-full bg-transparent text-sm outline-none resize-none font-light ${isDark ? 'text-white placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
+                            className={`w-full bg-transparent text-sm outline-none resize-none font-normal leading-5 ${isDark ? 'text-neutral-100 placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
                             placeholder={
                                 data.type === NodeType.VIDEO && isFrameToFrame && currentVideoModel.provider === 'kling'
                                     ? "Prompt optional for Kling frame-to-frame..."
@@ -815,7 +815,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         <div className="flex justify-end mt-1">
                             <button
                                 onClick={() => onUpdate(data.id, { isPromptExpanded: !data.isPromptExpanded })}
-                                className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded transition-colors ${isDark ? 'text-neutral-500 hover:text-white hover:bg-neutral-700' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
+                                className={`flex h-6 items-center gap-1 px-2 text-[10px] rounded-md transition-colors ${isDark ? 'text-neutral-500 hover:text-white hover:bg-[#1A1D1A]' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
                                 title={data.isPromptExpanded ? 'Shrink prompt' : 'Expand prompt'}
                             >
                                 {data.isPromptExpanded ? <Shrink size={12} /> : <Expand size={12} />}
@@ -827,7 +827,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             )}
 
             {data.errorMessage && (
-                <div className="text-red-400 text-xs mb-2 p-1 bg-red-900/20 rounded border border-red-900/50">
+                <div className="text-red-300 text-xs mb-2 p-2 bg-red-500/[0.08] rounded-lg border border-red-500/50">
                     {data.errorMessage}
                 </div>
             )}
@@ -864,7 +864,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {showModelDropdown && (
                                     <div className={`absolute top-full mt-1 left-0 w-56 ${dropdownClass} max-h-64 overflow-y-auto`}>
                                         {/* Header */}
-                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
+                                        <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <HardDrive size={10} />
                                             Local Models
                                         </div>
@@ -921,7 +921,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {showModelDropdown && (
                                     <div className={`absolute top-full mt-1 left-0 w-52 ${dropdownClass}`}>
                                         {/* Mode indicator */}
-                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
+                                        <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${videoGenerationMode === 'text-to-video' ? 'bg-blue-400' :
                                                 videoGenerationMode === 'image-to-video' ? 'bg-green-400' :
                                                     videoGenerationMode === 'motion-control' ? 'bg-orange-400' : 'bg-purple-400'
@@ -934,7 +934,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* MYML Models */}
                                         {availableVideoModels.filter(m => m.provider === 'custom').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                                     MYML
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'custom').map(model => (
@@ -988,7 +988,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Kling Models */}
                                         {availableVideoModels.filter(m => m.provider === 'kling').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
                                                     Kling AI
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'kling').map(model => (
@@ -1016,7 +1016,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Hailuo Models */}
                                         {availableVideoModels.filter(m => m.provider === 'hailuo').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
                                                     Hailuo AI
                                                 </div>
                                                 {availableVideoModels.filter(m => m.provider === 'hailuo').map(model => (
@@ -1065,7 +1065,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {showModelDropdown && (
                                     <div className={`absolute top-full mt-1 left-0 w-48 ${dropdownClass}`}>
                                         {/* Mode indicator */}
-                                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
+                                        <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-b flex items-center gap-1.5 ${dropdownHeaderClass}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${imageGenerationMode === 'text-to-image' ? 'bg-blue-400' :
                                                 imageGenerationMode === 'image-to-image' ? 'bg-green-400' : 'bg-purple-400'
                                                 }`} />
@@ -1076,7 +1076,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* MYML Models */}
                                         {availableImageModels.filter(m => m.provider === 'custom').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                                     MYML
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'custom').map(model => (
@@ -1104,7 +1104,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* OpenAI Models */}
                                         {availableImageModels.filter(m => m.provider === 'openai').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                                     OpenAI
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'openai').map(model => (
@@ -1131,7 +1131,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Google Models */}
                                         {availableImageModels.filter(m => m.provider === 'google').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
                                                     Google
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'google').map(model => (
@@ -1160,7 +1160,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         {/* Kling Models */}
                                         {availableImageModels.filter(m => m.provider === 'kling').length > 0 && (
                                             <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-t ${dropdownSectionHeaderClass}`}>
+                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
                                                     Kling AI
                                                 </div>
                                                 {availableImageModels.filter(m => m.provider === 'kling').map(model => (
@@ -1209,7 +1209,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         className={`absolute bottom-full mb-2 right-0 w-32 ${dropdownClass} flex flex-col max-h-60 overflow-y-auto`}
                                         onWheel={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                             {isVideoNode ? 'Resolution' : 'Aspect Ratio'}
                                         </div>
                                         {sizeOptions.map(option => (
@@ -1244,7 +1244,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         className={`absolute bottom-full mb-2 right-0 w-24 ${dropdownClass}`}
                                         onWheel={(e) => e.stopPropagation()}
                                     >
-                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                             Quality
                                         </div>
                                         {(currentImageModel as any).resolutions.map((res: string) => (
@@ -1276,7 +1276,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {/* Aspect Ratio Dropdown Menu */}
                                 {showAspectRatioDropdown && (
                                     <div className={`absolute bottom-full mb-2 right-0 w-28 ${dropdownClass}`}>
-                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                             Size
                                         </div>
                                         {(currentVideoModel?.aspectRatios || VIDEO_ASPECT_RATIOS).map((option: string) => (
@@ -1308,7 +1308,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {/* Duration Dropdown Menu */}
                                 {showDurationDropdown && (
                                     <div className={`absolute bottom-full mb-2 right-0 w-24 ${dropdownClass}`}>
-                                        <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionHeaderClass}`}>
+                                        <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
                                             Duration
                                         </div>
                                         {availableDurations.map((dur: number) => (
@@ -1353,7 +1353,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         onGenerate(data.id);
                                     }}
                                     disabled={isGenerateBlocked}
-                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
+                                    className={`group w-9 h-9 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
                                     aria-label={generateTitle}
                                     title={generateTitle}
                                 >
@@ -1427,10 +1427,10 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                     }}
                                                 >
                                                     {/* Corner brackets - larger with glow */}
-                                                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl" style={{ filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.8))' }} />
-                                                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl" style={{ filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.8))' }} />
-                                                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl" style={{ filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.8))' }} />
-                                                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl" style={{ filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.8))' }} />
+                                                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-2 border-l-2 border-green-400/80 rounded-tl-lg" />
+                                                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-2 border-r-2 border-green-400/80 rounded-tr-lg" />
+                                                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-2 border-l-2 border-green-400/80 rounded-bl-lg" />
+                                                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-2 border-r-2 border-green-400/80 rounded-br-lg" />
                                                 </div>
                                             ))}
                                         </>
@@ -1447,7 +1447,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             {/* Face thumbnail below - Kling style */}
                             {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && data.detectedFaces && data.detectedFaces.length > 0 && (
                                 <div className="flex justify-center mt-3">
-                                    <div className="w-14 h-14 rounded-lg border-2 border-green-400 overflow-hidden bg-black">
+                                <div className="w-14 h-14 rounded-lg border border-green-400/70 overflow-hidden bg-black">
                                         <img
                                             src={connectedImageNodes[0].url}
                                             alt="Detected face"
@@ -1489,7 +1489,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     max="100"
                                     value={data.klingFaceIntensity ?? 65}
                                     onChange={(e) => onUpdate(data.id, { klingFaceIntensity: parseInt(e.target.value) })}
-                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
+                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -1503,7 +1503,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     max="100"
                                     value={data.klingSubjectIntensity ?? 50}
                                     onChange={(e) => onUpdate(data.id, { klingSubjectIntensity: parseInt(e.target.value) })}
-                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
+                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
                                 />
                             </div>
                         </>
@@ -1522,7 +1522,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 max="100"
                                 value={data.klingFaceIntensity ?? 42}
                                 onChange={(e) => onUpdate(data.id, { klingFaceIntensity: parseInt(e.target.value) })}
-                                className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
+                                className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
                             />
                         </div>
                     )}
@@ -1537,9 +1537,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             onClick={() => setShowAdvanced(!showAdvanced)}
                             aria-expanded={showAdvanced}
                             aria-controls="node-controls-advanced-settings"
-                            className="w-full flex items-center justify-center gap-1 cursor-pointer rounded-lg py-1 transition-[background-color,color] duration-150 hover:bg-neutral-800/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                            className="w-full flex items-center justify-center gap-1 cursor-pointer rounded-lg py-1.5 transition-[background-color,color] duration-150 hover:bg-[#1A1D1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                         >
-                            <span className="text-[10px] text-neutral-600 uppercase tracking-widest hover:text-neutral-400">
+                            <span className="text-[10px] text-neutral-500 uppercase tracking-[0.08em]">
                                 Advanced Settings
                             </span>
                             {showAdvanced ? (
@@ -1551,10 +1551,10 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                         {/* Advanced Settings Content - Only for Video nodes */}
                         {showAdvanced && isVideoNode && (
-                            <div id="node-controls-advanced-settings" className="mt-3 space-y-3">
+                            <div id="node-controls-advanced-settings" className="mt-3 space-y-3 rounded-lg border border-neutral-800 bg-[#101210] p-3">
                                 {/* Audio Toggle - Only for Kling 2.6 (Veo 3.1 SDK doesn't support generateAudio yet) */}
                                 {data.videoModel === 'kling-v2-6' && (
-                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-neutral-800/50 rounded-lg w-fit">
+                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[#151815] rounded-lg border border-neutral-800 w-fit">
                                         <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                                         </svg>
@@ -1563,10 +1563,10 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
                                             aria-label={data.generateAudio !== false ? 'Disable audio generation' : 'Enable audio generation'}
                                             aria-pressed={data.generateAudio !== false}
-                                            className={`relative w-8 h-4 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 ${data.generateAudio !== false ? 'bg-cyan-600' : 'bg-neutral-700'}`}
+                                            className={`relative w-8 h-4 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.generateAudio !== false ? 'bg-[#D8FF00]' : 'bg-neutral-700'}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform shadow-md ${data.generateAudio !== false ? 'left-4' : 'left-0.5'}`}
+                                                className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform ${data.generateAudio !== false ? 'left-4 bg-black' : 'left-0.5 bg-neutral-300'}`}
                                             />
                                         </button>
                                     </div>

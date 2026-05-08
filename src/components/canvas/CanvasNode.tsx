@@ -103,23 +103,24 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const isIdle = data.status === NodeStatus.IDLE || data.status === NodeStatus.ERROR;
   const isLoading = data.status === NodeStatus.LOADING;
   const isSuccess = data.status === NodeStatus.SUCCESS;
+  const isError = data.status === NodeStatus.ERROR;
 
   // Theme helper
   const isDark = canvasTheme === 'dark';
   const angleAccentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
   const angleSelectedRingClass = isDark
-    ? 'ring-1 ring-[#D8FF00]/35'
+    ? 'border-[#D8FF00]/60 ring-1 ring-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
     : 'ring-1 ring-lime-500/30';
   const angleImageRingClass = isDark
-    ? 'ring-2 ring-[#D8FF00]/80 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+    ? 'ring-1 ring-[#D8FF00]/60 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
     : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]';
   const angleSpinnerClass = isDark ? 'border-[#D8FF00]' : 'border-lime-500';
   const angleActiveButtonClass = isDark
     ? 'bg-[#D8FF00] text-black'
     : 'bg-lime-600 text-white';
-  const dragHandleClass = `p-1.5 rounded-full border cursor-grab active:cursor-grabbing transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const dragHandleClass = `flex h-7 w-7 items-center justify-center rounded-md border cursor-grab active:cursor-grabbing transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
-      ? 'bg-[#D8FF00]/12 text-[#D8FF00] border-[#D8FF00]/25 hover:bg-[#D8FF00] hover:text-black'
+      ? 'bg-[#151815] text-neutral-300 border-neutral-700 hover:bg-[#1A1D1A] hover:text-[#D8FF00] hover:border-[#D8FF00]/35'
       : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
   }`;
 
@@ -244,16 +245,16 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Image Editor Node Card */}
         <div
-          className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${
+          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${
             inputUrl
               ? ''
               : isDark
-                ? 'bg-[#0f0f0f] border border-neutral-800 shadow-xl'
+                ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700'
                 : 'bg-white border border-neutral-200 shadow-lg'
           } ${
             selected
               ? isDark
-                ? 'ring-2 ring-[#D8FF00]/85 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                ? 'border-[#D8FF00]/60 ring-1 ring-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
                 : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : ''
           }`}
@@ -282,10 +283,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <img
                 src={data.resultUrl || inputUrl}
                 alt="Content"
-                className={`rounded-xl w-full h-full object-cover ${
+                className={`rounded-lg w-full h-full object-cover ${
                   selected
                     ? isDark
-                      ? 'ring-2 ring-[#D8FF00]/85 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                      ? 'ring-1 ring-[#D8FF00]/60 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
                       : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
                     : ''
                 }`}
@@ -333,7 +334,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   transformOrigin: 'bottom center'
                 }}
               >
-                <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
                 {/* Change Angle Button - Re-enable tweaking */}
                 <button
                   onClick={() => onUpdate(data.id, {
@@ -341,9 +342,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     angleSettings: normalizeAngleSettings(data.angleSettings)
                   })}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${data.angleMode
                     ? angleActiveButtonClass
-                    : 'text-neutral-300 hover:bg-neutral-700 hover:text-white'
+                    : 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
                     }`}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -360,7 +361,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 <button
                   onClick={() => onExpand?.(data.resultUrl!)}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                   title="View full size"
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -377,7 +378,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     onImageToEditor?.(data.id);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                   title="Image Editor"
                 >
                   <svg
@@ -433,7 +434,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     }
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                   title="Download"
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -475,7 +476,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
           {/* Node Card */}
           <div
-            className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''}`}
+            className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''} ${isError && isDark ? 'border-red-500/50 bg-red-500/[0.08] ring-1 ring-red-500/20' : ''}`}
             style={{
               width: '340px',
             }}
@@ -514,7 +515,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 <img
                   src={data.resultUrl}
                   alt="Content"
-                  className={`rounded-xl w-full h-auto object-cover ${selected ? angleImageRingClass : ''}`}
+                  className={`rounded-lg w-full h-auto object-cover ${selected ? angleImageRingClass : ''}`}
                   draggable={false}
                 />
               ) : (
@@ -574,7 +575,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Video Editor Node Card */}
         <div
-          className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-purple-500/30' : ''}`}
+          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-purple-500/30 border-purple-500/45' : ''}`}
           style={{
             width: videoUrl ? 'auto' : '340px',
             maxWidth: videoUrl ? '500px' : 'none'
@@ -599,7 +600,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             {videoUrl ? (
               <video
                 src={videoUrl}
-                className={`rounded-xl w-full h-auto object-cover ${selected ? 'ring-2 ring-purple-500/80 shadow-[0_0_12px_rgba(168,85,247,0.12)]' : ''}`}
+                className={`rounded-lg w-full h-auto object-cover ${selected ? 'ring-1 ring-purple-500/60 shadow-[0_0_10px_rgba(168,85,247,0.08)]' : ''}`}
                 style={{ maxHeight: '500px', aspectRatio: '16/9' }}
                 muted
                 playsInline
@@ -658,7 +659,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 transformOrigin: 'bottom center'
               }}
             >
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
               {/* Change Angle and Upload buttons - Hidden for storyboard-generated scenes */}
               {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <>
@@ -669,9 +670,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                       angleSettings: normalizeAngleSettings(data.angleSettings)
                     })}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${data.angleMode
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${data.angleMode
                       ? angleActiveButtonClass
-                      : 'text-neutral-300 hover:bg-neutral-700 hover:text-white'
+                      : 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
                       }`}
                   >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -687,7 +688,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                     title="Upload image"
                   >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -722,7 +723,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="View full size"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -739,7 +740,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onRemoveBackground?.(data.id);
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-full border border-[#D8FF00]/30 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/20 hover:border-[#D8FF00]/60 hover:text-[#D8FF00] transition-colors"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#D8FF00]/25 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15 hover:border-[#D8FF00]/45 transition-colors"
                 title="抠除背景"
               >
                 <Scissors className="w-3.5 h-3.5" strokeWidth={2} />
@@ -751,7 +752,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onImageToEditor?.(data.id);
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="Open Image Editor"
               >
                 <svg
@@ -807,7 +808,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   }
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="Download"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -858,12 +859,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 transformOrigin: 'bottom center'
               }}
             >
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/95 rounded-full border border-neutral-700 shadow-xl backdrop-blur-md">
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
               {/* Expand Button */}
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="View full size"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -877,7 +878,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); onPostToX?.(data.id, data.resultUrl!, 'video'); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="Post to X"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
@@ -888,7 +889,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); onPostToTikTok?.(data.id, data.resultUrl!); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="Post to TikTok"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
@@ -926,7 +927,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   }
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="p-1.5 text-neutral-300 hover:bg-neutral-700 hover:text-white rounded-full transition-colors"
+                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
                 title="Download"
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -968,19 +969,23 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-[background-color,border-color,box-shadow] duration-150 flex flex-col shadow-xl ${
+          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-xl border transition-[background-color,border-color,box-shadow] duration-150 flex flex-col shadow-[0_8px_18px_rgba(0,0,0,0.22)] ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark
-                ? 'bg-[#0f0f0f]'
+                ? 'bg-[#151815]'
                 : 'bg-white'
           } ${
-            selected
+            isError
               ? isDark
-                ? 'border-[#D8FF00]/65 ring-1 ring-[#D8FF00]/35 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                ? 'border-red-500/50 bg-red-500/[0.08] ring-1 ring-red-500/20'
+                : 'border-red-500/50 bg-red-50 ring-1 ring-red-500/20'
+              : selected
+              ? isDark
+                ? 'border-[#D8FF00]/60 ring-1 ring-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
                 : 'border-lime-500/65 ring-1 ring-lime-500/30 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : isDark
-                ? 'border-neutral-800'
+                ? 'border-neutral-800 group-hover/nodecard:border-neutral-700'
                 : 'border-neutral-200'
           }`}
         >
@@ -1002,19 +1007,19 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
-              className={`absolute top-2 text-sm px-2 py-0.5 rounded font-medium outline-none whitespace-nowrap ${
+              className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium outline-none whitespace-nowrap ${
                 isDark
-                  ? 'bg-[#D8FF00]/15 text-[#D8FF00] border border-[#D8FF00]/45 shadow-[0_0_10px_rgba(216,255,0,0.10)]'
+                  ? 'bg-[#151815] text-neutral-100 border border-[#D8FF00]/45'
                   : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
               }`}
               style={{ right: 'calc(100% + 8px)', minWidth: '60px' }}
             />
           ) : (
             <div
-              className={`absolute top-2 text-sm px-2 py-0.5 rounded font-medium transition-colors cursor-text whitespace-nowrap ${
+              className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium transition-colors cursor-text whitespace-nowrap ${
                 selected
                   ? isDark
-                    ? 'bg-[#D8FF00]/15 text-[#D8FF00] border border-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.10)]'
+                    ? 'bg-[#151815] text-[#D8FF00] border border-[#D8FF00]/35'
                     : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
                   : isDark
                     ? 'text-neutral-600'
