@@ -633,11 +633,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // Theme helper
     const isDark = canvasTheme === 'dark';
     const selectorButtonClass = isDark
-        ? 'flex items-center gap-1.5 text-xs font-medium bg-[#1a1a1a] border border-neutral-800 text-neutral-200 hover:border-[#D8FF00]/50 hover:text-[#D8FF00] px-2.5 py-1.5 rounded-lg transition-all duration-200'
-        : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-all duration-200';
+        ? 'flex items-center gap-1.5 text-xs font-medium bg-[#1a1a1a] border border-neutral-800 text-neutral-200 hover:border-[#D8FF00]/50 hover:text-[#D8FF00] px-2.5 py-1.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
+        : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
     const dropdownClass = isDark
-        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-2xl overflow-hidden z-50 motion-menu-in'
-        : 'bg-white border-neutral-200 rounded-xl shadow-2xl overflow-hidden z-50 motion-menu-in';
+        ? 'bg-[#1a1a1a] border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50 motion-menu-in'
+        : 'bg-white border-neutral-200 rounded-xl shadow-xl overflow-hidden z-50 motion-menu-in';
     const dropdownHeaderClass = isDark
         ? 'bg-[#0f0f0f] text-neutral-400 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
@@ -724,7 +724,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
     return (
         <div
-            className={`p-4 rounded-2xl shadow-2xl cursor-default w-full transition-colors duration-300 ${isDark ? 'bg-[#1a1a1a] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
+            className={`p-4 rounded-2xl shadow-xl cursor-default w-full transition-colors duration-200 ${isDark ? 'bg-[#1a1a1a] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
             style={{
                 transform: `scale(${localScale})`,
                 transformOrigin: 'top center',
@@ -750,7 +750,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         className="group/ref relative h-10 w-10 shrink-0"
                                     >
                                         <div
-                                            className={`h-full w-full overflow-hidden rounded-lg transition-all duration-200 ${isDark
+                                            className={`h-full w-full overflow-hidden rounded-lg transition-[box-shadow,opacity] duration-150 ${isDark
                                                 ? 'bg-neutral-900 ring-1 ring-neutral-800 group-hover/ref:ring-[#D8FF00]/45'
                                                 : 'bg-white ring-1 ring-neutral-200 group-hover/ref:ring-lime-500/70'
                                                 }`}
@@ -778,7 +778,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 e.stopPropagation();
                                                 handleRemoveImageReference(reference.id);
                                             }}
-                                            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/80 bg-red-500 text-white opacity-0 shadow-md transition-all duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100"
+                                            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/80 bg-red-500 text-white opacity-0 shadow-md transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-red-600 active:scale-95 group-hover/ref:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                         >
                                             <X size={12} strokeWidth={2.5} />
                                         </button>
@@ -881,7 +881,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 <button
                                                     key={model.id}
                                                     onClick={() => handleLocalModelChange(model)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(data.localModelId === model.id)}`}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass(data.localModelId === model.id)}`}
                                                 >
                                                     <span className="flex flex-col items-start gap-0.5">
                                                         <span className="flex items-center gap-2">
@@ -943,7 +943,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <Film size={12} className={isModelDisabled(model) ? 'text-neutral-500' : 'text-[#D8FF00]'} />
@@ -968,7 +968,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             {model.id === 'veo-3.1' ? (
@@ -997,7 +997,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <KlingIcon size={14} />
@@ -1025,7 +1025,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <HailuoIcon size={14} />
@@ -1085,7 +1085,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <ImageIcon size={12} className="text-[#D8FF00]" />
@@ -1113,7 +1113,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <OpenAIIcon size={12} className="text-green-400" />
@@ -1140,7 +1140,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             {model.id === 'gemini-pro' ? (
@@ -1169,7 +1169,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                         disabled={isModelDisabled(model)}
                                                         title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
                                                         onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <KlingIcon size={14} />
@@ -1216,7 +1216,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <button
                                                 key={option}
                                                 onClick={() => handleSizeSelect(option)}
-                                                className={`flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentSizeLabel === option)}`}
+                                                className={`flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass(currentSizeLabel === option)}`}
                                             >
                                                 <span>{option}</span>
                                                 {currentSizeLabel === option && <Check size={12} />}
@@ -1251,7 +1251,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <button
                                                 key={res}
                                                 onClick={() => handleResolutionSelect(res)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass((data.resolution || 'Auto') === res)}`}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass((data.resolution || 'Auto') === res)}`}
                                             >
                                                 <span>{res}</span>
                                                 {(data.resolution || 'Auto') === res && <Check size={12} />}
@@ -1283,7 +1283,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <button
                                                 key={option}
                                                 onClick={() => handleAspectRatioSelect(option)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(data.aspectRatio === option)}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass(data.aspectRatio === option)}`}
                                             >
                                                 <span>{option}</span>
                                                 {data.aspectRatio === option && <Check size={12} />}
@@ -1315,7 +1315,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <button
                                                 key={dur}
                                                 onClick={() => handleDurationChange(dur)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(currentDuration === dur)}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass(currentDuration === dur)}`}
                                             >
                                                 <span>{dur}s</span>
                                                 {currentDuration === dur && <Check size={12} />}
@@ -1353,7 +1353,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         onGenerate(data.id);
                                     }}
                                     disabled={isGenerateBlocked}
-                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${generateButtonClass(isGenerateBlocked)}`}
+                                    className={`group w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
                                     aria-label={generateTitle}
                                     title={generateTitle}
                                 >
@@ -1537,7 +1537,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             onClick={() => setShowAdvanced(!showAdvanced)}
                             aria-expanded={showAdvanced}
                             aria-controls="node-controls-advanced-settings"
-                            className="w-full flex items-center justify-center gap-1 cursor-pointer"
+                            className="w-full flex items-center justify-center gap-1 cursor-pointer rounded-lg py-1 transition-[background-color,color] duration-150 hover:bg-neutral-800/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                         >
                             <span className="text-[10px] text-neutral-600 uppercase tracking-widest hover:text-neutral-400">
                                 Advanced Settings
@@ -1563,7 +1563,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
                                             aria-label={data.generateAudio !== false ? 'Disable audio generation' : 'Enable audio generation'}
                                             aria-pressed={data.generateAudio !== false}
-                                            className={`relative w-8 h-4 rounded-full transition-colors ${data.generateAudio !== false ? 'bg-cyan-600' : 'bg-neutral-700'}`}
+                                            className={`relative w-8 h-4 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 ${data.generateAudio !== false ? 'bg-cyan-600' : 'bg-neutral-700'}`}
                                         >
                                             <span
                                                 className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform shadow-md ${data.generateAudio !== false ? 'left-4' : 'left-0.5'}`}
@@ -1631,7 +1631,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                             }
                                                         }}
                                                         onDragEnd={() => setDraggedIndex(null)}
-                                                        className={`flex items-center gap-2 p-2 bg-neutral-800 rounded-lg cursor-grab active:cursor-grabbing transition-all ${draggedIndex === index ? 'opacity-50 scale-95' : ''
+                                                        className={`flex items-center gap-2 p-2 bg-neutral-800 rounded-lg cursor-grab active:cursor-grabbing transition-[background-color,opacity,transform] duration-150 ${draggedIndex === index ? 'opacity-50 scale-95' : ''
                                                             }`}
                                                     >
                                                         <GripVertical size={14} className="text-neutral-600" />

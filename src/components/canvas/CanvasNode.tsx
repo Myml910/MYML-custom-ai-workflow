@@ -111,13 +111,13 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     ? 'ring-1 ring-[#D8FF00]/35'
     : 'ring-1 ring-lime-500/30';
   const angleImageRingClass = isDark
-    ? 'ring-2 ring-[#D8FF00] shadow-2xl shadow-[#D8FF00]/10'
-    : 'ring-2 ring-lime-500 shadow-2xl';
+    ? 'ring-2 ring-[#D8FF00]/80 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+    : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]';
   const angleSpinnerClass = isDark ? 'border-[#D8FF00]' : 'border-lime-500';
   const angleActiveButtonClass = isDark
     ? 'bg-[#D8FF00] text-black'
     : 'bg-lime-600 text-white';
-  const dragHandleClass = `p-1.5 rounded-full border cursor-grab active:cursor-grabbing transition-all duration-200 ease-out active:scale-[0.98] ${
+  const dragHandleClass = `p-1.5 rounded-full border cursor-grab active:cursor-grabbing transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
       ? 'bg-[#D8FF00]/12 text-[#D8FF00] border-[#D8FF00]/25 hover:bg-[#D8FF00] hover:text-black'
       : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
@@ -244,17 +244,17 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Image Editor Node Card */}
         <div
-          className={`relative rounded-2xl transition-all duration-200 flex flex-col ${
+          className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${
             inputUrl
               ? ''
               : isDark
-                ? 'bg-[#0f0f0f] border border-neutral-800 shadow-2xl'
+                ? 'bg-[#0f0f0f] border border-neutral-800 shadow-xl'
                 : 'bg-white border border-neutral-200 shadow-lg'
           } ${
             selected
               ? isDark
-                ? 'ring-2 ring-[#D8FF00] shadow-[0_0_14px_rgba(216,255,0,0.12)]'
-                : 'ring-2 ring-lime-500 shadow-[0_0_12px_rgba(132,204,22,0.12)]'
+                ? 'ring-2 ring-[#D8FF00]/85 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : ''
           }`}
           style={{
@@ -285,8 +285,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 className={`rounded-xl w-full h-full object-cover ${
                   selected
                     ? isDark
-                      ? 'ring-2 ring-[#D8FF00] shadow-[0_0_14px_rgba(216,255,0,0.12)]'
-                      : 'ring-2 ring-lime-500 shadow-[0_0_12px_rgba(132,204,22,0.12)]'
+                      ? 'ring-2 ring-[#D8FF00]/85 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                      : 'ring-2 ring-lime-500 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
                     : ''
                 }`}
                 style={{ maxHeight: '500px' }}
@@ -325,7 +325,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
             <div
-              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
+              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
             >
               <div
                 style={{
@@ -475,7 +475,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
           {/* Node Card */}
           <div
-            className={`relative rounded-2xl transition-all duration-200 flex flex-col ${isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-2xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''}`}
+            className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''}`}
             style={{
               width: '340px',
             }}
@@ -574,7 +574,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Video Editor Node Card */}
         <div
-          className={`relative rounded-2xl transition-all duration-200 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-2xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-purple-500/30' : ''}`}
+          className={`relative rounded-2xl transition-[border-color,box-shadow,transform] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#0f0f0f] border border-neutral-700 shadow-xl' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-purple-500/30' : ''}`}
           style={{
             width: videoUrl ? 'auto' : '340px',
             maxWidth: videoUrl ? '500px' : 'none'
@@ -599,7 +599,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             {videoUrl ? (
               <video
                 src={videoUrl}
-                className={`rounded-xl w-full h-auto object-cover ${selected ? 'ring-2 ring-purple-500 shadow-2xl' : ''}`}
+                className={`rounded-xl w-full h-auto object-cover ${selected ? 'ring-2 ring-purple-500/80 shadow-[0_0_12px_rgba(168,85,247,0.12)]' : ''}`}
                 style={{ maxHeight: '500px', aspectRatio: '16/9' }}
                 muted
                 playsInline
@@ -650,7 +650,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
+            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
           >
             <div
               style={{
@@ -850,7 +850,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Video Toolbar - Appears above the card for Video nodes on hover */}
         {data.type === NodeType.VIDEO && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-all duration-200 ease-out z-20"
+            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
           >
             <div
               style={{
@@ -968,7 +968,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-all duration-300 flex flex-col shadow-2xl ${
+          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-2xl border transition-[background-color,border-color,box-shadow] duration-150 flex flex-col shadow-xl ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark
@@ -977,8 +977,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           } ${
             selected
               ? isDark
-                ? 'border-[#D8FF00]/55 ring-1 ring-[#D8FF00]/35 shadow-[0_0_18px_rgba(216,255,0,0.10)]'
-                : 'border-lime-500/60 ring-1 ring-lime-500/30 shadow-[0_0_16px_rgba(132,204,22,0.12)]'
+                ? 'border-[#D8FF00]/65 ring-1 ring-[#D8FF00]/35 shadow-[0_0_12px_rgba(216,255,0,0.10)]'
+                : 'border-lime-500/65 ring-1 ring-lime-500/30 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : isDark
                 ? 'border-neutral-800'
                 : 'border-neutral-200'

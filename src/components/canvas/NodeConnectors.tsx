@@ -182,8 +182,8 @@ const MagneticConnectorButton: React.FC<{
         : '-right-12 top-1/2 -translate-y-1/2';
 
     const themeClassName = isDark
-        ? 'border-neutral-700 bg-[#0f0f0f] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00] hover:shadow-[0_0_18px_rgba(216,255,0,0.55)]'
-        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:shadow-[0_0_18px_rgba(132,204,22,0.22)] shadow-sm';
+        ? 'border-neutral-700 bg-[#0f0f0f] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00]/80 hover:bg-[#151515] hover:shadow-[0_0_10px_rgba(216,255,0,0.22)]'
+        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:shadow-[0_0_10px_rgba(132,204,22,0.14)] shadow-sm';
 
     return (
         <div
@@ -197,7 +197,7 @@ const MagneticConnectorButton: React.FC<{
                     onConnectorDown(e, nodeId, side);
                 }}
                 aria-label={side === 'left' ? 'Connect input' : 'Connect output'}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-[background-color,border-color,color,box-shadow] duration-150 ${themeClassName}`}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${themeClassName}`}
                 style={{
                     transform: 'translate(var(--magnet-x, 0px), var(--magnet-y, 0px)) scale(var(--magnet-scale, 1))',
                     willChange: 'transform'

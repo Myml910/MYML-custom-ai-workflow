@@ -369,7 +369,7 @@ const ConnectionItem: React.FC<{
                 stroke={isSelected || isHot ? highlightStroke : idleStroke}
                 strokeWidth={isSelected ? SELECTED_LINE_WIDTH : IDLE_LINE_WIDTH}
                 fill="none"
-                className="transition-colors duration-300 pointer-events-none"
+                className="transition-colors duration-150 pointer-events-none"
             />
 
             {/* Default flowing effect.
@@ -383,8 +383,8 @@ const ConnectionItem: React.FC<{
                     strokeDasharray={FLOW_DASH_ARRAY}
                     strokeLinecap="round"
                     fill="none"
-                    opacity={isHot ? 0 : 0.35}
-                    className="pointer-events-none transition-opacity duration-300"
+                    opacity={isHot ? 0 : 0.24}
+                    className="pointer-events-none transition-opacity duration-200"
                 >
                     <animate
                         attributeName="stroke-dashoffset"
@@ -441,8 +441,8 @@ const ConnectionItem: React.FC<{
                                 pointerEvents: 'none',
                                 filter:
                                     canvasTheme === 'dark'
-                                        ? 'drop-shadow(0 0 8px rgba(216,255,0,0.65))'
-                                        : 'drop-shadow(0 2px 6px rgba(132,204,22,0.25))'
+                                        ? 'drop-shadow(0 0 5px rgba(216,255,0,0.34))'
+                                        : 'drop-shadow(0 2px 5px rgba(132,204,22,0.18))'
                             }}
                         />
 
