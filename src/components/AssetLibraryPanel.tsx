@@ -102,8 +102,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm motion-modal-overlay-in">
                 <div
-                    className={`flex flex-col w-[800px] h-[600px] border rounded-2xl shadow-xl overflow-hidden transition-colors duration-200 motion-modal-dialog-in ${
-                        isDark ? 'bg-[#0a0a0a] border-neutral-800' : 'bg-white border-neutral-200'
+                    className={`flex flex-col w-[800px] h-[600px] border rounded-xl shadow-[0_18px_44px_rgba(0,0,0,0.42)] overflow-hidden transition-colors duration-200 motion-modal-dialog-in ${
+                        isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'
                     }`}
                     onClick={(e) => e.stopPropagation()}
                 >
@@ -117,7 +117,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
                             aria-label={language === 'zh' ? '关闭素材库' : 'Close asset library'}
                             className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                 isDark
-                                    ? 'hover:bg-[#D8FF00]/10 text-neutral-400 hover:text-[#D8FF00]'
+                                    ? 'hover:bg-[#1A1D1A] text-neutral-400 hover:text-neutral-100'
                                     : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-600'
                             }`}
                         >
@@ -145,8 +145,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     return (
         <div
-            className={`fixed left-20 z-40 w-[700px] backdrop-blur-md border rounded-2xl shadow-xl flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
-                isDark ? 'bg-[#0a0a0a]/95 border-neutral-800' : 'bg-white/95 border-neutral-200'
+            className={`fixed left-20 z-40 w-[700px] backdrop-blur-md border rounded-xl shadow-[0_16px_36px_rgba(0,0,0,0.34)] flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
+                isDark ? 'bg-[#101210]/96 border-neutral-800' : 'bg-white/95 border-neutral-200'
             }`}
             style={{ top: Math.min(window.innerHeight - 510, Math.max(20, panelY)) }}
         >
@@ -225,7 +225,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                     ? 'bg-[#D8FF00] text-black border-[#D8FF00]'
                                     : 'bg-lime-600 text-white border-lime-600'
                                 : isDark
-                                    ? 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-[#D8FF00]'
+                                    ? 'bg-[#151815] text-neutral-400 border-neutral-800 hover:bg-[#1A1D1A] hover:text-neutral-100 hover:border-[#D8FF00]/30'
                                     : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-lime-600'
                         }`}
                         aria-pressed={selectedCategory === cat}
@@ -260,7 +260,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                             key={asset.id}
                             className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-[border-color,background-color,opacity,transform] duration-150 active:scale-[0.99] ${
                                 isDark
-                                    ? 'bg-neutral-900 border-neutral-800 hover:border-[#D8FF00]/50'
+                                    ? 'bg-[#151815] border-neutral-800 hover:border-[#D8FF00]/35'
                                     : 'bg-white border-neutral-200 hover:border-lime-500'
                             }`}
                             onClick={() => onSelectAsset(asset.url, asset.type)}
