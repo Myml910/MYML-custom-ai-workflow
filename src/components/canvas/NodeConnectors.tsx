@@ -196,6 +196,7 @@ const MagneticConnectorButton: React.FC<{
                     e.stopPropagation();
                     onConnectorDown(e, nodeId, side);
                 }}
+                aria-label={side === 'left' ? 'Connect input' : 'Connect output'}
                 className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-[background-color,border-color,color,box-shadow] duration-150 ${themeClassName}`}
                 style={{
                     transform: 'translate(var(--magnet-x, 0px), var(--magnet-y, 0px)) scale(var(--magnet-scale, 1))',

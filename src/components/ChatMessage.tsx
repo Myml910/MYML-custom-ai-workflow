@@ -66,6 +66,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, isDark }) => {
 
             <button
                 onClick={handleCopy}
+                aria-label={copied ? 'Copied to clipboard' : 'Copy code to clipboard'}
                 className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100 ${
                     isDark
                         ? 'bg-neutral-800 hover:bg-neutral-700'

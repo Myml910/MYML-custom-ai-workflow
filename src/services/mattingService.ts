@@ -86,6 +86,7 @@ export async function removeImageBackground(imageUrl: string): Promise<string> {
 
   const response = await fetch(endpoint, {
     method: 'POST',
+    credentials: 'include',
     body: formData
   });
 

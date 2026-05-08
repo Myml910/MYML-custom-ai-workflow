@@ -56,7 +56,7 @@ export interface ModelDirectories {
  */
 export const getLocalModels = async (): Promise<LocalModel[]> => {
     try {
-        const response = await fetch('/api/local-models');
+        const response = await fetch('/api/local-models', { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`Failed to fetch local models: ${response.statusText}`);
         }
@@ -76,7 +76,7 @@ export const getLocalModelsByType = async (
     type: LocalModel['type']
 ): Promise<LocalModel[]> => {
     try {
-        const response = await fetch(`/api/local-models?type=${type}`);
+        const response = await fetch(`/api/local-models?type=${type}`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`Failed to fetch local models: ${response.statusText}`);
         }
@@ -94,7 +94,7 @@ export const getLocalModelsByType = async (
  */
 export const getModelInfo = async (modelId: string): Promise<LocalModel | null> => {
     try {
-        const response = await fetch(`/api/local-models/${modelId}`);
+        const response = await fetch(`/api/local-models/${modelId}`, { credentials: 'include' });
         if (!response.ok) {
             if (response.status === 404) return null;
             throw new Error(`Failed to fetch model info: ${response.statusText}`);
@@ -112,7 +112,7 @@ export const getModelInfo = async (modelId: string): Promise<LocalModel | null> 
  */
 export const getGpuInfo = async (): Promise<GpuInfo> => {
     try {
-        const response = await fetch('/api/local-models/gpu');
+        const response = await fetch('/api/local-models/gpu', { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`Failed to fetch GPU info: ${response.statusText}`);
         }
@@ -133,7 +133,7 @@ export const getGpuInfo = async (): Promise<GpuInfo> => {
  */
 export const refreshLocalModels = async (): Promise<LocalModel[]> => {
     try {
-        const response = await fetch('/api/local-models/refresh', { method: 'POST' });
+        const response = await fetch('/api/local-models/refresh', { method: 'POST', credentials: 'include' });
         if (!response.ok) {
             throw new Error(`Failed to refresh models: ${response.statusText}`);
         }
@@ -176,7 +176,7 @@ export interface ArchitectureConfig {
  */
 export const getModelRegistry = async (): Promise<ModelRegistry | null> => {
     try {
-        const response = await fetch('/api/local-models/registry');
+        const response = await fetch('/api/local-models/registry', { credentials: 'include' });
         if (!response.ok) {
             return null;
         }
@@ -194,7 +194,7 @@ export const getModelRegistry = async (): Promise<ModelRegistry | null> => {
  */
 export const getArchitectureConfig = async (key: string): Promise<ArchitectureConfig | null> => {
     try {
-        const response = await fetch(`/api/local-models/architecture/${key}`);
+        const response = await fetch(`/api/local-models/architecture/${key}`, { credentials: 'include' });
         if (!response.ok) {
             return null;
         }
@@ -293,6 +293,7 @@ export const generateLocalImage = async (params: GenerateLocalImageParams): Prom
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(params)
         });
 

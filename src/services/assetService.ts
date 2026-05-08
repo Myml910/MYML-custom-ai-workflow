@@ -32,6 +32,7 @@ export const uploadAsset = async (
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
                 data: dataUrl,
                 prompt: prompt

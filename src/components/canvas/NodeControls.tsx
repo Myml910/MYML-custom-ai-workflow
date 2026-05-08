@@ -184,13 +184,13 @@ function buildAnglePrompt(
     // Rotation (horizontal)
     if (settings.rotation !== 0) {
         const direction = settings.rotation > 0 ? 'right' : 'left';
-        parts.push(`The camera has rotated ${Math.abs(settings.rotation)}掳 to the ${direction}.`);
+        parts.push(`The camera has rotated ${Math.abs(settings.rotation)} degrees to the ${direction}.`);
     }
 
     // Tilt (vertical)
     if (settings.tilt !== 0) {
         const direction = settings.tilt > 0 ? 'upward' : 'downward';
-        parts.push(`The camera has tilted ${Math.abs(settings.tilt)}掳 ${direction}.`);
+        parts.push(`The camera has tilted ${Math.abs(settings.tilt)} degrees ${direction}.`);
     }
 
     // Zoom
@@ -926,8 +926,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 videoGenerationMode === 'image-to-video' ? 'bg-green-400' :
                                                     videoGenerationMode === 'motion-control' ? 'bg-orange-400' : 'bg-purple-400'
                                                 }`} />
-                                            {videoGenerationMode === 'text-to-video' ? 'Text 鈫?Video' :
-                                                videoGenerationMode === 'image-to-video' ? 'Image 鈫?Video' :
+                                            {videoGenerationMode === 'text-to-video' ? 'Text to Video' :
+                                                videoGenerationMode === 'image-to-video' ? 'Image to Video' :
                                                     videoGenerationMode === 'motion-control' ? 'Motion Control' :
                                                         'Frame-to-Frame'}
                                         </div>
@@ -1069,9 +1069,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             <span className={`w-1.5 h-1.5 rounded-full ${imageGenerationMode === 'text-to-image' ? 'bg-blue-400' :
                                                 imageGenerationMode === 'image-to-image' ? 'bg-green-400' : 'bg-purple-400'
                                                 }`} />
-                                            {imageGenerationMode === 'text-to-image' ? 'Text 鈫?Image' :
-                                                imageGenerationMode === 'image-to-image' ? `Image 鈫?Image` :
-                                                    `${inputCount} Images 鈫?Image`}
+                                            {imageGenerationMode === 'text-to-image' ? 'Text to Image' :
+                                                imageGenerationMode === 'image-to-image' ? `Image to Image` :
+                                                    `${inputCount} Images to Image`}
                                         </div>
                                         {/* MYML Models */}
                                         {availableImageModels.filter(m => m.provider === 'custom').length > 0 && (
@@ -1354,6 +1354,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     }}
                                     disabled={isGenerateBlocked}
                                     className={`group w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${generateButtonClass(isGenerateBlocked)}`}
+                                    aria-label={generateTitle}
                                     title={generateTitle}
                                 >
                                     <svg
@@ -1534,6 +1535,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                     <div className="mt-2 pt-2 border-t border-neutral-800">
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
+                            aria-expanded={showAdvanced}
+                            aria-controls="node-controls-advanced-settings"
                             className="w-full flex items-center justify-center gap-1 cursor-pointer"
                         >
                             <span className="text-[10px] text-neutral-600 uppercase tracking-widest hover:text-neutral-400">
@@ -1548,7 +1551,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                         {/* Advanced Settings Content - Only for Video nodes */}
                         {showAdvanced && isVideoNode && (
-                            <div className="mt-3 space-y-3">
+                            <div id="node-controls-advanced-settings" className="mt-3 space-y-3">
                                 {/* Audio Toggle - Only for Kling 2.6 (Veo 3.1 SDK doesn't support generateAudio yet) */}
                                 {data.videoModel === 'kling-v2-6' && (
                                     <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-neutral-800/50 rounded-lg w-fit">
@@ -1558,6 +1561,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                         <span className="text-[11px] text-neutral-300">Audio</span>
                                         <button
                                             onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
+                                            aria-label={data.generateAudio !== false ? 'Disable audio generation' : 'Enable audio generation'}
+                                            aria-pressed={data.generateAudio !== false}
                                             className={`relative w-8 h-4 rounded-full transition-colors ${data.generateAudio !== false ? 'bg-cyan-600' : 'bg-neutral-700'}`}
                                         >
                                             <span

@@ -12,6 +12,11 @@ services:
       - ./library:/app/library
     environment:
       - NODE_ENV=production
+      - MYML_AUTH_SECRET=${MYML_AUTH_SECRET}
+      - MYML_COOKIE_SECURE=${MYML_COOKIE_SECURE}
+      - MYML_DB_PATH=${MYML_DB_PATH}
+      - MYML_SEED_ADMIN_USERNAME=${MYML_SEED_ADMIN_USERNAME}
+      - MYML_SEED_ADMIN_PASSWORD=${MYML_SEED_ADMIN_PASSWORD}
       # Pass through API keys from host environment or .env file
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - KLING_ACCESS_KEY=${KLING_ACCESS_KEY}

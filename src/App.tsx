@@ -55,6 +55,8 @@ import { StoryboardVideoModal } from './components/modals/StoryboardVideoModal';
 import { Language, t } from './i18n/translations';
 import { uploadAsset } from './services/assetService';
 import { getEffectiveImageReference } from './utils/imageReferences';
+import { AuthUser, useAuth } from './auth/AuthContext';
+import { LoginPage } from './components/LoginPage';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -127,7 +129,13 @@ if (typeof window !== 'undefined') {
   }
 }
 
-export default function App() {
+function CanvasApp({
+  currentUser,
+  onLogout
+}: {
+  currentUser: AuthUser;
+  onLogout: () => Promise<void>;
+}) {
   // ============================================================================
   // STATE
   // ============================================================================
@@ -1217,6 +1225,8 @@ export default function App() {
           language={language}
           onToggleLanguage={toggleLanguage}
           lastAutoSaveTime={lastAutoSaveTime}
+          currentUser={currentUser}
+          onLogout={onLogout}
         />
       )}
 
@@ -1594,4 +1604,41 @@ export default function App() {
       />
     </div >
   );
+}
+
+export default function App() {
+  const { user, loading, logout } = useAuth();
+  const [path, setPath] = React.useState(() => window.location.pathname);
+
+  React.useEffect(() => {
+    const handleLocationChange = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  React.useEffect(() => {
+    if (loading) return;
+
+    if (!user && path !== '/login') {
+      window.history.replaceState(null, '', '/login');
+      setPath('/login');
+    } else if (user && path === '/login') {
+      window.history.replaceState(null, '', '/');
+      setPath('/');
+    }
+  }, [loading, path, user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-[#D8FF00] flex items-center justify-center text-xs font-black uppercase tracking-[0.16em]">
+        Loading MYML Canvas
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return <CanvasApp currentUser={user} onLogout={logout} />;
 }

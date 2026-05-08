@@ -76,7 +76,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
         setLoading(true);
 
         try {
-            const response = await fetch('/api/workflows');
+            const response = await fetch('/api/workflows', { credentials: 'include' });
 
             if (response.ok) {
                 const data = await response.json();
@@ -91,7 +91,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
     const fetchPublicWorkflows = async () => {
         try {
-            const response = await fetch('/api/public-workflows');
+            const response = await fetch('/api/public-workflows', { credentials: 'include' });
 
             if (response.ok) {
                 const data = await response.json();
@@ -105,7 +105,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
     const handleDelete = async (id: string) => {
         try {
             const response = await fetch(`/api/workflows/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -148,7 +149,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
         setVisibleCoverCount(COVERS_PER_PAGE);
 
         try {
-            const response = await fetch('/api/assets/images');
+            const response = await fetch('/api/assets/images', { credentials: 'include' });
 
             if (response.ok) {
                 const data = await response.json();
@@ -168,6 +169,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             const response = await fetch(`/api/workflows/${editingCoverFor}/cover`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ coverUrl: assetUrl })
             });
 
