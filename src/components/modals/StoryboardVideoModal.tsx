@@ -280,14 +280,14 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-black/65 backdrop-blur-sm motion-modal-overlay-in" />
 
             {/* Modal */}
-            <div className="relative bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-neutral-800 flex flex-col">
+            <div className="relative bg-[#1a1a1a] rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-neutral-800 flex flex-col motion-modal-dialog-in">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-[#1a1a1a] z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.16)]">
                             <Film size={20} className="text-white" />
                         </div>
                         <div>
@@ -297,7 +297,8 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-500 hover:text-white"
+                        aria-label="Close story video modal"
+                        className="p-2 hover:bg-neutral-800 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/40 text-neutral-500 hover:text-white"
                     >
                         <X size={20} />
                     </button>
@@ -315,7 +316,8 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                 {/* Remove Button - Left side */}
                                 <button
                                     onClick={() => handleRemoveScene(scene.id)}
-                                    className="p-2 text-neutral-600 hover:text-red-400 hover:bg-neutral-800/50 rounded-full transition-all opacity-0 group-hover/card:opacity-100 flex-shrink-0"
+                                    aria-label="Remove scene"
+                                    className="p-2 text-neutral-600 hover:text-red-400 hover:bg-neutral-800/50 rounded-full transition-[background-color,color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 opacity-0 group-hover/card:opacity-100 flex-shrink-0"
                                     title="Remove scene"
                                 >
                                     <Trash2 size={16} />
@@ -368,7 +370,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                     <button
                                                         onClick={() => handleGeneratePrompt(scene.id)}
                                                         disabled={generatingPrompts[scene.id]}
-                                                        className="pointer-events-auto flex items-center gap-2 text-purple-400 hover:text-purple-300 hover:scale-105 transition-all opacity-80 hover:opacity-100"
+                                                        className="pointer-events-auto flex items-center gap-2 text-purple-400 hover:text-purple-300 hover:scale-[1.02] transition-[color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/40 rounded-lg opacity-80 hover:opacity-100"
                                                     >
                                                         {generatingPrompts[scene.id] ? (
                                                             <Loader2 size={14} className="animate-spin" />
@@ -506,7 +508,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                             </div>
                             <button
                                 onClick={() => onCreateVideos(prompts, settings, sortedScenes.map(s => s.id))}
-                                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white pl-4 pr-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-purple-900/40 flex items-center gap-2"
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white pl-4 pr-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/40 shadow-[0_6px_16px_rgba(88,28,135,0.18)] flex items-center gap-2"
                             >
                                 <Play size={16} fill="currentColor" />
                                 Generate Story Videos
