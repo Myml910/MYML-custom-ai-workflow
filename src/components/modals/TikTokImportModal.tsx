@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, Loader2, CheckCircle, AlertCircle, Link2 } from 'lucide-react';
+import { Language, t } from '../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -16,6 +17,8 @@ interface TikTokImportModalProps {
     isOpen: boolean;
     onClose: () => void;
     onVideoImported: (videoUrl: string, videoInfo: TikTokVideoInfo) => void;
+    language?: Language;
+    canvasTheme?: 'dark' | 'light';
 }
 
 export interface TikTokVideoInfo {
@@ -35,7 +38,9 @@ type ImportStatus = 'idle' | 'loading' | 'success' | 'error';
 export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
     isOpen,
     onClose,
-    onVideoImported
+    onVideoImported,
+    language = 'zh',
+    canvasTheme = 'dark'
 }) => {
     // --- State ---
     const [url, setUrl] = useState('');
@@ -45,6 +50,23 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
     const [importedVideoUrl, setImportedVideoUrl] = useState<string | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
+    const isDark = canvasTheme === 'dark';
+    const overlayClass = isDark ? 'bg-black/60' : 'bg-neutral-950/35';
+    const dialogClass = isDark
+        ? 'bg-[#151815] border-neutral-800 text-neutral-100'
+        : 'bg-white border-neutral-200 text-neutral-900';
+    const headerBorderClass = isDark ? 'border-neutral-800' : 'border-neutral-200';
+    const headerIconClass = isDark ? 'bg-[#1A1D1A] border-neutral-800' : 'bg-neutral-100 border-neutral-200';
+    const titleClass = isDark ? 'text-neutral-100' : 'text-neutral-900';
+    const bodyTextClass = isDark ? 'text-neutral-300' : 'text-neutral-700';
+    const helperTextClass = 'text-neutral-500';
+    const closeHoverClass = isDark ? 'hover:bg-[#1A1D1A] hover:text-neutral-100' : 'hover:bg-neutral-100 hover:text-neutral-900';
+    const secondaryButtonClass = isDark
+        ? 'border-neutral-700 bg-[#151815] text-neutral-300 hover:border-neutral-600 hover:bg-[#1A1D1A] hover:text-neutral-100'
+        : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-950';
+    const disabledPrimaryClass = isDark
+        ? 'disabled:border-neutral-700 disabled:bg-neutral-800 disabled:text-neutral-500'
+        : 'disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-400';
 
     // --- Effects ---
 
@@ -70,7 +92,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
 
     const handleImport = async () => {
         if (!url.trim()) {
-            setError('Please enter a TikTok URL');
+            setError(t(language, 'enterTikTokUrlError'));
             return;
         }
 
@@ -88,13 +110,13 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to import video');
+                throw new Error(data.error || t(language, 'failedImportVideoError'));
             }
 
             // Success!
             const info: TikTokVideoInfo = {
-                title: data.title || 'TikTok Video',
-                author: data.author || 'Unknown',
+                title: data.title || t(language, 'tiktokVideoFallbackTitle'),
+                author: data.author || t(language, 'unknownAuthor'),
                 duration: data.duration || 0,
                 cover: data.cover || null,
                 trimmed: data.trimmed || false
@@ -106,7 +128,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
 
         } catch (err: any) {
             console.error('TikTok import error:', err);
-            setError(err.message || 'Failed to import video');
+            setError(err.message || t(language, 'failedImportVideoError'));
             setStatus('error');
         }
     };
@@ -132,39 +154,39 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
+            className={`fixed inset-0 ${overlayClass} backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in`}
             onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[500px] shadow-xl overflow-hidden motion-modal-dialog-in">
+            <div className={`border rounded-xl w-[500px] shadow-[0_18px_44px_rgba(0,0,0,0.18)] overflow-hidden motion-modal-dialog-in ${dialogClass}`}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+                <div className={`flex items-center justify-between px-5 py-4 border-b ${headerBorderClass}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff0050] via-[#00f2ea] to-[#ff0050] flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <div className={`w-9 h-9 rounded-lg border flex items-center justify-center ${headerIconClass}`}>
+                            <svg className="w-5 h-5 text-[#D8FF00]" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                             </svg>
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold text-white">Import TikTok Video</h2>
-                            <p className="text-xs text-neutral-400">Download without watermark</p>
+                            <h2 className={`text-base font-semibold leading-5 ${titleClass}`}>{t(language, 'importTikTokVideoTitle')}</h2>
+                            <p className={`text-xs leading-4 ${helperTextClass}`}>{t(language, 'importTikTokDesc')}</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        aria-label="Close TikTok import modal"
-                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                        aria-label={t(language, 'closeTikTokImportModal')}
+                        className={`group flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${closeHoverClass}`}
                     >
-                        <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
+                        <X size={18} className="transition-colors" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-5">
                     {/* URL Input */}
                     <div className="space-y-3">
-                        <label className="text-sm font-medium text-neutral-300">
-                            TikTok Video URL
+                        <label className={`text-sm font-medium ${bodyTextClass}`}>
+                            {t(language, 'tiktokVideoUrl')}
                         </label>
                         <div className="relative">
                             <Link2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
@@ -174,30 +196,34 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Paste TikTok video URL here (Ctrl+V)"
+                                placeholder={t(language, 'pasteTikTokUrlPlaceholder')}
                                 disabled={status === 'loading' || status === 'success'}
-                                className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-neutral-500 focus:outline-none focus:border-[#00f2ea] focus:ring-2 focus:ring-[#00f2ea]/15 transition-[background-color,border-color,box-shadow,opacity] duration-150 disabled:opacity-50"
+                                className={`w-full border rounded-lg pl-10 pr-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 transition-[background-color,border-color,box-shadow,opacity] duration-150 disabled:cursor-not-allowed ${
+                                    isDark
+                                        ? 'bg-[#101210] border-neutral-700 text-neutral-100 disabled:border-neutral-800 disabled:bg-neutral-900 disabled:text-neutral-500'
+                                        : 'bg-white border-neutral-200 text-neutral-900 disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-400'
+                                }`}
                             />
                         </div>
                         <p className="text-xs text-neutral-500">
-                            Supports tiktok.com, vm.tiktok.com, and vt.tiktok.com links
+                            {t(language, 'tiktokUrlSupportHint')}
                         </p>
                     </div>
 
                     {/* Error Message */}
                     {error && status === 'error' && (
-                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
-                            <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="mt-4 p-3 bg-red-500/[0.08] border border-red-500/50 rounded-lg flex items-start gap-3">
+                            <AlertCircle size={20} className="text-red-300 flex-shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-sm text-red-400">{error}</p>
+                                <p className="text-sm text-red-300">{error}</p>
                                 <button
                                     onClick={() => {
                                         setStatus('idle');
                                         setError(null);
                                     }}
-                                    className="text-xs text-red-400/70 hover:text-red-400 mt-1 underline"
+                                    className="text-xs text-red-300/70 hover:text-red-300 mt-1 underline transition-colors"
                                 >
-                                    Try again
+                                    {t(language, 'tryAgain')}
                                 </button>
                             </div>
                         </div>
@@ -206,31 +232,31 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     {/* Loading State */}
                     {status === 'loading' && (
                         <div className="mt-6 flex flex-col items-center gap-3 py-4">
-                            <Loader2 size={32} className="text-[#00f2ea] animate-spin" />
-                            <p className="text-neutral-400 text-sm">Downloading video...</p>
-                            <p className="text-neutral-500 text-xs">This may take a moment</p>
+                            <Loader2 size={32} className="text-[#D8FF00] animate-spin" />
+                            <p className={`${bodyTextClass} text-sm`}>{t(language, 'downloadingVideo')}</p>
+                            <p className="text-neutral-500 text-xs">{t(language, 'mayTakeMoment')}</p>
                         </div>
                     )}
 
                     {/* Success State */}
                     {status === 'success' && videoInfo && importedVideoUrl && (
                         <div className="mt-6 space-y-4">
-                            <div className="flex items-start gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                                <CheckCircle size={20} className="text-green-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 p-3 bg-emerald-500/[0.08] border border-emerald-500/40 rounded-lg">
+                                <CheckCircle size={20} className="text-emerald-300 flex-shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-green-400 font-medium">Video downloaded successfully!</p>
+                                    <p className="text-sm text-emerald-300 font-medium">{t(language, 'videoDownloadSuccess')}</p>
                                     <p className="text-xs text-neutral-400 mt-1 truncate" title={videoInfo.title}>
                                         {videoInfo.title}
                                     </p>
                                     <p className="text-xs text-neutral-500">
-                                        By @{videoInfo.author} - {Math.round(videoInfo.duration)}s
-                                        {videoInfo.trimmed && ' - Trimmed'}
+                                        {t(language, 'byAuthor')} @{videoInfo.author} - {Math.round(videoInfo.duration)}s
+                                        {videoInfo.trimmed && ` - ${t(language, 'trimmed')}`}
                                     </p>
                                 </div>
                             </div>
 
                             {/* Video Preview */}
-                            <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                            <div className={`${isDark ? 'bg-black' : 'bg-neutral-100'} aspect-video rounded-lg overflow-hidden`}>
                                 <video
                                     src={importedVideoUrl}
                                     className="w-full h-full object-contain"
@@ -244,37 +270,37 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
+                <div className={`px-5 py-4 border-t flex justify-end gap-2 ${headerBorderClass} ${isDark ? 'bg-[#101210]' : 'bg-neutral-50'}`}>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                        className={`h-9 px-4 rounded-lg border text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${secondaryButtonClass}`}
                     >
-                        Cancel
+                        {t(language, 'cancel')}
                     </button>
 
                     {status === 'success' ? (
                         <button
                             onClick={handleAddToCanvas}
-                            className="flex items-center gap-2 px-6 py-2 bg-[#00f2ea] hover:bg-[#00d4d4] text-black font-medium rounded-lg transition-[background-color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00f2ea]/35"
+                            className="flex h-9 items-center gap-2 px-5 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold rounded-lg transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             <CheckCircle size={18} />
-                            Add to Canvas
+                            {t(language, 'addToCanvas')}
                         </button>
                     ) : (
                         <button
                             onClick={handleImport}
                             disabled={status === 'loading' || !url.trim()}
-                            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#ff0050] to-[#00f2ea] hover:opacity-90 text-white font-medium rounded-lg transition-[opacity,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00f2ea]/35 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                            className={`flex h-9 items-center gap-2 px-5 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold rounded-lg transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:border ${disabledPrimaryClass}`}
                         >
                             {status === 'loading' ? (
                                 <>
                                     <Loader2 size={18} className="animate-spin" />
-                                    Importing...
+                                    {t(language, 'importing')}
                                 </>
                             ) : (
                                 <>
                                     <Download size={18} />
-                                    Import Video
+                                    {t(language, 'importVideo')}
                                 </>
                             )}
                         </button>

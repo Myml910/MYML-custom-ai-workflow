@@ -15,8 +15,8 @@ import { calculateConnectionPath } from '../../utils/connectionHelpers';
 
 // Controls how far from the line the mouse can be before the line starts reacting.
 // This affects line color hover only.
-// Keep this slightly larger than MAGNET_RADIUS to avoid hover/magnet dead zones.
-const LINE_HOVER_HIT_WIDTH = 90;
+// Keep this tight so edge hover does not fight node connector hover.
+const LINE_HOVER_HIT_WIDTH = 44;
 
 // Keeps the visible connection line thin even when hovered.
 const IDLE_LINE_WIDTH = 1.7;
@@ -31,11 +31,11 @@ const FLOW_ANIMATION_DURATION = '1s';
 // MINUS BUTTON MAGNET CONFIG
 // ============================================================================
 
-const MAGNET_RADIUS = 150;
-const FOLLOW_RATIO = 1;
+const MAGNET_RADIUS = 92;
+const FOLLOW_RATIO = 0.62;
 const IDLE_SCALE = 1;
-const HOVER_SCALE = 1.08;
-const FOLLOW_EASE = 0.28;
+const HOVER_SCALE = 1.045;
+const FOLLOW_EASE = 0.24;
 
 const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
@@ -50,89 +50,117 @@ const useSvgStableMagnet = (viewportZoom: number, isActive: boolean) => {
     const buttonRef = useRef<SVGGElement | null>(null);
     const frameRef = useRef<number | null>(null);
     const currentRef = useRef({ x: 0, y: 0, scale: IDLE_SCALE });
+    const centerRef = useRef({ x: 0, y: 0 });
+    const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
-    useEffect(() => {
-        const anchor = anchorRef.current;
+    const applyTransform = () => {
         const button = buttonRef.current;
-        if (!anchor || !button) return;
+        if (!button) return;
+
+        const current = currentRef.current;
+
+        button.setAttribute(
+            'transform',
+            `translate(${current.x} ${current.y}) scale(${current.scale})`
+        );
+    };
+
+    const resetTransform = () => {
+        currentRef.current = { x: 0, y: 0, scale: IDLE_SCALE };
+        pointerRef.current = null;
+        applyTransform();
+    };
+
+    const refreshCenter = () => {
+        const anchor = anchorRef.current;
+        if (!anchor) return;
+
+        const rect = anchor.getBoundingClientRect();
+        centerRef.current = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+        };
+    };
+
+    const setTransform = (targetX: number, targetY: number, targetScale: number) => {
+        const current = currentRef.current;
+
+        current.x += (targetX - current.x) * FOLLOW_EASE;
+        current.y += (targetY - current.y) * FOLLOW_EASE;
+        current.scale += (targetScale - current.scale) * FOLLOW_EASE;
+
+        applyTransform();
+    };
+
+    const updateFromPointer = () => {
+        frameRef.current = null;
+
+        if (!pointerRef.current) return;
 
         const safeZoom = Math.max(viewportZoom || 1, 0.01);
+        const dx = pointerRef.current.x - centerRef.current.x;
+        const dy = pointerRef.current.y - centerRef.current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-        const applyTransform = () => {
-            const current = currentRef.current;
-
-            button.setAttribute(
-                'transform',
-                `translate(${current.x} ${current.y}) scale(${current.scale})`
-            );
-        };
-
-        const setTransform = (targetX: number, targetY: number, targetScale: number) => {
-            const current = currentRef.current;
-
-            current.x += (targetX - current.x) * FOLLOW_EASE;
-            current.y += (targetY - current.y) * FOLLOW_EASE;
-            current.scale += (targetScale - current.scale) * FOLLOW_EASE;
-
-            applyTransform();
-        };
-
-        const resetTransform = () => {
-            currentRef.current = { x: 0, y: 0, scale: IDLE_SCALE };
-            applyTransform();
-        };
-
-        if (!isActive) {
-            resetTransform();
+        if (distance > MAGNET_RADIUS) {
+            setTransform(0, 0, IDLE_SCALE);
             return;
         }
 
-        const handleMouseMove = (e: MouseEvent) => {
-            if (frameRef.current !== null) return;
+        const safeDistance = Math.max(distance, 1);
+        const strength = clamp(1 - safeDistance / MAGNET_RADIUS, 0, 1);
 
-            frameRef.current = window.requestAnimationFrame(() => {
-                frameRef.current = null;
+        const offsetX = (dx / safeZoom) * FOLLOW_RATIO * strength;
+        const offsetY = (dy / safeZoom) * FOLLOW_RATIO * strength;
 
-                const rect = anchor.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
+        const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
 
-                const dx = e.clientX - centerX;
-                const dy = e.clientY - centerY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+        setTransform(offsetX, offsetY, scale);
+    };
 
-                if (distance > MAGNET_RADIUS) {
-                    setTransform(0, 0, IDLE_SCALE);
-                    return;
-                }
+    const handleMouseEnter = () => {
+        refreshCenter();
+    };
 
-                const safeDistance = Math.max(distance, 1);
-                const strength = clamp(1 - safeDistance / MAGNET_RADIUS, 0, 1);
+    const handleMouseMove = (e: React.MouseEvent<SVGGElement>) => {
+        if (!isActive) return;
 
-                const offsetX = (dx / safeZoom) * FOLLOW_RATIO;
-                const offsetY = (dy / safeZoom) * FOLLOW_RATIO;
+        pointerRef.current = { x: e.clientX, y: e.clientY };
 
-                const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
+        if (frameRef.current !== null) return;
 
-                setTransform(offsetX, offsetY, scale);
-            });
-        };
+        frameRef.current = window.requestAnimationFrame(updateFromPointer);
+    };
 
-        window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    const handleMouseLeave = () => {
+        if (frameRef.current !== null) {
+            window.cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
+        }
 
         resetTransform();
+    };
+
+    useEffect(() => {
+        if (!isActive) {
+            resetTransform();
+        }
 
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-
             if (frameRef.current !== null) {
                 window.cancelAnimationFrame(frameRef.current);
                 frameRef.current = null;
             }
         };
-    }, [viewportZoom, isActive]);
+    }, [isActive]);
 
-    return { anchorRef, buttonRef };
+    return {
+        anchorRef,
+        buttonRef,
+        handleMouseEnter,
+        handleMouseMove,
+        handleMouseLeave
+    };
 };
 
 // ============================================================================
@@ -335,7 +363,13 @@ const ConnectionItem: React.FC<{
     onDisconnectConnection
 }) => {
     const [isHot, setIsHot] = useState(false);
-    const { anchorRef, buttonRef } = useSvgStableMagnet(viewportZoom, isHot);
+    const {
+        anchorRef,
+        buttonRef,
+        handleMouseEnter: handleMagnetMouseEnter,
+        handleMouseMove: handleMagnetMouseMove,
+        handleMouseLeave: handleMagnetMouseLeave
+    } = useSvgStableMagnet(viewportZoom, isHot);
 
     // Place disconnect button at the middle of the connection.
     const buttonT = 0.5;
@@ -347,8 +381,15 @@ const ConnectionItem: React.FC<{
 
     return (
         <g
-            onMouseEnter={() => setIsHot(true)}
-            onMouseLeave={() => setIsHot(false)}
+            onMouseEnter={() => {
+                setIsHot(true);
+                handleMagnetMouseEnter();
+            }}
+            onMouseMove={handleMagnetMouseMove}
+            onMouseLeave={() => {
+                setIsHot(false);
+                handleMagnetMouseLeave();
+            }}
             onClick={(e) => onEdgeClick(e, parent.id, child.id)}
             className="cursor-pointer pointer-events-auto"
             style={{ pointerEvents: 'auto' }}
@@ -369,7 +410,7 @@ const ConnectionItem: React.FC<{
                 stroke={isSelected || isHot ? highlightStroke : idleStroke}
                 strokeWidth={isSelected ? SELECTED_LINE_WIDTH : IDLE_LINE_WIDTH}
                 fill="none"
-                className="transition-colors duration-300 pointer-events-none"
+                className="transition-colors duration-150 pointer-events-none"
             />
 
             {/* Default flowing effect.
@@ -383,8 +424,8 @@ const ConnectionItem: React.FC<{
                     strokeDasharray={FLOW_DASH_ARRAY}
                     strokeLinecap="round"
                     fill="none"
-                    opacity={isHot ? 0 : 0.35}
-                    className="pointer-events-none transition-opacity duration-300"
+                    opacity={isHot ? 0 : 0.24}
+                    className="pointer-events-none transition-opacity duration-200"
                 >
                     <animate
                         attributeName="stroke-dashoffset"
@@ -437,13 +478,7 @@ const ConnectionItem: React.FC<{
                             fill={canvasTheme === 'dark' ? '#050505' : '#ffffff'}
                             stroke={highlightStroke}
                             strokeWidth="2"
-                            style={{
-                                pointerEvents: 'none',
-                                filter:
-                                    canvasTheme === 'dark'
-                                        ? 'drop-shadow(0 0 8px rgba(216,255,0,0.65))'
-                                        : 'drop-shadow(0 2px 6px rgba(132,204,22,0.25))'
-                            }}
+                            style={{ pointerEvents: 'none' }}
                         />
 
                         {/* Minus icon */}

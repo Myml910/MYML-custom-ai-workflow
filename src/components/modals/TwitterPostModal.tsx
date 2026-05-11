@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2, CheckCircle, AlertCircle, Send, ExternalLink, LogOut } from 'lucide-react';
+import { t, type Language } from '../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -40,6 +41,16 @@ const XIcon = () => (
 
 const TWITTER_SESSION_KEY = 'twitter_session_id';
 
+const getCurrentLanguage = (): Language => {
+    if (typeof window === 'undefined') return 'zh';
+    return (localStorage.getItem('myml-language') as Language) || 'zh';
+};
+
+const getInferredTheme = (): 'dark' | 'light' => {
+    if (typeof document === 'undefined') return 'dark';
+    return document.querySelector('.bg-neutral-50.text-neutral-900') ? 'light' : 'dark';
+};
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -64,6 +75,29 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
     const MAX_CHARS = 280;
     const charsRemaining = MAX_CHARS - tweetText.length;
     const isOverLimit = charsRemaining < 0;
+    const language = getCurrentLanguage();
+    const isDark = getInferredTheme() === 'dark';
+    const overlayClass = isDark ? 'bg-neutral-950/75' : 'bg-neutral-900/35';
+    const shellClass = isDark
+        ? 'bg-[#151815] border-neutral-800 text-neutral-100'
+        : 'bg-white border-neutral-200 text-neutral-900';
+    const dividerClass = isDark ? 'border-neutral-800' : 'border-neutral-200';
+    const mutedTextClass = isDark ? 'text-neutral-400' : 'text-neutral-600';
+    const helperTextClass = isDark ? 'text-neutral-500' : 'text-neutral-500';
+    const iconTileClass = isDark
+        ? 'bg-[#1A1D1A] border-neutral-700 text-neutral-100'
+        : 'bg-neutral-100 border-neutral-200 text-neutral-900';
+    const mediaShellClass = isDark ? 'bg-[#101210] border-neutral-800' : 'bg-neutral-100 border-neutral-200';
+    const inputClass = isDark
+        ? 'bg-[#101210] border-neutral-700 text-neutral-100 placeholder-neutral-500 disabled:text-neutral-500 disabled:bg-neutral-900/70'
+        : 'bg-white border-neutral-300 text-neutral-900 placeholder-neutral-400 disabled:text-neutral-400 disabled:bg-neutral-100';
+    const secondaryButtonClass = isDark
+        ? 'border-neutral-700 bg-[#1A1D1A] text-neutral-200 hover:bg-neutral-800'
+        : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100';
+    const primaryButtonClass = isDark
+        ? 'bg-[#D8FF00] text-neutral-950 hover:bg-[#c8ed00]'
+        : 'bg-lime-600 text-neutral-50 hover:bg-lime-700';
+    const subtleLinkClass = isDark ? 'text-neutral-500 hover:text-neutral-300' : 'text-neutral-500 hover:text-neutral-700';
 
     // --- Effects ---
 
@@ -101,7 +135,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                 setStatus('idle');
                 setError(null);
             } else if (event.data.type === 'twitter-auth-error') {
-                setError(event.data.error || 'Authentication failed');
+                setError(event.data.error || t(getCurrentLanguage(), 'authenticationFailedError'));
                 setStatus('error');
             }
         };
@@ -141,7 +175,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to start authentication');
+                throw new Error(data.error || t(language, 'failedStartAuthenticationError'));
             }
 
             // Open OAuth popup
@@ -153,11 +187,11 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
 
             // Check if popup was blocked
             if (!popup) {
-                throw new Error('Popup blocked. Please allow popups for this site.');
+                throw new Error(t(language, 'popupBlockedError'));
             }
         } catch (err: any) {
             console.error('Twitter auth error:', err);
-            setError(err.message || 'Failed to start authentication');
+            setError(err.message || t(language, 'failedStartAuthenticationError'));
             setStatus('error');
         }
     };
@@ -183,7 +217,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
         if (!sessionId || isOverLimit) return;
         if (!skipMedia && !mediaUrl) return;
         if (!tweetText.trim()) {
-            setError('Please enter some text for your post');
+            setError(t(language, 'enterPostTextError'));
             return;
         }
 
@@ -213,14 +247,14 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to post tweet');
+                throw new Error(data.error || t(language, 'failedPostTweetError'));
             }
 
             setTweetUrl(data.tweetUrl);
             setStatus('success');
         } catch (err: any) {
             console.error('Post error:', err);
-            setError(err.message || 'Failed to post tweet');
+            setError(err.message || t(language, 'failedPostTweetError'));
             setStatus('error');
         }
     };
@@ -242,31 +276,33 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in"
+            className={`fixed inset-0 ${overlayClass} backdrop-blur-sm z-50 flex items-center justify-center p-4 motion-modal-overlay-in`}
             onClick={(e) => e.target === e.currentTarget && status !== 'posting' && onClose()}
             onKeyDown={handleKeyDown}
         >
-            <div className="bg-[#121212] border border-neutral-800 rounded-2xl w-[550px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col motion-modal-dialog-in">
+            <div className={`${shellClass} border rounded-xl w-[550px] max-w-full max-h-[90vh] shadow-xl overflow-hidden flex flex-col motion-modal-dialog-in`}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+                <div className={`flex items-center justify-between p-4 border-b ${dividerClass}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-white">
+                        <div className={`w-10 h-10 rounded-lg border flex items-center justify-center ${iconTileClass}`} aria-hidden="true">
                             <XIcon />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold text-white">Post to X</h2>
+                            <h2 className="text-base font-semibold">{t(language, 'postToX')}</h2>
                             {user && (
-                                <p className="text-xs text-neutral-400">@{user.username}</p>
+                                <p className={`text-xs ${mutedTextClass}`}>@{user.username}</p>
                             )}
                         </div>
                     </div>
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="group p-2 hover:bg-[#D8FF00]/10 rounded-lg transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                        aria-label={t(language, 'closeXPostModal')}
+                        title={t(language, 'closeXPostModal')}
+                        className={`w-9 h-9 inline-flex items-center justify-center rounded-lg ${isDark ? 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                        <X size={20} className="text-neutral-400 group-hover:text-[#D8FF00] transition-colors" />
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -275,24 +311,24 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     {/* Not Authenticated State */}
                     {!user && status !== 'authenticating' && (
                         <div className="flex flex-col items-center gap-4 py-8">
-                            <div className="w-16 h-16 rounded-2xl bg-black flex items-center justify-center text-white">
+                            <div className={`w-14 h-14 rounded-lg border flex items-center justify-center ${iconTileClass}`} aria-hidden="true">
                                 <XIcon />
                             </div>
                             <div className="text-center">
-                                <h3 className="text-lg font-semibold text-white">Connect your X account</h3>
-                                <p className="text-sm text-neutral-400 mt-1">
-                                    Sign in to post directly from MYML Canvas
+                                <h3 className="text-base font-semibold">{t(language, 'connectXAccount')}</h3>
+                                <p className={`text-sm ${mutedTextClass} mt-1`}>
+                                    {t(language, 'signInPostMYMLCanvas')}
                                 </p>
                             </div>
                             <button
                                 onClick={handleLogin}
-                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press"
+                                className={`h-10 inline-flex items-center gap-2 px-4 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
                             >
                                 <XIcon />
-                                Sign in with X
+                                {t(language, 'signInWithX')}
                             </button>
                             {error && (
-                                <p className="text-sm text-red-400 mt-2">{error}</p>
+                                <p className="text-sm text-red-500 mt-2">{error}</p>
                             )}
                         </div>
                     )}
@@ -301,8 +337,8 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     {status === 'authenticating' && (
                         <div className="flex flex-col items-center gap-4 py-8">
                             <Loader2 size={40} className="text-[#D8FF00] animate-spin" />
-                            <p className="text-neutral-400">Waiting for authorization...</p>
-                            <p className="text-xs text-neutral-500">Complete sign-in in the popup window</p>
+                            <p className={mutedTextClass}>{t(language, 'waitingAuthorization')}</p>
+                            <p className={`text-xs ${helperTextClass}`}>{t(language, 'completeSignInPopup')}</p>
                         </div>
                     )}
 
@@ -310,18 +346,19 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     {user && status !== 'success' && (
                         <div className="space-y-4">
                             {/* Media Preview */}
-                            <div className="rounded-xl overflow-hidden bg-black">
+                            <div className={`rounded-lg overflow-hidden border ${mediaShellClass}`}>
                                 {mediaType === 'video' ? (
                                     <video
                                         src={fullMediaUrl}
                                         className="w-full max-h-[250px] object-contain"
                                         controls
                                         muted
+                                        title={t(language, 'mediaToPostVideoTitle')}
                                     />
                                 ) : (
                                     <img
                                         src={fullMediaUrl}
-                                        alt="Media to post"
+                                        alt={t(language, 'mediaToPostAlt')}
                                         className="w-full max-h-[250px] object-contain"
                                     />
                                 )}
@@ -333,16 +370,17 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                                     ref={textareaRef}
                                     value={tweetText}
                                     onChange={(e) => setTweetText(e.target.value)}
-                                    placeholder="What's happening?"
+                                    placeholder={t(language, 'twitterPostPlaceholder')}
+                                    aria-label={t(language, 'twitterPostPlaceholder')}
                                     disabled={status === 'posting'}
-                                    className="w-full bg-[#1a1a1a] border border-neutral-700 rounded-xl p-4 text-white placeholder-neutral-500 focus:outline-none focus:border-[#D8FF00] focus:ring-1 focus:ring-[#D8FF00]/30 transition-colors resize-none disabled:opacity-50"
+                                    className={`w-full border rounded-lg p-4 text-sm ${inputClass} focus:outline-none focus:border-[#D8FF00] focus:ring-2 focus:ring-[#D8FF00]/25 transition-colors duration-150 resize-none disabled:opacity-70 disabled:cursor-not-allowed`}
                                     rows={3}
                                 />
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-neutral-500">
-                                        Optional caption for your post
+                                    <span className={helperTextClass}>
+                                        {t(language, 'optionalCaptionForPost')}
                                     </span>
-                                    <span className={`${isOverLimit ? 'text-red-400' : charsRemaining <= 20 ? 'text-yellow-400' : 'text-neutral-500'}`}>
+                                    <span className={`${isOverLimit ? 'text-red-500' : charsRemaining <= 20 ? 'text-amber-500' : helperTextClass}`}>
                                         {charsRemaining}
                                     </span>
                                 </div>
@@ -350,18 +388,18 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
 
                             {/* Error Message */}
                             {error && status === 'error' && (
-                                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
-                                    <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3" role="alert">
+                                    <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
                                     <div>
-                                        <p className="text-sm text-red-400">{error}</p>
+                                        <p className="text-sm text-red-500">{error}</p>
                                         <button
                                             onClick={() => {
                                                 setStatus('idle');
                                                 setError(null);
                                             }}
-                                            className="text-xs text-red-400/70 hover:text-red-400 mt-1 underline"
+                                            className="text-xs text-red-500/80 hover:text-red-600 mt-1 underline transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 rounded"
                                         >
-                                            Try again
+                                            {t(language, 'tryAgain')}
                                         </button>
                                     </div>
                                 </div>
@@ -370,10 +408,10 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             {/* Logout option */}
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+                                className={`flex items-center gap-1.5 text-xs ${subtleLinkClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/30 rounded`}
                             >
                                 <LogOut size={12} />
-                                Sign out of @{user.username}
+                                {t(language, 'signOutOfX')} @{user.username}
                             </button>
                         </div>
                     )}
@@ -381,36 +419,36 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                     {/* Success State */}
                     {status === 'success' && tweetUrl && (
                         <div className="flex flex-col items-center gap-4 py-8">
-                            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
-                                <CheckCircle size={40} className="text-green-400" />
+                            <div className="w-14 h-14 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                                <CheckCircle size={34} className="text-emerald-500" />
                             </div>
                             <div className="text-center">
-                                <h3 className="text-lg font-semibold text-white">Posted successfully!</h3>
-                                <p className="text-sm text-neutral-400 mt-1">
-                                    Your post is now live on X
+                                <h3 className="text-base font-semibold">{t(language, 'postedSuccessfully')}</h3>
+                                <p className={`text-sm ${mutedTextClass} mt-1`}>
+                                    {t(language, 'xPostLive')}
                                 </p>
                             </div>
                             <a
                                 href={tweetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press"
+                                className={`h-10 inline-flex items-center gap-2 px-4 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
                             >
                                 <ExternalLink size={18} />
-                                View on X
+                                {t(language, 'viewOnX')}
                             </a>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
+                <div className={`p-4 border-t ${dividerClass} flex justify-end gap-2`}>
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className="px-4 py-2 rounded-lg text-neutral-400 hover:text-[#D8FF00] hover:bg-[#D8FF00]/10 transition-all duration-200 motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                        className={`h-9 px-4 rounded-lg border text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                        {status === 'success' ? 'Close' : 'Cancel'}
+                        {status === 'success' ? t(language, 'close') : t(language, 'cancel')}
                     </button>
 
                     {user && status !== 'success' && (
@@ -418,25 +456,26 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             <button
                                 onClick={() => handlePost(true)}
                                 disabled={status === 'posting' || isOverLimit || !tweetText.trim()}
-                                className="flex items-center gap-2 px-4 py-2 bg-neutral-700 text-white font-medium rounded-full hover:bg-neutral-600 transition-colors motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-sm"
-                                title="Post text only without the image"
+                                className={`h-9 inline-flex items-center gap-2 px-4 rounded-lg border text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                title={t(language, 'postTextOnlyTitle')}
+                                aria-label={t(language, 'postTextOnlyTitle')}
                             >
-                                Text Only
+                                {t(language, 'textOnly')}
                             </button>
                             <button
                                 onClick={() => handlePost(false)}
                                 disabled={status === 'posting' || isOverLimit || !mediaUrl || !tweetText.trim()}
-                                className="flex items-center gap-2 px-6 py-2 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors motion-press disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                                className={`h-9 inline-flex items-center gap-2 px-5 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
                             >
                                 {status === 'posting' ? (
                                     <>
                                         <Loader2 size={18} className="animate-spin" />
-                                        Posting...
+                                        {t(language, 'posting')}
                                     </>
                                 ) : (
                                     <>
                                         <Send size={18} />
-                                        Post
+                                        {t(language, 'post')}
                                     </>
                                 )}
                             </button>

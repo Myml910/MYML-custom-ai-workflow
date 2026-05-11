@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Language } from '../../../i18n/translations';
+import { t, type Language } from '../../../i18n/translations';
 
 interface MarkupToolbarProps {
     canvasTheme?: 'dark' | 'light';
@@ -32,29 +32,30 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
     const fillDisabled = activeTool === 'arrow';
 
     const label = {
-        arrow: language === 'zh' ? '箭头标记' : 'Arrow',
-        rectangle: language === 'zh' ? '矩形标记' : 'Rectangle',
-        ellipse: language === 'zh' ? '椭圆标记' : 'Ellipse',
-        fill: language === 'zh' ? '填充标记' : 'Fill'
+        arrow: t(language, 'arrowMarkup'),
+        rectangle: t(language, 'rectangleMarkup'),
+        ellipse: t(language, 'ellipseMarkup'),
+        fill: t(language, 'fillMarkup'),
+        tools: t(language, 'markupTools'),
     };
 
     const panelClass = isDark
-        ? 'border-neutral-800 bg-[#111111]/95 shadow-[0_18px_45px_rgba(0,0,0,0.45)]'
-        : 'border-neutral-200 bg-white/95 shadow-[0_18px_45px_rgba(15,23,42,0.14)]';
+        ? 'border-neutral-800 bg-[#151815]/95 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
+        : 'border-neutral-200 bg-white/95 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
 
     const dividerClass = isDark ? 'bg-neutral-800' : 'bg-neutral-200';
 
     const buttonClass = (active: boolean, disabled = false) => {
         if (disabled) {
             return isDark
-                ? 'cursor-not-allowed text-neutral-600 opacity-55'
-                : 'cursor-not-allowed text-neutral-300 opacity-65';
+                ? 'cursor-not-allowed text-neutral-600 opacity-70'
+                : 'cursor-not-allowed text-neutral-400 opacity-70';
         }
 
         if (active) {
             return isDark
-                ? 'bg-[#D8FF00] text-black shadow-[0_0_14px_rgba(216,255,0,0.2)]'
-                : 'bg-[#D8FF00] text-black shadow-sm';
+                ? 'bg-[#D8FF00]/12 text-[#D8FF00] ring-1 ring-[#D8FF00]/35'
+                : 'bg-lime-50 text-lime-700 ring-1 ring-lime-500/35';
         }
 
         return isDark
@@ -62,15 +63,17 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
             : 'text-neutral-700 hover:bg-neutral-100 hover:text-lime-700';
     };
 
+    const buttonBaseClass = 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+
     return (
         <div
-            className={`pointer-events-auto absolute left-[calc(100%+16px)] top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-xl border p-1.5 backdrop-blur-sm transition-colors ${panelClass}`}
-            aria-label={language === 'zh' ? '标记工具' : 'Markup tools'}
+            className={`pointer-events-auto absolute left-[calc(100%+16px)] top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-xl border p-1.5 backdrop-blur-sm transition-colors duration-150 ${panelClass}`}
+            aria-label={label.tools}
         >
             <button
                 type="button"
                 onClick={onSelectArrow}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200 ${buttonClass(activeTool === 'arrow')}`}
+                className={`${buttonBaseClass} ${buttonClass(activeTool === 'arrow')}`}
                 title={label.arrow}
                 aria-label={label.arrow}
             >
@@ -82,7 +85,7 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
             <button
                 type="button"
                 onClick={onSelectRectangle}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200 ${buttonClass(activeTool === 'rectangle')}`}
+                className={`${buttonBaseClass} ${buttonClass(activeTool === 'rectangle')}`}
                 title={label.rectangle}
                 aria-label={label.rectangle}
             >
@@ -94,7 +97,7 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
             <button
                 type="button"
                 onClick={onSelectEllipse}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200 ${buttonClass(activeTool === 'ellipse')}`}
+                className={`${buttonBaseClass} ${buttonClass(activeTool === 'ellipse')}`}
                 title={label.ellipse}
                 aria-label={label.ellipse}
             >
@@ -109,7 +112,7 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
                 type="button"
                 onClick={fillDisabled ? undefined : onToggleFilled}
                 disabled={fillDisabled}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200 ${buttonClass(filled && !fillDisabled, fillDisabled)}`}
+                className={`${buttonBaseClass} ${buttonClass(filled && !fillDisabled, fillDisabled)}`}
                 title={label.fill}
                 aria-label={label.fill}
             >

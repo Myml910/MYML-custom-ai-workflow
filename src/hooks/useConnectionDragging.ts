@@ -34,6 +34,10 @@ export const useConnectionDragging = () => {
 
     const dragStartTime = useRef<number>(0);
     const dragStartPoint = useRef<{ x: number; y: number } | null>(null);
+    const latestTempConnectionEnd = useRef<{ x: number; y: number } | null>(null);
+    const tempConnectionFrame = useRef<number | null>(null);
+    const hoveredNodeIdRef = useRef<string | null>(null);
+    const hoveredSideRef = useRef<'left' | 'right' | null>(null);
 
     // ============================================================================
     // HELPERS
@@ -64,15 +68,28 @@ export const useConnectionDragging = () => {
         });
 
         if (found) {
-            setHoveredNodeId(found.id);
+            if (hoveredNodeIdRef.current !== found.id) {
+                hoveredNodeIdRef.current = found.id;
+                setHoveredNodeId(found.id);
+            }
 
             // Determine which side is being hovered.
             // Left connector is near x, right connector is near x + 340.
             const nodeCenter = found.x + 170;
-            setHoveredSide(canvasX < nodeCenter ? 'left' : 'right');
+            const nextSide = canvasX < nodeCenter ? 'left' : 'right';
+            if (hoveredSideRef.current !== nextSide) {
+                hoveredSideRef.current = nextSide;
+                setHoveredSide(nextSide);
+            }
         } else {
-            setHoveredNodeId(null);
-            setHoveredSide(null);
+            if (hoveredNodeIdRef.current !== null) {
+                hoveredNodeIdRef.current = null;
+                setHoveredNodeId(null);
+            }
+            if (hoveredSideRef.current !== null) {
+                hoveredSideRef.current = null;
+                setHoveredSide(null);
+            }
         }
     };
 
@@ -134,12 +151,34 @@ export const useConnectionDragging = () => {
     };
 
     const resetConnectionDrag = () => {
+        if (tempConnectionFrame.current !== null) {
+            window.cancelAnimationFrame(tempConnectionFrame.current);
+            tempConnectionFrame.current = null;
+        }
+
         setIsDraggingConnection(false);
         setConnectionStart(null);
         setTempConnectionEnd(null);
         setHoveredNodeId(null);
         setHoveredSide(null);
         dragStartPoint.current = null;
+        latestTempConnectionEnd.current = null;
+        hoveredNodeIdRef.current = null;
+        hoveredSideRef.current = null;
+    };
+
+    const scheduleTempConnectionEnd = (point: { x: number; y: number }) => {
+        latestTempConnectionEnd.current = point;
+
+        if (tempConnectionFrame.current !== null) return;
+
+        tempConnectionFrame.current = window.requestAnimationFrame(() => {
+            tempConnectionFrame.current = null;
+
+            if (latestTempConnectionEnd.current) {
+                setTempConnectionEnd(latestTempConnectionEnd.current);
+            }
+        });
     };
 
     // ============================================================================
@@ -159,6 +198,7 @@ export const useConnectionDragging = () => {
 
         dragStartTime.current = Date.now();
         dragStartPoint.current = { x: e.clientX, y: e.clientY };
+        latestTempConnectionEnd.current = { x: e.clientX, y: e.clientY };
 
         setIsDraggingConnection(true);
         setConnectionStart({ nodeId, handle: side });
@@ -175,7 +215,7 @@ export const useConnectionDragging = () => {
     ) => {
         if (!isDraggingConnection) return false;
 
-        setTempConnectionEnd({ x: e.clientX, y: e.clientY });
+        scheduleTempConnectionEnd({ x: e.clientX, y: e.clientY });
         checkHoveredNode(e.clientX, e.clientY, nodes, viewport);
 
         return true;
@@ -194,6 +234,7 @@ export const useConnectionDragging = () => {
         if (!isDraggingConnection || !connectionStart) return false;
 
         const releasePoint =
+            latestTempConnectionEnd.current ||
             tempConnectionEnd ||
             dragStartPoint.current ||
             { x: window.innerWidth / 2, y: window.innerHeight / 2 };
