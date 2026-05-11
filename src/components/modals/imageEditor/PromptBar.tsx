@@ -1,6 +1,6 @@
 /**
  * PromptBar.tsx
- * 
+ *
  * Prompt input bar with model, aspect ratio, and resolution dropdowns.
  * Contains batch count controls and generate button.
  */
@@ -9,7 +9,7 @@ import React, { useRef, useEffect } from 'react';
 import { ChevronDown, Check, Banana, Image as ImageIcon, Crop, Monitor } from 'lucide-react';
 import { ImageModel, IMAGE_MODELS } from './imageEditor.types';
 import { OpenAIIcon, KlingIcon } from '../../icons/BrandIcons';
-import { Language } from '../../../i18n/translations';
+import { t, type Language } from '../../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -96,35 +96,40 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const isDark = canvasTheme === 'dark';
 
     const text = {
-        imageToImage: language === 'zh' ? '图像 → 图像' : 'Image → Image',
-        textToImage: language === 'zh' ? '文本 → 图像' : 'Text → Image',
-        size: language === 'zh' ? '尺寸' : 'Size',
-        quality: language === 'zh' ? '质量' : 'Quality',
-        batch: language === 'zh' ? '数量' : 'Batch',
-        generate: language === 'zh' ? '生成' : 'Generate',
-        promptPlaceholder: language === 'zh'
-            ? '描述你想要进行的图像修改...'
-            : 'Describe the changes you want to make...',
-        recommended: language === 'zh' ? '推荐' : 'REC',
+        imageToImage: t(language, 'imageToImage'),
+        textToImage: t(language, 'textToImage'),
+        size: t(language, 'size'),
+        quality: t(language, 'quality'),
+        batch: t(language, 'batch'),
+        generate: t(language, 'generate'),
+        promptPlaceholder: t(language, 'imageEditPromptPlaceholder'),
+        recommended: t(language, 'recommended'),
+        generating: t(language, 'generating'),
+        emptyPrompt: t(language, 'enterEditPromptError'),
+        notConfigured: t(language, 'notConfigured'),
+        notConnected: t(language, 'notConnected'),
+        comingSoon: t(language, 'comingSoon'),
+        selectModel: t(language, 'selectImageModel'),
+        selectAspectRatio: t(language, 'selectAspectRatio'),
+        selectResolution: t(language, 'selectResolution'),
+        decreaseBatch: t(language, 'decreaseBatch'),
+        increaseBatch: t(language, 'increaseBatch'),
     };
 
-    const generateText = language === 'zh' ? '生成中...' : 'Generating...';
-    const emptyPromptText = language === 'zh' ? '请输入编辑提示词' : 'Please enter an edit prompt';
-
     const barClass = isDark
-        ? 'bg-[#111111]/95 border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.45)]'
-        : 'bg-white/95 border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.12)]';
+        ? 'bg-[#151815]/95 border-neutral-800 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
+        : 'bg-white/95 border-neutral-200 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
 
     const dropdownClass = isDark
-        ? 'bg-[#1a1a1a] border-neutral-800 shadow-2xl rounded-xl transition-all duration-200 motion-menu-in'
-        : 'bg-white border-neutral-200 shadow-2xl rounded-xl transition-all duration-200 motion-menu-in';
+        ? 'bg-[#1A1D1A] border-neutral-800 shadow-[0_14px_34px_rgba(0,0,0,0.32)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in'
+        : 'bg-white border-neutral-200 shadow-[0_14px_34px_rgba(15,23,42,0.12)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in';
 
     const dropdownHeaderClass = isDark
-        ? 'bg-[#111111] border-neutral-800 text-neutral-400'
+        ? 'bg-[#151815] border-neutral-800 text-neutral-400'
         : 'bg-neutral-50 border-neutral-200 text-neutral-500';
 
     const dropdownSectionClass = isDark
-        ? 'bg-[#111111] text-neutral-500 border-neutral-800'
+        ? 'bg-[#151815] text-neutral-500 border-neutral-800'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
 
     const dropdownItemClass = (active: boolean) => {
@@ -144,17 +149,17 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     const getModelDisabledReason = (model?: ImageModel) => {
         const reason = model?.disabledReason;
-        if (reason === 'notConfigured') return language === 'zh' ? '\u672a\u914d\u7f6e' : 'Not configured';
-        if (reason === 'notConnected') return language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected';
-        if (model?.status === 'comingSoon') return language === 'zh' ? '\u5373\u5c06\u63a8\u51fa' : 'Coming soon';
-        return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
+        if (reason === 'notConfigured') return text.notConfigured;
+        if (reason === 'notConnected') return text.notConnected;
+        if (model?.status === 'comingSoon') return text.comingSoon;
+        return reason || text.notConnected;
     };
 
     const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
         if (disabled) {
             return isDark
-                ? 'text-neutral-600 bg-transparent opacity-60 cursor-not-allowed'
-                : 'text-neutral-400 bg-transparent opacity-60 cursor-not-allowed';
+                ? 'text-neutral-600 bg-transparent opacity-70 cursor-not-allowed'
+                : 'text-neutral-400 bg-transparent opacity-70 cursor-not-allowed';
         }
 
         return dropdownItemClass(active);
@@ -164,21 +169,32 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         ? 'bg-neutral-800 text-neutral-500 border border-neutral-700'
         : 'bg-neutral-100 text-neutral-500 border border-neutral-200';
 
+    const recommendedBadgeClass = isDark
+        ? 'bg-[#D8FF00]/12 text-[#D8FF00] border border-[#D8FF00]/20'
+        : 'bg-lime-50 text-lime-700 border border-lime-200';
+
     const compactButtonClass = isDark
-        ? 'bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'bg-neutral-100 hover:bg-neutral-100 border border-neutral-200 text-neutral-500 hover:text-lime-600';
+        ? 'bg-[#1A1D1A] hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
+        : 'bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 hover:text-lime-700';
 
     const modelButtonClass = isDark
         ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00] border border-neutral-800'
-        : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600 border border-neutral-200';
+        : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700 border border-neutral-200';
 
     const batchClass = isDark
-        ? 'bg-neutral-900/70 border-neutral-800 text-neutral-300'
-        : 'bg-neutral-100 border-neutral-200 text-neutral-700';
+        ? 'bg-[#1A1D1A] border-neutral-800 text-neutral-300'
+        : 'bg-neutral-50 border-neutral-200 text-neutral-700';
+
+    const batchButtonClass = isDark
+        ? 'text-neutral-400 hover:text-[#D8FF00] disabled:text-neutral-600 disabled:hover:text-neutral-600'
+        : 'text-neutral-500 hover:text-lime-700 disabled:text-neutral-300 disabled:hover:text-neutral-300';
 
     const generateButtonClass = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black shadow-[0_0_18px_rgba(216,255,0,0.18)]'
-        : 'bg-lime-600 hover:bg-lime-500 text-white shadow-sm';
+        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-neutral-950'
+        : 'bg-lime-600 hover:bg-lime-700 text-neutral-50';
+    const disabledGenerateClass = isDark
+        ? 'disabled:bg-neutral-800 disabled:text-neutral-500'
+        : 'disabled:bg-neutral-200 disabled:text-neutral-500';
 
     const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-700';
     const errorTextClass = isDark ? 'text-red-400' : 'text-red-600';
@@ -186,7 +202,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         ? 'text-neutral-200 placeholder-neutral-600'
         : 'text-neutral-900 placeholder-neutral-400';
     const isGenerateDisabled = isGenerating || prompt.trim().length === 0 || isModelDisabled(currentModel);
-    const displayedPromptError = promptError || (prompt.trim().length === 0 ? emptyPromptText : '');
+    const displayedPromptError = promptError || (prompt.trim().length === 0 ? text.emptyPrompt : '');
 
     // --- Effects ---
 
@@ -209,18 +225,18 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     const renderProviderIcon = (model: ImageModel, size = 11) => {
         if (model.provider === 'google') {
-            return <Banana size={size} className="text-yellow-400" />;
+            return <Banana size={size} className="text-amber-400" />;
         }
 
         if (model.provider === 'openai') {
-            return <OpenAIIcon size={size} className="text-green-400" />;
+            return <OpenAIIcon size={size} className="text-emerald-400" />;
         }
 
         if (model.provider === 'kling') {
             return <KlingIcon size={size + 3} />;
         }
 
-        return <ImageIcon size={size} className="text-cyan-400" />;
+        return <ImageIcon size={size} className="text-neutral-400" />;
     };
 
     const renderModelGroup = (provider: ImageModel['provider'], label: string, showBorder = false) => {
@@ -231,7 +247,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         return (
             <>
                 <div
-                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${
+                    className={`px-3 py-1.5 text-[10px] font-bold ${
                         showBorder ? 'border-t ' : ''
                     } ${dropdownSectionClass}`}
                 >
@@ -241,28 +257,25 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     <button
                         key={model.id}
                         disabled={isModelDisabled(model)}
-                        title={isModelDisabled(model) ? getModelDisabledReason(model) : undefined}
+                        title={isModelDisabled(model) ? getModelDisabledReason(model) : model.name}
+                        aria-label={isModelDisabled(model) ? `${model.name}: ${getModelDisabledReason(model)}` : model.name}
                         onClick={() => {
                             if (isModelDisabled(model)) return;
                             onModelChange(model.id);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${modelDropdownItemClass(currentModel.id === model.id, isModelDisabled(model))}`}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${modelDropdownItemClass(currentModel.id === model.id, isModelDisabled(model))}`}
                     >
                         <span className="flex items-center gap-2 min-w-0">
                             {renderProviderIcon(model, 12)}
                             <span className="truncate">{model.name}</span>
                             {isModelDisabled(model) && (
-                                <span className={`shrink-0 text-[9px] px-1 py-0.5 rounded ${disabledModelBadgeClass}`}>
+                                <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded-lg ${disabledModelBadgeClass}`}>
                                     {getModelDisabledReason(model)}
                                 </span>
                             )}
                             {model.recommended && (
                                 <span
-                                    className={`text-[9px] px-1 py-0.5 rounded flex-shrink-0 ${
-                                        isDark
-                                            ? 'bg-[#D8FF00]/15 text-[#D8FF00]'
-                                            : 'bg-lime-100 text-lime-700'
-                                    }`}
+                                    className={`text-[9px] px-1.5 py-0.5 rounded-lg flex-shrink-0 ${recommendedBadgeClass}`}
                                 >
                                     {text.recommended}
                                 </span>
@@ -277,13 +290,15 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     return (
         <div
-            className={`w-full backdrop-blur-sm rounded-xl border pointer-events-auto flex items-center px-3 py-2.5 gap-3 transition-all duration-200 ${barClass}`}
+            className={`w-full backdrop-blur-sm rounded-xl border pointer-events-auto flex items-center px-3 py-2.5 gap-3 transition-colors duration-150 ${barClass}`}
         >
             {/* Left - Model Dropdown */}
             <div className="relative flex-shrink-0" ref={modelDropdownRef}>
                 <button
                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                    className={`flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md transition-all duration-200 ${modelButtonClass}`}
+                    className={`flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${modelButtonClass}`}
+                    title={text.selectModel}
+                    aria-label={text.selectModel}
                 >
                     {renderProviderIcon(currentModel, 11)}
                     <span className="font-medium whitespace-nowrap">{currentModel.name}</span>
@@ -292,7 +307,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
                 {showModelDropdown && (
                     <div className={`absolute bottom-full mb-2 left-0 w-56 border overflow-hidden z-50 ${dropdownClass}`}>
-                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b ${dropdownHeaderClass}`}>
+                        <div className={`px-3 py-1.5 text-[10px] font-bold border-b ${dropdownHeaderClass}`}>
                             {hasInputImage ? text.imageToImage : text.textToImage}
                         </div>
 
@@ -316,7 +331,8 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder={text.promptPlaceholder}
-                    className={`w-full bg-transparent text-sm outline-none ${inputTextClass}`}
+                    aria-label={text.promptPlaceholder}
+                    className={`w-full bg-transparent text-sm outline-none focus-visible:ring-0 ${inputTextClass}`}
                 />
             </div>
 
@@ -326,7 +342,9 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className="relative" ref={aspectDropdownRef}>
                     <button
                         onClick={() => setShowAspectDropdown(!showAspectDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-all duration-200 ${compactButtonClass}`}
+                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                        title={text.selectAspectRatio}
+                        aria-label={text.selectAspectRatio}
                     >
                         <Crop size={10} className={accentTextClass} />
                         <span>{selectedAspectRatio}</span>
@@ -334,14 +352,15 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
                     {showAspectDropdown && (
                         <div className={`absolute bottom-full mb-2 right-0 w-28 border overflow-hidden z-50 max-h-60 overflow-y-auto ${dropdownClass}`}>
-                            <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionClass}`}>
+                            <div className={`px-3 py-2 text-[10px] font-bold ${dropdownSectionClass}`}>
                                 {text.size}
                             </div>
                             {(currentModel.aspectRatios || []).map(ratio => (
                                 <button
                                     key={ratio}
                                     onClick={() => onAspectChange(ratio)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(selectedAspectRatio === ratio)}`}
+                                    aria-label={`${text.selectAspectRatio}: ${ratio}`}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${dropdownItemClass(selectedAspectRatio === ratio)}`}
                                 >
                                     <span>{ratio}</span>
                                     {selectedAspectRatio === ratio && <Check size={12} className={accentTextClass} />}
@@ -355,7 +374,9 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className="relative" ref={resolutionDropdownRef}>
                     <button
                         onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-md transition-all duration-200 ${compactButtonClass}`}
+                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                        title={text.selectResolution}
+                        aria-label={text.selectResolution}
                     >
                         <Monitor size={10} className={accentTextClass} />
                         <span>{selectedResolution}</span>
@@ -363,14 +384,15 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
                     {showResolutionDropdown && (
                         <div className={`absolute bottom-full mb-2 right-0 w-24 border overflow-hidden z-50 ${dropdownClass}`}>
-                            <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${dropdownSectionClass}`}>
+                            <div className={`px-3 py-2 text-[10px] font-bold ${dropdownSectionClass}`}>
                                 {text.quality}
                             </div>
                             {(currentModel.resolutions || ['1K']).map(res => (
                                 <button
                                     key={res}
                                     onClick={() => onResolutionChange(res)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all duration-200 ${dropdownItemClass(selectedResolution === res)}`}
+                                    aria-label={`${text.selectResolution}: ${res}`}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${dropdownItemClass(selectedResolution === res)}`}
                                 >
                                     <span>{res}</span>
                                     {selectedResolution === res && <Check size={12} className={accentTextClass} />}
@@ -381,26 +403,26 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 </div>
 
                 {/* Batch Count */}
-                <div className={`flex items-center rounded-md px-2 py-1.5 gap-1 text-[11px] font-medium border ${batchClass}`}>
+                <div className={`flex items-center rounded-lg px-2 py-1.5 gap-1 text-[11px] font-medium border ${batchClass}`}>
                     <span className="hidden sm:inline text-[10px] opacity-70">{text.batch}</span>
                     <button
-                        className={`transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            isDark ? 'hover:text-[#D8FF00]' : 'hover:text-lime-700'
-                        }`}
+                        className={`h-5 w-5 rounded-lg transition-colors duration-150 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${batchButtonClass}`}
                         onClick={() => setBatchCount(Math.max(1, batchCount - 1))}
                         disabled={batchCount <= 1}
+                        title={text.decreaseBatch}
+                        aria-label={text.decreaseBatch}
                     >
-                        ‹
+                        -
                     </button>
                     <span className="w-3 text-center">{batchCount}</span>
                     <button
-                        className={`transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            isDark ? 'hover:text-[#D8FF00]' : 'hover:text-lime-700'
-                        }`}
+                        className={`h-5 w-5 rounded-lg transition-colors duration-150 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${batchButtonClass}`}
                         onClick={() => setBatchCount(Math.min(4, batchCount + 1))}
                         disabled={batchCount >= 4}
+                        title={text.increaseBatch}
+                        aria-label={text.increaseBatch}
                     >
-                        ›
+                        +
                     </button>
                 </div>
 
@@ -408,13 +430,14 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <button
                     onClick={onGenerate}
                     disabled={isGenerateDisabled}
-                    title={isModelDisabled(currentModel) ? getModelDisabledReason(currentModel) : undefined}
-                    className={`px-4 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5 whitespace-nowrap ${generateButtonClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
+                    title={isModelDisabled(currentModel) ? getModelDisabledReason(currentModel) : text.generate}
+                    aria-label={text.generate}
+                    className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${generateButtonClass} ${disabledGenerateClass} disabled:opacity-80 disabled:cursor-not-allowed`}
                 >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                         <path d="M12 2v20M2 12h20" />
                     </svg>
-                    {isGenerating ? generateText : text.generate}
+                    {isGenerating ? text.generating : text.generate}
                 </button>
             </div>
         </div>

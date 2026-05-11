@@ -1,12 +1,12 @@
 /**
  * BottomToolbar.tsx
- * 
+ *
  * Floating tools palette at the bottom of the image editor.
  * Contains mode toggles and undo/redo buttons.
  */
 
 import React from 'react';
-import { Language } from '../../../i18n/translations';
+import { t, type Language } from '../../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -72,35 +72,39 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     const isDark = canvasTheme === 'dark';
 
     const text = {
-        select: language === 'zh' ? '选择' : 'Select',
-        drawingMode: language === 'zh' ? '绘制模式' : 'Drawing Mode',
-        addText: language === 'zh' ? '添加文字' : 'Add Text',
-        crop: language === 'zh' ? '裁剪' : 'Crop',
-        undo: language === 'zh' ? '撤销' : 'Undo',
-        redo: language === 'zh' ? '重做' : 'Redo',
+        select: t(language, 'selectTool'),
+        drawingMode: t(language, 'drawingMode'),
+        addText: t(language, 'addText'),
+        crop: t(language, 'crop'),
+        undo: t(language, 'undo'),
+        redo: t(language, 'redo'),
     };
 
     const toolbarClass = isDark
-        ? 'bg-[#111111]/95 border-neutral-800 shadow-[0_18px_45px_rgba(0,0,0,0.45)]'
-        : 'bg-white/95 border-neutral-200 shadow-[0_18px_45px_rgba(15,23,42,0.12)]';
+        ? 'bg-[#151815]/95 border-neutral-800 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
+        : 'bg-white/95 border-neutral-200 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
 
     const dividerClass = isDark ? 'bg-neutral-800' : 'bg-neutral-200';
 
     const getButtonClass = (active: boolean, disabled = false) => {
         if (disabled) {
-            return 'opacity-50 cursor-not-allowed text-neutral-500';
+            return isDark
+                ? 'cursor-not-allowed text-neutral-600 opacity-70'
+                : 'cursor-not-allowed text-neutral-400 opacity-70';
         }
 
         if (active) {
             return isDark
-                ? 'bg-[#D8FF00] text-black shadow-[0_0_14px_rgba(216,255,0,0.18)]'
-                : 'bg-lime-600 text-white shadow-sm';
+                ? 'bg-[#D8FF00]/12 text-[#D8FF00] ring-1 ring-[#D8FF00]/35'
+                : 'bg-lime-50 text-lime-700 ring-1 ring-lime-500/35';
         }
 
         return isDark
             ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00]'
             : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
     };
+
+    const buttonBaseClass = 'w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     // --- Handler Functions ---
 
@@ -163,13 +167,14 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
 
     return (
         <div
-            className={`backdrop-blur-sm rounded-xl border px-2 py-1.5 flex items-center gap-1 pointer-events-auto transition-all duration-200 ${toolbarClass}`}
+            className={`backdrop-blur-sm rounded-xl border px-2 py-1.5 flex items-center gap-1 pointer-events-auto transition-colors duration-150 ${toolbarClass}`}
         >
             {/* Select Mode */}
             <button
                 onClick={handleSelectModeClick}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(isSelectMode)}`}
+                className={`${buttonBaseClass} ${getButtonClass(isSelectMode)}`}
                 title={text.select}
+                aria-label={text.select}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
@@ -180,8 +185,9 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             {/* Drawing Mode (Pen) */}
             <button
                 onClick={handleDrawingModeClick}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(isDrawingMode)}`}
+                className={`${buttonBaseClass} ${getButtonClass(isDrawingMode)}`}
                 title={text.drawingMode}
+                aria-label={text.drawingMode}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -191,8 +197,9 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             {/* Text Tool */}
             <button
                 onClick={handleTextModeClick}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(isTextMode)}`}
+                className={`${buttonBaseClass} ${getButtonClass(isTextMode)}`}
                 title={text.addText}
+                aria-label={text.addText}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M4 7V4h16v3" />
@@ -204,8 +211,9 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             {/* Crop Tool */}
             <button
                 onClick={handleCropModeClick}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(isCropMode)}`}
+                className={`${buttonBaseClass} ${getButtonClass(isCropMode)}`}
                 title={text.crop}
+                aria-label={text.crop}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M6 2v4" />
@@ -222,8 +230,9 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             <button
                 onClick={handleUndo}
                 disabled={historyStackLength === 0}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(false, historyStackLength === 0)}`}
+                className={`${buttonBaseClass} ${getButtonClass(false, historyStackLength === 0)}`}
                 title={`${text.undo} (Ctrl+Z)`}
+                aria-label={`${text.undo} (Ctrl+Z)`}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 7v6h6" />
@@ -235,8 +244,9 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             <button
                 onClick={handleRedo}
                 disabled={redoStackLength === 0}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${getButtonClass(false, redoStackLength === 0)}`}
+                className={`${buttonBaseClass} ${getButtonClass(false, redoStackLength === 0)}`}
                 title={`${text.redo} (Ctrl+Shift+Z)`}
+                aria-label={`${text.redo} (Ctrl+Shift+Z)`}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 7v6h-6" />
