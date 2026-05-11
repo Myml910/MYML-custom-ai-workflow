@@ -13,153 +13,474 @@ import { calculateConnectionPath } from '../../utils/connectionHelpers';
 // LINE HOVER CONFIG
 // ============================================================================
 
-// Controls how far from the line the mouse can be before the line starts reacting.
-// This affects line color hover only.
-// Keep this tight so edge hover does not fight node connector hover.
-const LINE_HOVER_HIT_WIDTH = 44;
+const CONNECTION_WIDTHS = {
+    ambient: 1.5,
+    visible: 1.5,
+    flow: 1.65,
+    temporaryHalo: 6,
+    temporaryMain: 2
+} as const;
 
-// Keeps the visible connection line thin even when hovered.
-const IDLE_LINE_WIDTH = 1.7;
-const SELECTED_LINE_WIDTH = 2.1;
+const CONNECTION_DASH = {
+    flow: '8 18',
+    temporary: '8 10'
+} as const;
 
-// Default flowing line effect.
-const FLOW_LINE_WIDTH = 2;
-const FLOW_DASH_ARRAY = '120 28';
-const FLOW_ANIMATION_DURATION = '1s';
+const CONNECTION_COLORS = {
+    dark: {
+        ambient: 'rgba(74, 82, 69, 0.68)',
+        idle: 'rgba(191, 234, 53, 0.58)',
+        selected: 'rgba(216, 255, 0, 0.64)',
+        flow: 'rgba(216, 255, 0, 0.36)',
+        temporary: 'rgba(216, 255, 0, 0.86)',
+        running: '#CFF75A',
+        error: '#F59E0B',
+        deleteSurface: 'rgba(18, 20, 18, 0.94)',
+        deleteBorder: 'rgba(216, 255, 0, 0.80)',
+        deleteGlyph: 'rgba(255, 255, 255, 0.70)',
+        deleteHalo: 'rgba(216, 255, 0, 0.18)',
+        deleteSignal: 'rgba(216, 255, 0, 0.50)',
+        deleteFocusBorder: 'rgba(216, 255, 0, 0.28)',
+        deleteFocusGlyph: 'rgba(255, 255, 255, 0.82)',
+        deleteDangerSurface: 'rgba(127, 29, 29, 0.22)',
+        deleteDangerBorder: 'rgba(248, 113, 113, 0.55)',
+        deleteDangerGlyph: '#F87171'
+    },
+    light: {
+        ambient: 'rgba(146, 157, 134, 0.62)',
+        idle: 'rgba(77, 124, 15, 0.48)',
+        selected: 'rgba(77, 124, 15, 0.60)',
+        flow: 'rgba(77, 124, 15, 0.32)',
+        temporary: 'rgba(77, 124, 15, 0.84)',
+        running: '#65A30D',
+        error: '#D97706',
+        deleteSurface: 'rgba(248, 250, 244, 0.96)',
+        deleteBorder: 'rgba(90, 125, 0, 0.76)',
+        deleteGlyph: 'rgba(15, 23, 42, 0.68)',
+        deleteHalo: 'rgba(90, 125, 0, 0.16)',
+        deleteSignal: 'rgba(90, 125, 0, 0.50)',
+        deleteFocusBorder: 'rgba(77, 124, 15, 0.30)',
+        deleteFocusGlyph: 'rgba(15, 23, 42, 0.82)',
+        deleteDangerSurface: 'rgba(254, 226, 226, 0.92)',
+        deleteDangerBorder: 'rgba(220, 38, 38, 0.48)',
+        deleteDangerGlyph: '#DC2626'
+    }
+} as const;
 
 // ============================================================================
-// MINUS BUTTON MAGNET CONFIG
+// MOVING MAINTENANCE POINT CONFIG
 // ============================================================================
 
-const MAGNET_RADIUS = 92;
-const FOLLOW_RATIO = 0.62;
-const IDLE_SCALE = 1;
-const HOVER_SCALE = 1.045;
-const FOLLOW_EASE = 0.24;
+const DELETE_SENSOR_WIDTH = 34;
+const DELETE_AUTO_FLOW_START = -0.3;
+const DELETE_AUTO_FLOW_END = 1.3;
+const DELETE_INTERACTIVE_START = 0.3;
+const DELETE_INTERACTIVE_END = 0.6;
+const DELETE_INTERACTIVE_RADIUS = 30;
+const DELETE_MAX_OVERSHOOT = 72;
+const DELETE_FLOW_DURATION = 6800;
+const DELETE_PATH_SAMPLES = 48;
+const DELETE_MANUAL_SNAP_MS = 110;
+const DELETE_MANUAL_FOLLOW_MS = 60;
+const DELETE_RETURN_MS = 120;
+const CRUISING_DOT_RADIUS = 7.25;
+const CRUISING_DOT_OPACITY = 0.62;
 
 const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
 };
 
+const getConnectionTone = (
+    parent: NodeData,
+    child: NodeData
+) => {
+    const isConnectionRunning =
+        parent.status === NodeStatus.LOADING ||
+        child.status === NodeStatus.LOADING;
+    const isConnectionError =
+        parent.status === NodeStatus.ERROR ||
+        child.status === NodeStatus.ERROR;
+    const shouldShowFlow = true;
+
+    return {
+        isConnectionRunning,
+        isConnectionError,
+        shouldShowFlow
+    };
+};
+
 // ============================================================================
-// SVG MAGNET HOOK
+// MOVING MAINTENANCE POINT HOOK
 // ============================================================================
 
-const useSvgStableMagnet = (viewportZoom: number, isActive: boolean) => {
-    const anchorRef = useRef<SVGCircleElement | null>(null);
-    const buttonRef = useRef<SVGGElement | null>(null);
+const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
+    const sensorPathRef = useRef<SVGPathElement | null>(null);
+    const buttonRootRef = useRef<SVGGElement | null>(null);
     const frameRef = useRef<number | null>(null);
-    const currentRef = useRef({ x: 0, y: 0, scale: IDLE_SCALE });
-    const centerRef = useRef({ x: 0, y: 0 });
-    const pointerRef = useRef<{ x: number; y: number } | null>(null);
+    const manualFrameRef = useRef<number | null>(null);
+    const returnTimerRef = useRef<number | null>(null);
+    const animationStartRef = useRef<number | null>(null);
+    const pathLengthRef = useRef<number | null>(null);
+    const currentProgressRef = useRef(0.5);
+    const isManualPositionInitializedRef = useRef(false);
+    const isManualRef = useRef(false);
+    const isReducedMotionRef = useRef(false);
 
-    const applyTransform = () => {
-        const button = buttonRef.current;
-        if (!button) return;
-
-        const current = currentRef.current;
-
-        button.setAttribute(
-            'transform',
-            `translate(${current.x} ${current.y}) scale(${current.scale})`
-        );
+    const safeGetTotalLength = (pathElement: SVGPathElement) => {
+        try {
+            const totalLength = pathElement.getTotalLength();
+            return Number.isFinite(totalLength) && totalLength > 0 ? totalLength : null;
+        } catch {
+            return null;
+        }
     };
 
-    const resetTransform = () => {
-        currentRef.current = { x: 0, y: 0, scale: IDLE_SCALE };
-        pointerRef.current = null;
-        applyTransform();
+    const safeGetPointAtLength = (pathElement: SVGPathElement, length: number) => {
+        if (!Number.isFinite(length)) return null;
+
+        try {
+            const point = pathElement.getPointAtLength(Math.max(0, length));
+            if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+
+            return { x: point.x, y: point.y };
+        } catch {
+            return null;
+        }
     };
 
-    const refreshCenter = () => {
-        const anchor = anchorRef.current;
-        if (!anchor) return;
+    const refreshPathLength = () => {
+        const pathElement = sensorPathRef.current;
+        if (!pathElement) {
+            pathLengthRef.current = null;
+            return null;
+        }
 
-        const rect = anchor.getBoundingClientRect();
-        centerRef.current = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
+        const totalLength = safeGetTotalLength(pathElement);
+        pathLengthRef.current = totalLength;
+        return totalLength;
+    };
+
+    const getCachedPathLength = () => {
+        return pathLengthRef.current ?? refreshPathLength();
+    };
+
+    const getAutoProgress = (timestamp: number) => {
+        const animationStart = animationStartRef.current ?? timestamp;
+        const elapsed = (timestamp - animationStart) % DELETE_FLOW_DURATION;
+        return DELETE_AUTO_FLOW_START +
+            ((DELETE_AUTO_FLOW_END - DELETE_AUTO_FLOW_START) * elapsed) / DELETE_FLOW_DURATION;
+    };
+
+    const getPointAtProgress = (pathElement: SVGPathElement, totalLength: number, progress: number) => {
+        const safeLength = Number.isFinite(totalLength) && totalLength > 0 ? totalLength : null;
+        if (!safeLength) return null;
+
+        if (progress >= 0 && progress <= 1) {
+            return safeGetPointAtLength(pathElement, safeLength * progress);
+        }
+
+        if (progress < 0) {
+            const startPoint = safeGetPointAtLength(pathElement, 0);
+            const directionPoint = safeGetPointAtLength(pathElement, Math.min(safeLength * 0.04, 24));
+            if (!startPoint || !directionPoint) return null;
+
+            const dx = directionPoint.x - startPoint.x;
+            const dy = directionPoint.y - startPoint.y;
+            const distance = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+            const extraDistance = Math.min(Math.abs(progress) * safeLength, DELETE_MAX_OVERSHOOT);
+
+            return {
+                x: startPoint.x - (dx / distance) * extraDistance,
+                y: startPoint.y - (dy / distance) * extraDistance
+            };
+        }
+
+        const endPoint = safeGetPointAtLength(pathElement, safeLength);
+        const directionPoint = safeGetPointAtLength(pathElement, Math.max(safeLength * 0.96, safeLength - 24));
+        if (!endPoint || !directionPoint) return null;
+
+        const dx = endPoint.x - directionPoint.x;
+        const dy = endPoint.y - directionPoint.y;
+        const distance = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const extraDistance = Math.min((progress - 1) * safeLength, DELETE_MAX_OVERSHOOT);
+
+        return {
+            x: endPoint.x + (dx / distance) * extraDistance,
+            y: endPoint.y + (dy / distance) * extraDistance
         };
     };
 
-    const setTransform = (targetX: number, targetY: number, targetScale: number) => {
-        const current = currentRef.current;
+    const setButtonAtPoint = (point: { x: number; y: number }) => {
+        const buttonElement = buttonRootRef.current;
+        if (!buttonElement || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
 
-        current.x += (targetX - current.x) * FOLLOW_EASE;
-        current.y += (targetY - current.y) * FOLLOW_EASE;
-        current.scale += (targetScale - current.scale) * FOLLOW_EASE;
-
-        applyTransform();
+        buttonElement.style.transition = 'none';
+        buttonElement.style.transform = `translate(${point.x}px, ${point.y}px)`;
+        return true;
     };
 
-    const updateFromPointer = () => {
-        frameRef.current = null;
+    const setButtonAtProgress = (progress: number) => {
+        const pathElement = sensorPathRef.current;
+        if (!pathElement) return false;
 
-        if (!pointerRef.current) return;
+        const totalLength = getCachedPathLength();
+        if (!totalLength) return false;
 
+        const clampedProgress = clamp(progress, DELETE_AUTO_FLOW_START, DELETE_AUTO_FLOW_END);
+        const point = getPointAtProgress(pathElement, totalLength, clampedProgress);
+        if (!point) return false;
+
+        if (!setButtonAtPoint(point)) return false;
+
+        currentProgressRef.current = clampedProgress;
+        return true;
+    };
+
+    const cancelManualProgress = () => {
+        if (manualFrameRef.current !== null) {
+            window.cancelAnimationFrame(manualFrameRef.current);
+            manualFrameRef.current = null;
+        }
+    };
+
+    const animateProgressTo = (
+        targetProgress: number,
+        durationMs: number,
+        onComplete?: () => void
+    ) => {
+        cancelManualProgress();
+
+        const startProgress = currentProgressRef.current;
+        const startTime = performance.now();
+        const safeDuration = isReducedMotionRef.current ? 0 : Math.max(durationMs, 0);
+
+        if (safeDuration === 0) {
+            if (setButtonAtProgress(targetProgress)) {
+                onComplete?.();
+                return true;
+            }
+
+            return false;
+        }
+
+        const tick = (timestamp: number) => {
+            const linearProgress = clamp((timestamp - startTime) / safeDuration, 0, 1);
+            const easedProgress = 1 - Math.pow(1 - linearProgress, 3);
+            const nextProgress = startProgress + (targetProgress - startProgress) * easedProgress;
+
+            if (!setButtonAtProgress(nextProgress)) {
+                manualFrameRef.current = null;
+                return;
+            }
+
+            if (linearProgress < 1) {
+                manualFrameRef.current = window.requestAnimationFrame(tick);
+                return;
+            }
+
+            manualFrameRef.current = null;
+            setButtonAtProgress(targetProgress);
+            onComplete?.();
+        };
+
+        manualFrameRef.current = window.requestAnimationFrame(tick);
+        return true;
+    };
+
+    const getSvgPointFromMouse = (e: React.MouseEvent<SVGPathElement>) => {
+        const pathElement = sensorPathRef.current;
+        const svg = pathElement?.ownerSVGElement;
+        if (!svg) return null;
+
+        const point = svg.createSVGPoint();
+        point.x = e.clientX;
+        point.y = e.clientY;
+
+        const screenMatrix = svg.getScreenCTM();
+        if (!screenMatrix) return null;
+
+        return point.matrixTransform(screenMatrix.inverse());
+    };
+
+    const setButtonNearMouse = (e: React.MouseEvent<SVGPathElement>) => {
+        const pathElement = sensorPathRef.current;
+        const pointerPoint = getSvgPointFromMouse(e);
+        if (!pathElement || !pointerPoint) return false;
+
+        const totalLength = getCachedPathLength();
+        if (!totalLength) return false;
+
+        let closestProgress = 0.5;
+        let closestDistance = Number.POSITIVE_INFINITY;
+
+        for (let i = 0; i <= DELETE_PATH_SAMPLES; i += 1) {
+            const progress = DELETE_INTERACTIVE_START +
+                ((DELETE_INTERACTIVE_END - DELETE_INTERACTIVE_START) * i) / DELETE_PATH_SAMPLES;
+            const point = safeGetPointAtLength(pathElement, totalLength * progress);
+            if (!point) continue;
+
+            const dx = point.x - pointerPoint.x;
+            const dy = point.y - pointerPoint.y;
+            const distance = dx * dx + dy * dy;
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestProgress = progress;
+            }
+        }
+
+        const closestDistanceInCanvas = Math.sqrt(closestDistance);
         const safeZoom = Math.max(viewportZoom || 1, 0.01);
-        const dx = pointerRef.current.x - centerRef.current.x;
-        const dy = pointerRef.current.y - centerRef.current.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const effectiveRadius = DELETE_INTERACTIVE_RADIUS / safeZoom;
 
-        if (distance > MAGNET_RADIUS) {
-            setTransform(0, 0, IDLE_SCALE);
+        if (
+            closestProgress < DELETE_INTERACTIVE_START ||
+            closestProgress > DELETE_INTERACTIVE_END ||
+            closestDistanceInCanvas > effectiveRadius
+        ) {
+            return false;
+        }
+
+        const targetProgress = clamp(closestProgress, DELETE_INTERACTIVE_START, DELETE_INTERACTIVE_END);
+        const transitionMs = isManualPositionInitializedRef.current
+            ? DELETE_MANUAL_FOLLOW_MS
+            : DELETE_MANUAL_SNAP_MS;
+
+        isManualPositionInitializedRef.current = true;
+        return animateProgressTo(targetProgress, transitionMs);
+    };
+
+    const animate = (timestamp: number) => {
+        if (isReducedMotionRef.current || isManualRef.current) {
+            frameRef.current = null;
             return;
         }
 
-        const safeDistance = Math.max(distance, 1);
-        const strength = clamp(1 - safeDistance / MAGNET_RADIUS, 0, 1);
+        if (animationStartRef.current === null) {
+            animationStartRef.current = timestamp;
+        }
 
-        const offsetX = (dx / safeZoom) * FOLLOW_RATIO * strength;
-        const offsetY = (dy / safeZoom) * FOLLOW_RATIO * strength;
+        const progress = getAutoProgress(timestamp);
 
-        const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
+        if (!setButtonAtProgress(progress)) {
+            frameRef.current = null;
+            return;
+        }
 
-        setTransform(offsetX, offsetY, scale);
+        frameRef.current = window.requestAnimationFrame(animate);
     };
 
-    const handleMouseEnter = () => {
-        refreshCenter();
+    const startAutoFlow = () => {
+        if (isReducedMotionRef.current || frameRef.current !== null) return;
+
+        frameRef.current = window.requestAnimationFrame(animate);
     };
 
-    const handleMouseMove = (e: React.MouseEvent<SVGGElement>) => {
-        if (!isActive) return;
+    const stopAutoFlow = () => {
+        if (returnTimerRef.current !== null) {
+            window.clearTimeout(returnTimerRef.current);
+            returnTimerRef.current = null;
+        }
 
-        pointerRef.current = { x: e.clientX, y: e.clientY };
-
-        if (frameRef.current !== null) return;
-
-        frameRef.current = window.requestAnimationFrame(updateFromPointer);
-    };
-
-    const handleMouseLeave = () => {
         if (frameRef.current !== null) {
             window.cancelAnimationFrame(frameRef.current);
             frameRef.current = null;
         }
+    };
 
-        resetTransform();
+    const returnToAutoFlow = () => {
+        stopAutoFlow();
+        const autoProgress = getAutoProgress(performance.now());
+
+        if (isReducedMotionRef.current) {
+            setButtonAtProgress(autoProgress);
+            return;
+        }
+
+        animateProgressTo(autoProgress, DELETE_RETURN_MS, () => {
+            startAutoFlow();
+        });
+    };
+
+    const handleSensorEnter = (e: React.MouseEvent<SVGPathElement>) => {
+        const hasInteractiveTarget = setButtonNearMouse(e);
+        if (!hasInteractiveTarget) return;
+
+        isManualRef.current = true;
+        stopAutoFlow();
+        return true;
+    };
+
+    const handleSensorMove = (e: React.MouseEvent<SVGPathElement>) => {
+        const hasInteractiveTarget = setButtonNearMouse(e);
+
+        if (!hasInteractiveTarget) {
+            isManualRef.current = false;
+            isManualPositionInitializedRef.current = false;
+            returnToAutoFlow();
+            return;
+        }
+
+        isManualRef.current = true;
+        stopAutoFlow();
+        return true;
+    };
+
+    const handleSensorLeave = () => {
+        isManualRef.current = false;
+        isManualPositionInitializedRef.current = false;
+        returnToAutoFlow();
+    };
+
+    const handlePointEnter = () => {
+        isManualRef.current = true;
+        stopAutoFlow();
+    };
+
+    const handlePointLeave = () => {
+        isManualRef.current = false;
+        isManualPositionInitializedRef.current = false;
+        returnToAutoFlow();
     };
 
     useEffect(() => {
-        if (!isActive) {
-            resetTransform();
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        animationStartRef.current = null;
+        pathLengthRef.current = null;
+        refreshPathLength();
+
+        const syncReducedMotion = () => {
+            isReducedMotionRef.current = mediaQuery.matches;
+            stopAutoFlow();
+            setButtonAtProgress(0.5);
+
+            if (!mediaQuery.matches && !isManualRef.current) {
+                startAutoFlow();
+            }
+        };
+
+        syncReducedMotion();
+        mediaQuery.addEventListener('change', syncReducedMotion);
+
+        if (!isReducedMotionRef.current && !isManualRef.current) {
+            startAutoFlow();
         }
 
         return () => {
-            if (frameRef.current !== null) {
-                window.cancelAnimationFrame(frameRef.current);
-                frameRef.current = null;
-            }
+            mediaQuery.removeEventListener('change', syncReducedMotion);
+            stopAutoFlow();
+            cancelManualProgress();
         };
-    }, [isActive]);
+    }, [path, viewportZoom]);
 
     return {
-        anchorRef,
-        buttonRef,
-        handleMouseEnter,
-        handleMouseMove,
-        handleMouseLeave
+        sensorPathRef,
+        buttonRootRef,
+        handleSensorEnter,
+        handleSensorMove,
+        handleSensorLeave,
+        handlePointEnter,
+        handlePointLeave
     };
 };
 
@@ -339,159 +660,236 @@ const ConnectionItem: React.FC<{
     parent: NodeData;
     child: NodeData;
     path: string;
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-    isSelected: boolean;
     viewportZoom: number;
     canvasTheme: 'dark' | 'light';
-    onEdgeClick: (e: React.MouseEvent, parentId: string, childId: string) => void;
     onDisconnectConnection?: (parentId: string, childId: string) => void;
 }> = ({
     parent,
     child,
     path,
-    startX,
-    startY,
-    endX,
-    endY,
-    isSelected,
     viewportZoom,
     canvasTheme,
-    onEdgeClick,
     onDisconnectConnection
 }) => {
-    const [isHot, setIsHot] = useState(false);
+    const [isDeleteFocus, setIsDeleteFocus] = useState(false);
+    const [isDeleteHot, setIsDeleteHot] = useState(false);
     const {
-        anchorRef,
-        buttonRef,
-        handleMouseEnter: handleMagnetMouseEnter,
-        handleMouseMove: handleMagnetMouseMove,
-        handleMouseLeave: handleMagnetMouseLeave
-    } = useSvgStableMagnet(viewportZoom, isHot);
+        sensorPathRef,
+        buttonRootRef,
+        handleSensorEnter,
+        handleSensorMove,
+        handleSensorLeave,
+        handlePointEnter,
+        handlePointLeave
+    } = usePathMaintenancePoint(path, viewportZoom);
 
-    // Place disconnect button at the middle of the connection.
-    const buttonT = 0.5;
-    const buttonX = startX + (endX - startX) * buttonT;
-    const buttonY = startY + (endY - startY) * buttonT;
-
-    const highlightStroke = canvasTheme === 'dark' ? '#D8FF00' : '#84cc16';
-    const idleStroke = canvasTheme === 'dark' ? '#444' : '#d1d5db';
+    const palette = CONNECTION_COLORS[canvasTheme];
+    const connectionTone = getConnectionTone(parent, child);
+    const visibleStroke = connectionTone.isConnectionError
+        ? palette.error
+        : connectionTone.isConnectionRunning
+            ? palette.running
+            : palette.idle;
+    const visibleOpacity = connectionTone.isConnectionRunning || connectionTone.isConnectionError
+        ? 0.68
+        : 0.60;
+    const deleteSurface = isDeleteHot
+        ? palette.deleteDangerSurface
+        : palette.deleteSurface;
+    const deleteBorder = isDeleteHot
+        ? palette.deleteDangerBorder
+        : isDeleteFocus
+            ? palette.deleteFocusBorder
+            : palette.deleteBorder;
+    const deleteGlyph = isDeleteHot
+        ? palette.deleteDangerGlyph
+        : isDeleteFocus
+            ? palette.deleteFocusGlyph
+            : palette.deleteGlyph;
+    const deleteSignal = isDeleteFocus ? visibleStroke : palette.deleteSignal;
+    const deleteSignalOpacity = isDeleteFocus ? 0 : 1;
+    const deleteHaloOpacity = isDeleteFocus ? 0 : 1;
+    const deleteHitRadius = isDeleteFocus ? 16 : 13;
+    const deleteVisualRadius = isDeleteFocus ? 11 : CRUISING_DOT_RADIUS;
+    const deleteVisualStrokeWidth = isDeleteFocus ? 1.2 : 1.8;
+    const deleteGlyphOpacity = isDeleteFocus ? 1 : 0.04;
+    const deleteStemOpacity = isDeleteFocus ? 0.34 : 0;
 
     return (
-        <g
-            onMouseEnter={() => {
-                setIsHot(true);
-                handleMagnetMouseEnter();
-            }}
-            onMouseMove={handleMagnetMouseMove}
-            onMouseLeave={() => {
-                setIsHot(false);
-                handleMagnetMouseLeave();
-            }}
-            onClick={(e) => onEdgeClick(e, parent.id, child.id)}
-            className="cursor-pointer pointer-events-auto"
-            style={{ pointerEvents: 'auto' }}
-        >
-            {/* Wide invisible hit area.
-                This controls how far away the cursor can be while still triggering line color feedback. */}
+        <g className="pointer-events-none">
+            {/* Ambient base line */}
             <path
                 d={path}
-                stroke="transparent"
-                strokeWidth={LINE_HOVER_HIT_WIDTH}
+                stroke={palette.ambient}
+                strokeWidth={CONNECTION_WIDTHS.ambient}
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 fill="none"
-                style={{ pointerEvents: 'stroke' }}
+                className="pointer-events-none"
             />
 
-            {/* Main base connection line */}
+            {/* Main visible line */}
             <path
                 d={path}
-                stroke={isSelected || isHot ? highlightStroke : idleStroke}
-                strokeWidth={isSelected ? SELECTED_LINE_WIDTH : IDLE_LINE_WIDTH}
+                stroke={visibleStroke}
+                strokeWidth={CONNECTION_WIDTHS.visible}
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 fill="none"
-                className="transition-colors duration-150 pointer-events-none"
+                opacity={visibleOpacity}
+                className="connector-transition pointer-events-none"
             />
 
-            {/* Default flowing effect.
-                It flows from parent to child when the line is not being hovered.
-                On hover, it fades out and the main line color takes over. */}
-            {!isSelected && (
+            {/* Persistent low-noise signal flow. */}
+            {connectionTone.shouldShowFlow && (
                 <path
                     d={path}
-                    stroke={highlightStroke}
-                    strokeWidth={FLOW_LINE_WIDTH}
-                    strokeDasharray={FLOW_DASH_ARRAY}
+                    stroke={connectionTone.isConnectionError ? palette.error : palette.flow}
+                    strokeWidth={CONNECTION_WIDTHS.flow}
+                    strokeDasharray={CONNECTION_DASH.flow}
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                     fill="none"
-                    opacity={isHot ? 0 : 0.24}
-                    className="pointer-events-none transition-opacity duration-200"
-                >
-                    <animate
-                        attributeName="stroke-dashoffset"
-                        from="148"
-                        to="0"
-                        dur={FLOW_ANIMATION_DURATION}
-                        repeatCount="indefinite"
-                    />
-                </path>
+                    opacity={0.38}
+                    className="connector-flow-path pointer-events-none"
+                />
             )}
 
-            {/* Disconnect button anchor and magnetic visual */}
+            {/* Invisible sensor only moves the maintenance point; it never changes line visuals. */}
+            {onDisconnectConnection && (
+                <path
+                    ref={sensorPathRef}
+                    d={path}
+                    stroke="transparent"
+                    strokeWidth={DELETE_SENSOR_WIDTH}
+                    strokeLinecap="round"
+                    fill="none"
+                    onMouseEnter={(e) => {
+                        if (handleSensorEnter(e)) {
+                            setIsDeleteFocus(true);
+                        }
+                    }}
+                    onMouseMove={(e) => {
+                        const hasInteractiveTarget = handleSensorMove(e);
+                        setIsDeleteFocus(Boolean(hasInteractiveTarget));
+                        if (!hasInteractiveTarget) {
+                            setIsDeleteHot(false);
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        const nextTarget = e.relatedTarget;
+                        if (nextTarget instanceof Node && buttonRootRef.current?.contains(nextTarget)) {
+                            return;
+                        }
+
+                        setIsDeleteFocus(false);
+                        setIsDeleteHot(false);
+                        handleSensorLeave();
+                    }}
+                    style={{ pointerEvents: 'stroke', cursor: 'default' }}
+                />
+            )}
+
+            {/* Moving disconnect maintenance point */}
             {onDisconnectConnection && (
                 <g
-                    transform={`translate(${buttonX}, ${buttonY})`}
-                    className="transition-opacity duration-150"
+                    ref={buttonRootRef}
+                    transform="translate(0 0)"
                     style={{
-                        opacity: isHot ? 1 : 0,
-                        pointerEvents: isHot ? 'all' : 'none'
+                        pointerEvents: isDeleteFocus ? 'all' : 'none',
+                        transform: 'translate(0px, 0px)',
+                        transformOrigin: '0 0',
+                        willChange: 'transform'
                     }}
                 >
-                    {/* Fixed invisible anchor.
-                        It stays still and is used only for magnetic distance calculation. */}
-                    <circle
-                        ref={anchorRef}
-                        r="1"
-                        fill="transparent"
-                        style={{ pointerEvents: 'none' }}
-                    />
-
-                    {/* Moving magnetic button */}
                     <g
-                        ref={buttonRef}
-                        className="cursor-pointer"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onDisconnectConnection(parent.id, child.id);
+                        className="connector-transition"
+                        transform={`scale(${isDeleteFocus ? 1 : 0.96})`}
+                        onMouseEnter={() => {
+                            handlePointEnter();
+                        }}
+                        onMouseLeave={(e) => {
+                            const nextTarget = e.relatedTarget;
+                            if (nextTarget instanceof Node && nextTarget === sensorPathRef.current) {
+                                return;
+                            }
+
+                            setIsDeleteHot(false);
+                            setIsDeleteFocus(false);
+                            handlePointLeave();
+                        }}
+                        style={{
+                            opacity: isDeleteFocus ? 1 : CRUISING_DOT_OPACITY
                         }}
                     >
-                        {/* Outer clickable hit circle */}
-                        <circle
-                            r="18"
-                            fill="transparent"
-                            style={{ pointerEvents: 'all' }}
-                        />
-
-                        {/* Visual circle */}
-                        <circle
-                            r="12"
-                            fill={canvasTheme === 'dark' ? '#050505' : '#ffffff'}
-                            stroke={highlightStroke}
-                            strokeWidth="2"
-                            style={{ pointerEvents: 'none' }}
-                        />
-
-                        {/* Minus icon */}
                         <line
-                            x1="-5"
+                            x1="-15"
                             y1="0"
-                            x2="5"
+                            x2="-10"
                             y2="0"
-                            stroke={highlightStroke}
-                            strokeWidth="2.4"
+                            stroke={visibleStroke}
+                            strokeWidth="1.2"
                             strokeLinecap="round"
+                            opacity={deleteStemOpacity}
                             style={{ pointerEvents: 'none' }}
                         />
+                        {/* Clickable maintenance button */}
+                        <g
+                            className="cursor-pointer"
+                            onMouseEnter={() => setIsDeleteHot(true)}
+                            onMouseLeave={() => setIsDeleteHot(false)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isDeleteFocus) return;
+
+                                onDisconnectConnection(parent.id, child.id);
+                            }}
+                        >
+                            {/* Outer clickable hit circle */}
+                            <circle
+                                r={deleteHitRadius}
+                                fill="transparent"
+                                style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                            />
+
+                            {/* Cruising signal halo */}
+                            <circle
+                                r={CRUISING_DOT_RADIUS + 3.5}
+                                fill={palette.deleteHalo}
+                                opacity={deleteHaloOpacity}
+                                style={{ pointerEvents: 'none' }}
+                            />
+
+                            {/* Visual circle */}
+                            <circle
+                                r={deleteVisualRadius}
+                                fill={deleteSurface}
+                                stroke={deleteBorder}
+                                strokeWidth={deleteVisualStrokeWidth}
+                                style={{ pointerEvents: 'none' }}
+                            />
+
+                            {/* Cruising signal center */}
+                            <circle
+                                r="2"
+                                fill={deleteSignal}
+                                opacity={deleteSignalOpacity}
+                                style={{ pointerEvents: 'none' }}
+                            />
+
+                            {/* Minus icon */}
+                            <line
+                                x1="-4.5"
+                                y1="0"
+                                x2="4.5"
+                                y2="0"
+                                stroke={deleteGlyph}
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                opacity={deleteGlyphOpacity}
+                                style={{ pointerEvents: 'none' }}
+                            />
+                        </g>
                     </g>
                 </g>
             )}
@@ -509,8 +907,6 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     isDraggingConnection,
     connectionStart,
     tempConnectionEnd,
-    selectedConnection,
-    onEdgeClick,
     onDisconnectConnection,
     canvasTheme = 'dark'
 }) => {
@@ -533,7 +929,6 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
 
             const path = calculateConnectionPath(startX, startY, endX, endY, 'right');
             const edgeKey = `${parent.id}->${node.id}`;
-            const isSelected = selectedConnection?.parentId === parentId && selectedConnection?.childId === node.id;
 
             connections.push(
                 <ConnectionItem
@@ -541,14 +936,8 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                     parent={parent}
                     child={node}
                     path={path}
-                    startX={startX}
-                    startY={startY}
-                    endX={endX}
-                    endY={endY}
-                    isSelected={isSelected}
                     viewportZoom={viewport.zoom}
                     canvasTheme={canvasTheme}
-                    onEdgeClick={onEdgeClick}
                     onDisconnectConnection={onDisconnectConnection}
                 />
             );
@@ -579,23 +968,49 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                 connectionStart.handle
             );
 
+            const palette = CONNECTION_COLORS[canvasTheme];
+
             tempLine = (
-                <path
-                    d={path}
-                    stroke={canvasTheme === 'dark' ? '#D8FF00' : '#84cc16'}
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    fill="none"
-                    className="pointer-events-none opacity-50"
-                >
-                    <animate
-                        attributeName="stroke-dashoffset"
-                        from="16"
-                        to="0"
-                        dur="1s"
-                        repeatCount="indefinite"
+                <g className="pointer-events-none">
+                    <path
+                        d={path}
+                        stroke={palette.selected}
+                        strokeWidth={CONNECTION_WIDTHS.temporaryHalo}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                        opacity="0.12"
                     />
-                </path>
+                    <path
+                        d={path}
+                        stroke={palette.selected}
+                        strokeWidth={CONNECTION_WIDTHS.temporaryMain}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                        opacity="0.92"
+                    />
+                    <path
+                        d={path}
+                        stroke={palette.selected}
+                        strokeWidth={CONNECTION_WIDTHS.flow}
+                        strokeDasharray={CONNECTION_DASH.temporary}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                        opacity="0.42"
+                        className="connector-flow-path"
+                    />
+                    <circle
+                        cx={endX}
+                        cy={endY}
+                        r="3.5"
+                        fill={canvasTheme === 'dark' ? '#101210' : '#F8FAF4'}
+                        stroke={palette.selected}
+                        strokeWidth="1.6"
+                        opacity="0.95"
+                    />
+                </g>
             );
         }
     }
