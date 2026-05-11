@@ -21,9 +21,31 @@ interface NodeConnectorsProps {
 // ============================================================================
 
 const MAGNET_RADIUS = 88;
-const FOLLOW_RATIO = 0.42;
+const FOLLOW_RATIO = 0.48;
 const IDLE_SCALE = 1;
-const HOVER_SCALE = 1.045;
+const HOVER_SCALE = 1.05;
+
+const CONNECTOR_PORT = {
+    rootSize: 36,
+    outerSize: 31,
+    innerSize: 23,
+    glyphSize: 13
+} as const;
+
+const CONNECTOR_PORT_COLORS = {
+    dark: {
+        tick: 'bg-[#D8FF00]/35',
+        outer: 'border-[#D8FF00]/50 bg-[#D8FF00]/5',
+        inner: 'border-white/14 bg-[#12140F] group-hover/node:border-[#D8FF00]/46 group-hover/node:bg-[#171A13] group-hover/connector:border-[#D8FF00]/58 group-hover/connector:bg-[#1C2016] active:border-[#D8FF00]/70',
+        glyph: 'text-white/55 group-hover/node:text-[#D8FF00] group-hover/connector:text-[#D8FF00] active:text-[#D8FF00]'
+    },
+    light: {
+        tick: 'bg-lime-700/28',
+        outer: 'border-lime-700/38 bg-lime-100/30',
+        inner: 'border-neutral-300 bg-white group-hover/node:border-lime-700/46 group-hover/node:bg-lime-50 group-hover/connector:border-lime-700/58 group-hover/connector:bg-lime-50 active:border-lime-700/70',
+        glyph: 'text-neutral-500 group-hover/node:text-lime-700 group-hover/connector:text-lime-700 active:text-lime-700'
+    }
+} as const;
 
 const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
@@ -142,7 +164,6 @@ const MagneticConnectorButton: React.FC<{
     canvasTheme,
     language
 }) => {
-    const isDark = canvasTheme === 'dark';
     const {
         wrapperRef,
         buttonRef,
@@ -152,12 +173,13 @@ const MagneticConnectorButton: React.FC<{
     } = useLocalMagnet();
 
     const sideClassName = side === 'left'
-        ? '-left-[72px] top-1/2 -translate-y-1/2'
-        : '-right-[72px] top-1/2 -translate-y-1/2';
+        ? '-left-[38px] top-1/2 -translate-y-1/2'
+        : '-right-[38px] top-1/2 -translate-y-1/2';
+    const tickClassName = side === 'left'
+        ? 'right-0'
+        : 'left-0';
 
-    const themeClassName = isDark
-        ? 'border-neutral-700 bg-[#101210] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00]/70 hover:bg-[#151815]'
-        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:bg-lime-50';
+    const portColors = CONNECTOR_PORT_COLORS[canvasTheme];
     const connectorLabel = side === 'left' ? t(language, 'connectInput') : t(language, 'connectOutput');
 
     return (
@@ -166,7 +188,11 @@ const MagneticConnectorButton: React.FC<{
             onPointerEnter={handlePointerEnter}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
-            className={`absolute w-24 h-24 flex items-center justify-center opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto z-10 transition-opacity duration-150 ${sideClassName}`}
+            className={`connector-transition absolute flex items-center justify-center opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto z-10 ${sideClassName}`}
+            style={{
+                width: CONNECTOR_PORT.rootSize,
+                height: CONNECTOR_PORT.rootSize
+            }}
         >
             <button
                 ref={buttonRef}
@@ -175,16 +201,40 @@ const MagneticConnectorButton: React.FC<{
                     onConnectorDown(e, nodeId, side);
                 }}
                 aria-label={connectorLabel}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${themeClassName}`}
+                className="connector-transition group/connector relative flex h-9 w-9 cursor-crosshair items-center justify-center rounded-full border-0 bg-transparent p-0 opacity-[0.5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 active:opacity-100 group-hover/node:opacity-100 group-hover/connector:opacity-100"
                 style={{
                     transform: 'translate(var(--magnet-x, 0px), var(--magnet-y, 0px)) scale(var(--magnet-scale, 1))',
-                    transitionProperty: 'background-color, border-color, color, opacity, transform',
+                    transitionProperty: 'opacity, transform',
                     transitionDuration: '150ms',
                     willChange: 'transform'
                 }}
                 title={connectorLabel}
             >
-                <Plus size={18} />
+                <span
+                    aria-hidden="true"
+                    className={`connector-transition absolute top-1/2 h-px w-2 -translate-y-1/2 rounded-full opacity-0 group-hover/node:opacity-[0.18] group-hover/connector:opacity-40 ${tickClassName} ${portColors.tick}`}
+                />
+                <span
+                    aria-hidden="true"
+                    className={`connector-transition absolute rounded-full border opacity-0 group-hover/node:opacity-[0.24] group-hover/connector:opacity-30 active:opacity-[0.36] ${portColors.outer}`}
+                    style={{
+                        width: CONNECTOR_PORT.outerSize,
+                        height: CONNECTOR_PORT.outerSize
+                    }}
+                />
+                <span
+                    aria-hidden="true"
+                    className={`connector-transition absolute rounded-full border ${portColors.inner}`}
+                    style={{
+                        width: CONNECTOR_PORT.innerSize,
+                        height: CONNECTOR_PORT.innerSize
+                    }}
+                />
+                <Plus
+                    size={CONNECTOR_PORT.glyphSize}
+                    strokeWidth={2.35}
+                    className={`connector-transition relative z-10 ${portColors.glyph}`}
+                />
             </button>
         </div>
     );

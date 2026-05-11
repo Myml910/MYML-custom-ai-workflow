@@ -60,6 +60,34 @@
   }
 }
 
+:root {
+  --connector-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --connector-hover-duration: 150ms;
+  --connector-reveal-duration: 170ms;
+  --connector-flow-duration: 2.6s;
+}
+
+@keyframes connector-flow-pulse {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+@keyframes connector-port-pulse {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.16;
+    transform: scale(1);
+  }
+}
+
 .motion-menu-in {
   animation: motionMenuIn 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   transform-origin: top left;
@@ -84,6 +112,29 @@
 
 .motion-toast-in {
   animation: motionToastIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.connector-flow-path {
+  animation: connector-flow-pulse var(--connector-flow-duration) linear infinite;
+  stroke-dashoffset: 0;
+  will-change: stroke-dashoffset;
+}
+
+.connector-port-pulse {
+  animation: connector-port-pulse 2.1s var(--connector-ease) infinite;
+  animation-play-state: paused;
+}
+
+.connector-transition {
+  transition:
+    opacity var(--connector-hover-duration) var(--connector-ease),
+    background-color var(--connector-hover-duration) var(--connector-ease),
+    border-color var(--connector-hover-duration) var(--connector-ease),
+    color var(--connector-hover-duration) var(--connector-ease),
+    fill var(--connector-hover-duration) var(--connector-ease),
+    stroke var(--connector-hover-duration) var(--connector-ease),
+    stroke-width var(--connector-hover-duration) var(--connector-ease),
+    transform var(--connector-reveal-duration) var(--connector-ease);
 }
 
 .motion-toolbar-reveal {
@@ -118,13 +169,16 @@
   .motion-modal-overlay-in,
   .motion-modal-dialog-in,
   .motion-fade-in,
-  .motion-toast-in {
+  .motion-toast-in,
+  .connector-flow-path,
+  .connector-port-pulse {
     animation-duration: 1ms;
     animation-iteration-count: 1;
   }
 
   .motion-toolbar-reveal,
-  .motion-press {
+  .motion-press,
+  .connector-transition {
     transition-duration: 1ms;
   }
 
@@ -133,7 +187,9 @@
   }
 
   .animate-spin,
-  .animate-pulse {
+  .animate-pulse,
+  .connector-flow-path,
+  .connector-port-pulse {
     animation: none !important;
   }
 
