@@ -77,37 +77,39 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const isDark = canvasTheme === 'dark';
 
     const editorText = {
-        download: language === 'zh' ? '下载' : 'Download',
-        exit: language === 'zh' ? '退出图像编辑器' : 'Exit Image Editor',
-        apply: language === 'zh' ? '应用' : 'Apply',
-        noImageLoaded: language === 'zh' ? '未加载图像' : 'No image loaded',
+        download: t(language, 'download'),
+        exit: t(language, 'exitImageEditor'),
+        apply: t(language, 'apply'),
+        noImageLoaded: t(language, 'noImageLoaded'),
+        enterEditPromptError: t(language, 'enterEditPromptError'),
+        editingImageAlt: t(language, 'editingImageAlt'),
     };
 
     const accentClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
 
     const accentBgClass = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
-        : 'bg-lime-600 hover:bg-lime-500 text-white';
+        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-neutral-950'
+        : 'bg-lime-600 hover:bg-lime-500 text-neutral-50';
 
     const panelClass = isDark
-        ? 'bg-[#050505] text-white'
+        ? 'bg-[#101210] text-neutral-100'
         : 'bg-neutral-50 text-neutral-900';
 
     const topBarClass = isDark
-        ? 'bg-[#050505]/95 border-b border-neutral-900'
+        ? 'bg-[#151815]/95 border-b border-neutral-800'
         : 'bg-white/95 border-b border-neutral-200';
 
     const iconButtonClass = isDark
-        ? 'hover:bg-neutral-900 text-neutral-400 hover:text-[#D8FF00]'
+        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
         : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
 
     const canvasAreaClass = isDark
-        ? 'bg-[#030303]'
+        ? 'bg-[#080A07]'
         : 'bg-neutral-100';
 
     const emptyCanvasClass = isDark
-        ? 'bg-[#111111] border border-neutral-800 text-neutral-500'
-        : 'bg-white border border-neutral-200 text-neutral-400';
+        ? 'bg-[#151815] border border-neutral-800 text-neutral-500'
+        : 'bg-white border border-neutral-200 text-neutral-500';
 
     const selectionColor = isDark ? '#D8FF00' : '#65a30d';
     const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
@@ -554,7 +556,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         const finalPrompt = prompt.trim();
 
         if (!finalPrompt) {
-            setPromptError(language === 'zh' ? '请输入编辑提示词' : 'Please enter an edit prompt');
+            setPromptError(editorText.enterEditPromptError);
             return;
         }
 
@@ -650,8 +652,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     {/* Download Button */}
                     <button
                         onClick={handleDownloadClick}
-                        className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
                         title={editorText.download}
+                        aria-label={editorText.download}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -663,8 +666,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     {/* Exit Button */}
                     <button
                         onClick={handleCloseClick}
-                        className={`w-10 h-10 rounded flex items-center justify-center transition-colors ${iconButtonClass}`}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
                         title={editorText.exit}
+                        aria-label={editorText.exit}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -718,7 +722,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             <img
                                 ref={imageRef}
                                 src={localImageUrl}
-                                alt="Editing"
+                                alt={editorText.editingImageAlt}
                                 className="max-w-full max-h-full object-contain"
                                 style={{ maxHeight: 'calc(100vh - 350px)' }}
                                 onLoad={(e) => {
@@ -851,7 +855,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                         autoFocus
                                         className={`absolute bg-transparent border-2 outline-none ${
                                             isDark
-                                                ? 'border-[#D8FF00] text-white'
+                                                ? 'border-[#D8FF00] text-neutral-100'
                                                 : 'border-lime-500 text-neutral-900'
                                         }`}
                                         style={{
@@ -1024,7 +1028,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     >
                                         <button
                                             onClick={(e) => { e.stopPropagation(); crop.cancelCrop(); }}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                            className={`h-9 px-3 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${
                                                 isDark
                                                     ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700'
                                                     : 'bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200'
@@ -1034,7 +1038,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); crop.applyCrop(); }}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${accentBgClass}`}
+                                            className={`h-9 px-3 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${accentBgClass}`}
                                         >
                                             {editorText.apply}
                                         </button>
@@ -1043,7 +1047,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             )}
                         </div>
                     ) : (
-                        <div className={`w-[600px] h-[400px] rounded flex items-center justify-center ${emptyCanvasClass}`}>
+                        <div className={`w-[600px] h-[400px] rounded-lg flex items-center justify-center ${emptyCanvasClass}`}>
                             <span>{editorText.noImageLoaded}</span>
                         </div>
                     )}
