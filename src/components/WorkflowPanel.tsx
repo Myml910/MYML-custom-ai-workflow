@@ -242,14 +242,14 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                     <button
                         onClick={() => setIsExpanded(prev => !prev)}
-                        aria-label={isExpanded ? 'Collapse workflows panel' : 'Expand workflows panel'}
+                        aria-label={isExpanded ? t(language, 'collapseWorkflowsPanel') : t(language, 'expandWorkflowsPanel')}
                         aria-expanded={isExpanded}
                         className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-neutral-100 hover:bg-[#1A1D1A]'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
                         }`}
-                        title={isExpanded ? 'Collapse panel' : 'Expand panel'}
+                        title={isExpanded ? t(language, 'collapsePanel') : t(language, 'expandPanel')}
                     >
                         {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                     </button>
@@ -401,19 +401,19 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
-                    <div className="bg-[#101210] border border-neutral-800 rounded-xl p-6 w-[340px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] motion-modal-dialog-in">
-                        <h3 className="text-base font-semibold leading-5 text-white mb-2">
+                    <div className={`border rounded-xl p-6 w-[340px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] motion-modal-dialog-in ${isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'}`}>
+                        <h3 className={`text-base font-semibold leading-5 mb-2 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                             {t(language, 'deleteWorkflow')}
                         </h3>
 
-                        <p className="text-neutral-400 text-sm mb-6">
+                        <p className={`text-sm mb-6 ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
                             {t(language, 'deleteWorkflowConfirm')}
                         </p>
 
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setDeleteConfirm(null)}
-                                className="px-4 py-2 rounded-lg bg-[#151815] hover:bg-[#1A1D1A] text-white text-sm border border-neutral-800 transition-[background-color,border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                className={`px-4 py-2 rounded-lg text-sm border transition-[background-color,border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'bg-[#151815] hover:bg-[#1A1D1A] text-white border-neutral-800' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border-neutral-200'}`}
                             >
                                 {t(language, 'cancel')}
                             </button>
@@ -432,16 +432,16 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             {/* Cover Selection Modal */}
             {editingCoverFor && (
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
-                    <div className="bg-[#101210] border border-neutral-800 rounded-xl p-6 w-[500px] max-h-[500px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] flex flex-col motion-modal-dialog-in">
+                    <div className={`border rounded-xl p-6 w-[500px] max-h-[500px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] flex flex-col motion-modal-dialog-in ${isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'}`}>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold leading-5 text-white">
+                            <h3 className={`text-base font-semibold leading-5 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                                 {t(language, 'selectCoverImage')}
                             </h3>
 
                             <button
                                 onClick={() => setEditingCoverFor(null)}
-                                aria-label={language === 'zh' ? '关闭封面选择' : 'Close cover selection'}
-                                className="p-1.5 hover:bg-[#1A1D1A] rounded-lg text-neutral-400 hover:text-white transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                aria-label={t(language, 'closeCoverSelection')}
+                                className={`p-1.5 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'hover:bg-[#1A1D1A] text-neutral-400 hover:text-white' : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600'}`}
                             >
                                 <X size={18} />
                             </button>
@@ -461,7 +461,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                     <button
                                         key={asset.id}
                                         onClick={() => selectCover(asset.url)}
-                                        className="h-32 w-full rounded-lg overflow-hidden hover:ring-1 hover:ring-[#D8FF00]/35 transition-[box-shadow] duration-150 relative group bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                        className={`h-32 w-full rounded-lg overflow-hidden hover:ring-1 transition-[box-shadow] duration-150 relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'bg-neutral-900 hover:ring-[#D8FF00]/35' : 'bg-neutral-100 hover:ring-lime-500/45'}`}
                                     >
                                         <LazyImage
                                             src={asset.url}

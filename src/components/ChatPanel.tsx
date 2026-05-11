@@ -226,11 +226,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         }
 
         if (diffDays === 1) {
-            return 'Yesterday';
+            return t(language, 'yesterday');
         }
 
         if (diffDays < 7) {
-            return `${diffDays} days ago`;
+            return language === 'zh' ? `${diffDays} ${t(language, 'daysAgo')}` : `${diffDays} ${t(language, 'daysAgo')}`;
         }
 
         return date.toLocaleDateString();
@@ -446,7 +446,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 >
                                     <img
                                         src="/chat-preview.gif"
-                                        alt="Drag and drop preview"
+                                        alt={t(language, 'dragDropPreview')}
                                         className="w-full h-auto object-cover rounded-lg"
                                     />
                                 </div>
@@ -481,6 +481,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 media={msg.media}
                                 timestamp={msg.timestamp}
                                 canvasTheme={canvasTheme}
+                                language={language}
                             />
                         ))}
 
@@ -524,7 +525,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     {media.type === 'image' ? (
                                         <img
                                             src={media.url}
-                                            alt="Attached"
+                                            alt={t(language, 'attachedMedia')}
                                             className={`w-14 h-14 object-cover rounded-lg border ${isDark ? 'border-neutral-700' : 'border-neutral-200'}`}
                                         />
                                     ) : (

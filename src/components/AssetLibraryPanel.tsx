@@ -114,7 +114,7 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
                         <button
                             onClick={onClose}
-                            aria-label={language === 'zh' ? '关闭素材库' : 'Close asset library'}
+                            aria-label={t(language, 'closeAssetLibrary')}
                             className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                 isDark
                                     ? 'hover:bg-[#1A1D1A] text-neutral-400 hover:text-neutral-100'
@@ -248,7 +248,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                         isDark ? 'bg-[#151815] border-neutral-800 text-neutral-400' : 'bg-neutral-50 border-neutral-200 text-neutral-500'
                     }`}>
                         <Loader2 className={`animate-spin ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} size={22} />
-                        <span>{language === 'zh' ? '加载中...' : 'Loading...'}</span>
+                        <span>{t(language, 'loading')}</span>
                     </div>
                 ) : filteredAssets.length === 0 ? (
                     <div className={`col-span-full text-center py-10 rounded-lg border text-sm ${isDark ? 'bg-[#151815] border-neutral-800 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-500'}`}>
@@ -286,10 +286,10 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                             {/* Delete Button or Confirmation */}
                             {deleteConfirmId === asset.id ? (
                                 <div
-                                    className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 z-20 motion-fade-in"
+                                    className={`absolute inset-0 flex flex-col items-center justify-center gap-2 z-20 motion-fade-in ${isDark ? 'bg-black/80' : 'bg-white/92'}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <span className="text-white text-xs font-medium">
+                                    <span className={`text-xs font-medium ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                                         {t(language, 'deleteAssetConfirm')}
                                     </span>
 
@@ -303,7 +303,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         </button>
 
                                         <button
-                                            className="h-7 px-2 rounded-md bg-neutral-700 hover:bg-neutral-600 text-white text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                            className={`h-7 px-2 rounded-md text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'bg-neutral-700 hover:bg-neutral-600 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'}`}
                                             onClick={handleCancelDelete}
                                             aria-label={t(language, 'cancel')}
                                         >

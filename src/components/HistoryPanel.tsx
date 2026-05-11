@@ -262,14 +262,14 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
                     <button
                         onClick={() => setIsExpanded(prev => !prev)}
-                        aria-label={isExpanded ? 'Collapse history panel' : 'Expand history panel'}
+                        aria-label={isExpanded ? t(language, 'collapseHistoryPanel') : t(language, 'expandHistoryPanel')}
                         aria-expanded={isExpanded}
                         className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-neutral-100 hover:bg-[#1A1D1A]'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
                         }`}
-                        title={isExpanded ? 'Collapse panel' : 'Expand panel'}
+                        title={isExpanded ? t(language, 'collapsePanel') : t(language, 'expandPanel')}
                     >
                         {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                     </button>

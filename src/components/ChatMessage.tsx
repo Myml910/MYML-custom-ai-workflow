@@ -8,6 +8,7 @@
 
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { Language, t } from '../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -22,18 +23,20 @@ interface ChatMessageProps {
     }[];
     timestamp?: Date;
     canvasTheme?: 'dark' | 'light';
+    language?: Language;
 }
 
 interface CodeBlockProps {
     code: string;
     isDark: boolean;
+    language: Language;
 }
 
 // ============================================================================
 // CODE BLOCK COMPONENT
 // ============================================================================
 
-const CodeBlock: React.FC<CodeBlockProps> = ({ code, isDark }) => {
+const CodeBlock: React.FC<CodeBlockProps> = ({ code, isDark, language }) => {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = async () => {
@@ -66,13 +69,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, isDark }) => {
 
             <button
                 onClick={handleCopy}
-                aria-label={copied ? 'Copied to clipboard' : 'Copy code to clipboard'}
-                className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100 ${
+                aria-label={copied ? t(language, 'copiedToClipboard') : t(language, 'copyCodeToClipboard')}
+                className={`absolute top-2 right-2 p-1.5 rounded-md transition-[background-color,border-color,opacity] duration-150 opacity-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                     isDark
                         ? 'bg-neutral-800 hover:bg-neutral-700'
                         : 'bg-neutral-100 hover:bg-neutral-200 border border-neutral-200'
                 }`}
-                title={copied ? 'Copied!' : 'Copy to clipboard'}
+                title={copied ? t(language, 'copied') : t(language, 'copyToClipboard')}
             >
                 {copied ? (
                     <Check size={14} className="text-green-400" />
@@ -135,6 +138,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     media,
     timestamp,
     canvasTheme = 'dark',
+    language = 'zh',
 }) => {
     const isUser = role === 'user';
     const isDark = canvasTheme === 'dark';
@@ -182,7 +186,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                                 {m.type === 'image' ? (
                                     <img
                                         src={m.url}
-                                        alt={`Attached ${index + 1}`}
+                                        alt={`${t(language, 'attachedMedia')} ${index + 1}`}
                                         className={`w-full max-h-32 rounded-lg object-cover border ${mediaBorderClass}`}
                                     />
                                 ) : (
@@ -201,7 +205,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                 <div className="text-sm leading-relaxed select-text cursor-text">
                     {segments.map((segment, index) => (
                         segment.type === 'code' ? (
-                            <CodeBlock key={index} code={segment.content} isDark={isDark} />
+                            <CodeBlock key={index} code={segment.content} isDark={isDark} language={language} />
                         ) : (
                             <div key={index} className="whitespace-pre-wrap">
                                 {segment.content}
