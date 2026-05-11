@@ -163,7 +163,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           {/* Dropdown Menu */}
           {isToolsOpen && (
             <div
-              className={`absolute left-10 top-0 rounded-xl shadow-[0_16px_36px_rgba(0,0,0,0.38)] py-2 min-w-[240px] z-50 motion-menu-in border ${
+              className={`absolute left-10 top-0 rounded-lg shadow-[0_14px_32px_rgba(0,0,0,0.36)] py-2 min-w-[240px] z-50 motion-menu-in border ${
                 isDark
                   ? 'bg-[#151815] border-neutral-800'
                   : 'bg-white border-neutral-200'
@@ -241,14 +241,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className={`w-8 h-[1px] my-1 ${isDark ? 'bg-neutral-800' : 'bg-neutral-200'}`} />
 
       <button
-        aria-label={language === 'zh' ? '个人资料' : 'Profile'}
+        aria-label={t(language, 'profile')}
         className={`w-8 h-8 rounded-full overflow-hidden mb-2 transition-[border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
           isDark
             ? 'border border-neutral-800 hover:border-[#D8FF00]/35'
             : 'border border-neutral-300 hover:border-lime-500/60'
         }`}
       >
-        <img src="https://picsum.photos/40/40" alt="Profile" className="w-full h-full object-cover" />
+        <img src="https://picsum.photos/40/40" alt={t(language, 'profile')} className="w-full h-full object-cover" />
       </button>
     </div>
   );

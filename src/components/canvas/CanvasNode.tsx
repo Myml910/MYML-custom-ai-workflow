@@ -123,6 +123,32 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       ? 'bg-[#151815] text-neutral-300 border-neutral-700 hover:bg-[#1A1D1A] hover:text-[#D8FF00] hover:border-[#D8FF00]/35'
       : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
   }`;
+  const mediaToolbarClass = `flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-[0_10px_22px_rgba(0,0,0,0.20)] backdrop-blur-md ${
+    isDark
+      ? 'bg-[#151815]/95 border-neutral-700'
+      : 'bg-white/95 border-neutral-200 shadow-[0_10px_22px_rgba(15,23,42,0.12)]'
+  }`;
+  const mediaIconButtonClass = `flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+    isDark
+      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
+  }`;
+  const mediaTextButtonClass = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+    isDark
+      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
+  }`;
+  const mediaUploadButtonClass = `flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+    isDark
+      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
+  }`;
+  const mediaAccentIconButtonClass = `flex h-7 w-7 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+    isDark
+      ? 'border-[#D8FF00]/25 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15 hover:border-[#D8FF00]/45'
+      : 'border-lime-500/35 bg-lime-50 text-lime-700 hover:bg-lime-100 hover:border-lime-500/60'
+  }`;
+  const mediaSeparatorClass = `w-px h-4 mx-1 ${isDark ? 'bg-neutral-600' : 'bg-neutral-200'}`;
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -241,7 +267,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
         {/* Image Editor Node Card */}
         <div
@@ -282,7 +308,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             {inputUrl || data.resultUrl ? (
               <img
                 src={data.resultUrl || inputUrl}
-                alt="Content"
+                alt={t(language, 'nodeContentAlt')}
                 className={`rounded-lg w-full h-full object-cover ${
                   selected
                     ? isDark
@@ -319,7 +345,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
         {/* Relative wrapper for the Card */}
         <div className="relative group/nodecard">
@@ -334,7 +360,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   transformOrigin: 'bottom center'
                 }}
               >
-                <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
+                <div className={mediaToolbarClass}>
                 {/* Change Angle Button - Re-enable tweaking */}
                 <button
                   onClick={() => onUpdate(data.id, {
@@ -342,9 +368,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     angleSettings: normalizeAngleSettings(data.angleSettings)
                   })}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${data.angleMode
+                  aria-label={t(language, 'changeAngle')}
+                  title={t(language, 'changeAngle')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
                     ? angleActiveButtonClass
-                    : 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+                    : mediaTextButtonClass
                     }`}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -352,17 +380,18 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                     <line x1="12" y1="22.08" x2="12" y2="12" />
                   </svg>
-                  Change Angle
+                  {t(language, 'changeAngle')}
                 </button>
                 {/* Separator */}
-                <div className="w-px h-4 bg-neutral-600 mx-1" />
+                <div className={mediaSeparatorClass} />
 
                 {/* Expand Button */}
                 <button
                   onClick={() => onExpand?.(data.resultUrl!)}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                  title="View full size"
+                  className={mediaIconButtonClass}
+                  aria-label={t(language, 'viewFullSize')}
+                  title={t(language, 'viewFullSize')}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="15 3 21 3 21 9" />
@@ -378,8 +407,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     onImageToEditor?.(data.id);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                  title="Image Editor"
+                  className={mediaIconButtonClass}
+                  aria-label={t(language, 'imageEditor')}
+                  title={t(language, 'imageEditor')}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -434,8 +464,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     }
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                  title="Download"
+                  className={mediaIconButtonClass}
+                  aria-label={t(language, 'download')}
+                  title={t(language, 'download')}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -458,7 +489,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   }}
                   onDragEnd={() => onDragEnd?.()}
                   className={dragHandleClass}
-                  title="Drag to chat"
+                  title={t(language, 'dragToChat')}
+                  aria-label={t(language, 'dragToChat')}
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="9" cy="5" r="1" fill="currentColor" />
@@ -514,7 +546,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               ) : data.resultUrl ? (
                 <img
                   src={data.resultUrl}
-                  alt="Content"
+                alt={t(language, 'nodeContentAlt')}
                   className={`rounded-lg w-full h-auto object-cover ${selected ? angleImageRingClass : ''}`}
                   draggable={false}
                 />
@@ -571,11 +603,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
         {/* Video Editor Node Card */}
         <div
-          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-purple-500/30 border-purple-500/45' : ''}`}
+          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-[#D8FF00]/35 border-[#D8FF00]/45' : ''}`}
           style={{
             width: videoUrl ? 'auto' : '340px',
             maxWidth: videoUrl ? '500px' : 'none'
@@ -588,7 +620,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
           }}
         >
           {/* Header */}
-          <div className="absolute -top-8 left-0 text-sm px-2 py-0.5 rounded font-medium text-purple-400">
+          <div className="absolute -top-8 left-0 text-sm px-2 py-0.5 rounded font-medium text-[#D8FF00]">
             Video Editor
           </div>
 
@@ -600,7 +632,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             {videoUrl ? (
               <video
                 src={videoUrl}
-                className={`rounded-lg w-full h-auto object-cover ${selected ? 'ring-1 ring-purple-500/60 shadow-[0_0_10px_rgba(168,85,247,0.08)]' : ''}`}
+                className={`rounded-lg w-full h-auto object-cover ${selected ? 'ring-1 ring-[#D8FF00]/60 shadow-[0_0_10px_rgba(216,255,0,0.08)]' : ''}`}
                 style={{ maxHeight: '500px', aspectRatio: '16/9' }}
                 muted
                 playsInline
@@ -621,7 +653,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
           {/* Trim indicator (if trimmed) */}
           {data.trimStart !== undefined && data.trimEnd !== undefined && (
-            <div className="absolute bottom-2 left-2 right-2 bg-black/70 rounded-lg px-2 py-1 text-xs text-purple-300 flex justify-between">
+            <div className="absolute bottom-2 left-2 right-2 bg-black/70 rounded-lg px-2 py-1 text-xs text-[#D8FF00] flex justify-between">
               <span>Trimmed: {data.trimStart.toFixed(1)}s - {data.trimEnd.toFixed(1)}s</span>
             </div>
           )}
@@ -644,7 +676,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} />
+      <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
       {/* Relative wrapper for the Image Card to allow absolute positioning of controls below it */}
       <div className="relative group/nodecard">
@@ -659,7 +691,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 transformOrigin: 'bottom center'
               }}
             >
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
+              <div className={mediaToolbarClass}>
               {/* Change Angle and Upload buttons - Hidden for storyboard-generated scenes */}
               {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <>
@@ -670,9 +702,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                       angleSettings: normalizeAngleSettings(data.angleSettings)
                     })}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${data.angleMode
+                    aria-label={t(language, 'changeAngle')}
+                    title={t(language, 'changeAngle')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
                       ? angleActiveButtonClass
-                      : 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+                      : mediaTextButtonClass
                       }`}
                   >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -680,23 +714,24 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                       <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                       <line x1="12" y1="22.08" x2="12" y2="12" />
                     </svg>
-                    Change Angle
+                    {t(language, 'changeAngle')}
                   </button>
                   {/* Separator */}
-                  <div className="w-px h-4 bg-neutral-600 mx-1" />
+                  <div className={mediaSeparatorClass} />
                   {/* Upload Button */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                    title="Upload image"
+                    className={mediaUploadButtonClass}
+                    aria-label={t(language, 'uploadImage')}
+                    title={t(language, 'uploadImage')}
                   >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    Upload
+                    {t(language, 'upload')}
                   </button>
                   {/* Hidden file input for upload */}
                   <input
@@ -723,8 +758,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="View full size"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'viewFullSize')}
+                title={t(language, 'viewFullSize')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="15 3 21 3 21 9" />
@@ -740,8 +776,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onRemoveBackground?.(data.id);
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#D8FF00]/25 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15 hover:border-[#D8FF00]/45 transition-colors"
-                title="抠除背景"
+                className={mediaAccentIconButtonClass}
+                aria-label={t(language, 'removeBackground')}
+                title={t(language, 'removeBackground')}
               >
                 <Scissors className="w-3.5 h-3.5" strokeWidth={2} />
               </button>
@@ -752,8 +789,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onImageToEditor?.(data.id);
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="Open Image Editor"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'openImageEditor')}
+                title={t(language, 'openImageEditor')}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -808,8 +846,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   }
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="Download"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'download')}
+                title={t(language, 'download')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -832,7 +871,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 }}
                 onDragEnd={() => onDragEnd?.()}
                 className={dragHandleClass}
-                title="Drag to chat"
+                title={t(language, 'dragToChat')}
+                aria-label={t(language, 'dragToChat')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="9" cy="5" r="1" fill="currentColor" />
@@ -859,13 +899,14 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 transformOrigin: 'bottom center'
               }}
             >
-              <div className="flex items-center gap-1 px-2 py-1.5 bg-[#151815]/95 rounded-lg border border-neutral-700 shadow-[0_10px_22px_rgba(0,0,0,0.30)] backdrop-blur-md">
+              <div className={mediaToolbarClass}>
               {/* Expand Button */}
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="View full size"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'viewFullSize')}
+                title={t(language, 'viewFullSize')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="15 3 21 3 21 9" />
@@ -878,8 +919,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); onPostToX?.(data.id, data.resultUrl!, 'video'); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="Post to X"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'postToX')}
+                title={t(language, 'postToX')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -889,8 +931,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); onPostToTikTok?.(data.id, data.resultUrl!); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="Post to TikTok"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'postToTikTok')}
+                title={t(language, 'postToTikTok')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
@@ -927,8 +970,9 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   }
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex h-7 w-7 items-center justify-center text-neutral-300 hover:bg-[#1A1D1A] hover:text-white rounded-md transition-colors"
-                title="Download"
+                className={mediaIconButtonClass}
+                aria-label={t(language, 'download')}
+                title={t(language, 'download')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -951,7 +995,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 }}
                 onDragEnd={() => onDragEnd?.()}
                 className={dragHandleClass}
-                title="Drag to chat"
+                title={t(language, 'dragToChat')}
+                aria-label={t(language, 'dragToChat')}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="9" cy="5" r="1" fill="currentColor" />
@@ -1030,7 +1075,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 e.stopPropagation();
                 setIsEditingTitle(true);
               }}
-              title="Double-click to edit"
+              title={t(language, 'doubleClickToEdit')}
             >
               {data.title || data.type}
             </div>
@@ -1056,6 +1101,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             onImageToVideo={onImageToVideo}
             onUpdate={onUpdate}
             onPostToX={onPostToX}
+            language={language}
           />
         </div>
 

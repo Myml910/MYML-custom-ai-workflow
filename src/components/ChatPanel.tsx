@@ -11,6 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, History, Paperclip, Globe, Settings, Send, Sparkles, Plus, Loader2, ChevronLeft, Trash2, MessageSquare } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { useChatAgent, ChatMessage as ChatMessageType, ChatSession } from '../hooks/useChatAgent';
+import { Language, t } from '../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -30,6 +31,7 @@ interface ChatPanelProps {
     isDraggingNode?: boolean;
     onNodeDrop?: (nodeId: string, url: string, type: 'image' | 'video') => void;
     canvasTheme?: 'dark' | 'light';
+    language?: Language;
 }
 
 // ============================================================================
@@ -42,6 +44,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     userName = 'Creator',
     isDraggingNode = false,
     canvasTheme = 'dark',
+    language = 'zh',
 }) => {
     // --- State ---
     const [message, setMessage] = useState('');
@@ -282,7 +285,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         }`}
                     >
                         <Sparkles className={`w-8 h-8 mx-auto mb-2 ${accentText}`} />
-                        <p className={`${accentText} text-sm font-semibold leading-5`}>Drop image/video here</p>
+                        <p className={`${accentText} text-sm font-semibold leading-5`}>{t(language, 'dropMediaHere')}</p>
                     </div>
                 </div>
             )}
@@ -294,14 +297,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`flex items-center gap-3 px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={() => setShowHistory(false)}
-                            aria-label="Back to chat"
+                            aria-label={t(language, 'backToChat')}
                             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${iconButtonClass}`}
                         >
                             <ChevronLeft size={18} />
                         </button>
 
                         <span className={`text-base font-semibold leading-5 ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
-                            Chat History
+                            {t(language, 'chatHistory')}
                         </span>
                     </div>
 
@@ -314,9 +317,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         ) : sessions.length === 0 ? (
                             <div className={`text-center py-8 rounded-lg border ${isDark ? 'bg-[#151815] border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
                                 <MessageSquare className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-neutral-600' : 'text-neutral-300'}`} />
-                                <p className="text-neutral-500 text-sm font-medium leading-5">No chat history yet</p>
+                                <p className="text-neutral-500 text-sm font-medium leading-5">{t(language, 'noChatHistory')}</p>
                                 <p className={`${isDark ? 'text-neutral-600' : 'text-neutral-400'} mt-1 text-[11px] leading-4`}>
-                                    Start a conversation to see it here
+                                    {t(language, 'startConversationHint')}
                                 </p>
                             </div>
                         ) : (
@@ -328,7 +331,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         onKeyDown={(e) => handleSessionKeyDown(e, session.id)}
                                         role="button"
                                         tabIndex={0}
-                                        aria-label={`Open chat: ${session.topic}`}
+                                        aria-label={`${t(language, 'openChat')}: ${session.topic}`}
                                         className={`w-full text-left px-3 py-2.5 rounded-lg transition-[background-color,border-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group cursor-pointer ${
                                             isDark
                                                 ? 'bg-[#151815] hover:bg-[#1A1D1A] border border-neutral-800 hover:border-[#D8FF00]/25'
@@ -341,15 +344,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                     {session.topic}
                                                 </p>
                                                 <p className={`mt-0.5 text-[11px] leading-4 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
-                                                    {session.messageCount} messages · {formatDate(session.updatedAt || session.createdAt)}
+                                                    {session.messageCount} {t(language, 'messages')} · {formatDate(session.updatedAt || session.createdAt)}
                                                 </p>
                                             </div>
 
                                             <button
                                                 onClick={(e) => handleDeleteSession(e, session.id)}
-                                                aria-label={`Delete chat: ${session.topic}`}
+                                                aria-label={`${t(language, 'deleteChat')}: ${session.topic}`}
                                                 className="flex h-7 w-7 items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded-md transition-[background-color,color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 text-neutral-500 hover:text-red-400"
-                                                title="Delete chat"
+                                                title={t(language, 'deleteChat')}
                                             >
                                                 <Trash2 size={14} />
                                             </button>
@@ -364,11 +367,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`p-4 border-t ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
                             onClick={handleNewChat}
-                            aria-label="New chat"
+                            aria-label={t(language, 'newChat')}
                             className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 flex items-center justify-center gap-2 ${accentButton}`}
                         >
                             <Plus size={16} />
-                            New Chat
+                            {t(language, 'newChat')}
                         </button>
                     </div>
                 </div>
@@ -378,7 +381,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800 bg-[#101210]' : 'border-neutral-200 bg-white'}`}>
                 <div className="flex items-center gap-3">
                     <span className={`text-base font-semibold leading-5 truncate max-w-[180px] ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
-                        {topic || (hasMessages ? 'New Chat' : 'ImageIdeas')}
+                        {topic || (hasMessages ? t(language, 'newChat') : t(language, 'imageIdeas'))}
                     </span>
                 </div>
 
@@ -387,8 +390,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <button
                             onClick={handleNewChat}
                             className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconButtonClass}`}
-                            aria-label="New chat"
-                            title="New Chat"
+                            aria-label={t(language, 'newChat')}
+                            title={t(language, 'newChat')}
                         >
                             <Plus size={18} />
                         </button>
@@ -397,16 +400,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <button
                         onClick={() => setShowHistory(true)}
                         className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconButtonClass}`}
-                        aria-label="Open chat history"
+                        aria-label={t(language, 'chatHistory')}
                         aria-pressed={showHistory}
-                        title="Chat History"
+                        title={t(language, 'chatHistory')}
                     >
                         <History size={18} />
                     </button>
 
                     <button
                         onClick={onClose}
-                        aria-label="Close chat"
+                        aria-label={t(language, 'closeChat')}
                         className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconButtonClass}`}
                     >
                         <X size={18} />
@@ -420,11 +423,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <>
                         {/* Greeting */}
                         <h1 className={`text-base font-semibold leading-5 mb-1 ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
-                            Hi, {userName}
+                            {t(language, 'greetingPrefix')}, {userName}
                         </h1>
 
                         <p className={`${isDark ? 'text-neutral-500' : 'text-neutral-600'} text-sm leading-5 mb-4`}>
-                            Looking for inspiration?
+                            {t(language, 'inspirationPrompt')}
                         </p>
 
                         {/* Tip Card */}
@@ -449,20 +452,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 </div>
 
                                 <p className={`text-[13px] leading-5 mb-3 ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
-                                    Drop a node here to reference its image or video in the conversation.
+                                    {t(language, 'dropNodeHint')}
                                 </p>
 
                                 <div className="flex justify-end">
                                     <button
                                         onClick={() => setShowTip(false)}
-                                        aria-label="Dismiss chat tip"
+                                        aria-label={t(language, 'dismissChatTip')}
                                         className={`h-8 px-3 rounded-lg text-sm font-medium transition-colors ${
                                             isDark
                                                 ? 'bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700'
                                                 : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'
                                         }`}
                                     >
-                                        Got it
+                                        {t(language, 'gotIt')}
                                     </button>
                                 </div>
                             </div>
@@ -533,7 +536,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
                                     <button
                                         onClick={() => removeAttachment(media.nodeId)}
-                                        aria-label={`Remove attached ${media.type}`}
+                                        aria-label={`${t(language, 'removeAttached')} ${media.type}`}
                                     className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-md bg-red-500 hover:bg-red-400 text-white transition-[background-color,transform] duration-150 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                     >
                                         <X size={10} aria-hidden="true" />
@@ -547,7 +550,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         ref={textareaRef}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Start your journey of inspiration"
+                        placeholder={t(language, 'chatPlaceholder')}
                         className={`w-full bg-transparent text-sm leading-5 outline-none mb-3 resize-none min-h-[24px] max-h-[120px] ${
                             isDark
                                 ? 'text-white placeholder:text-neutral-500'
@@ -576,7 +579,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 className={`flex h-7 w-7 items-center justify-center rounded-lg ${inputIconButtonClass}`}
-                                aria-label="Attach media"
+                                aria-label={t(language, 'attachMedia')}
                             >
                                 <Paperclip size={16} />
                             </button>
@@ -585,14 +588,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <div className="flex items-center gap-2">
                             <button
                                 className={`flex h-7 w-7 items-center justify-center rounded-lg ${inputIconButtonClass}`}
-                                aria-label="Web search"
+                                aria-label={t(language, 'webSearch')}
                             >
                                 <Globe size={16} />
                             </button>
 
                             <button
                                 className={`flex h-7 w-7 items-center justify-center rounded-lg ${inputIconButtonClass}`}
-                                aria-label="Chat settings"
+                                aria-label={t(language, 'chatSettings')}
                             >
                                 <Settings size={16} />
                             </button>
@@ -600,7 +603,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             <button
                                 onClick={handleSend}
                                 disabled={isSendDisabled}
-                                aria-label="Send message"
+                                aria-label={t(language, 'sendMessage')}
                                 className={`flex h-8 w-8 items-center justify-center rounded-lg transition-[background-color,color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${
                                     isSendDisabled
                                         ? isDark
@@ -630,15 +633,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 interface ChatBubbleProps {
     onClick: () => void;
     isOpen: boolean;
+    language?: Language;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen, language = 'zh' }) => {
     if (isOpen) return null;
 
     return (
         <button
             onClick={onClick}
-            aria-label="Open chat"
+            aria-label={t(language, 'openChat')}
             aria-pressed={isOpen}
             className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-xl flex items-center justify-center shadow-[0_8px_20px_rgba(216,255,0,0.12)] hover:shadow-[0_10px_22px_rgba(216,255,0,0.14)] transition-[background-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black z-50"
         >

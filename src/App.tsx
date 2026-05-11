@@ -1145,6 +1145,8 @@ function CanvasApp({
         isOpen={isTikTokModalOpen}
         onClose={closeTikTokModal}
         onVideoImported={handleTikTokVideoImported}
+        language={language}
+        canvasTheme={canvasTheme}
       />
 
       {/* Twitter Post Modal */}
@@ -1178,13 +1180,15 @@ function CanvasApp({
         onGenerateComposite={storyboardGenerator.generateComposite}
         onRegenerateComposite={storyboardGenerator.regenerateComposite}
         onCreateNodes={storyboardGenerator.createStoryboardNodes}
+        language={language}
+        canvasTheme={canvasTheme}
       />
 
       {/* Agent Chat */}
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
         <>
-          <ChatBubble onClick={toggleChat} isOpen={isChatOpen} />
-          <ChatPanel isOpen={isChatOpen} onClose={closeChat} isDraggingNode={isDraggingNodeToChat} canvasTheme={canvasTheme} />
+          <ChatBubble onClick={toggleChat} isOpen={isChatOpen} language={language} />
+          <ChatPanel isOpen={isChatOpen} onClose={closeChat} isDraggingNode={isDraggingNodeToChat} canvasTheme={canvasTheme} language={language} />
         </>
       )}
 
@@ -1357,6 +1361,7 @@ function CanvasApp({
               group={getCommonGroup(selectedNodeIds)}
               viewport={viewport}
               language={language}
+              canvasTheme={canvasTheme}
               onGroup={() => groupNodes(selectedNodeIds, setNodes, t(language, 'newGroup'))}
               onUngroup={() => {
                 const group = getCommonGroup(selectedNodeIds);
@@ -1567,6 +1572,8 @@ function CanvasApp({
         scenes={storyboardVideoModal.nodes}
         storyContext={storyboardVideoModal.storyContext}
         onCreateVideos={handleGenerateStoryVideos}
+        language={language}
+        canvasTheme={canvasTheme}
       />
 
       {/* Video Editor Modal */}

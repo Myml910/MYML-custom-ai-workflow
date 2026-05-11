@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, Loader2, CheckCircle, AlertCircle, Link2 } from 'lucide-react';
+import { Language, t } from '../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -16,6 +17,8 @@ interface TikTokImportModalProps {
     isOpen: boolean;
     onClose: () => void;
     onVideoImported: (videoUrl: string, videoInfo: TikTokVideoInfo) => void;
+    language?: Language;
+    canvasTheme?: 'dark' | 'light';
 }
 
 export interface TikTokVideoInfo {
@@ -35,7 +38,9 @@ type ImportStatus = 'idle' | 'loading' | 'success' | 'error';
 export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
     isOpen,
     onClose,
-    onVideoImported
+    onVideoImported,
+    language = 'zh',
+    canvasTheme = 'dark'
 }) => {
     // --- State ---
     const [url, setUrl] = useState('');
@@ -45,6 +50,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
     const [importedVideoUrl, setImportedVideoUrl] = useState<string | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
+    const isDark = canvasTheme === 'dark';
 
     // --- Effects ---
 
@@ -152,7 +158,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        aria-label="Close TikTok import modal"
+                        aria-label={t(language, 'closeTikTokImportModal')}
                         className="group flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition-[background-color,color] duration-150 hover:bg-[#1A1D1A] hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                     >
                         <X size={18} className="transition-colors" />
@@ -176,7 +182,11 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                                 onKeyDown={handleKeyDown}
                                 placeholder="Paste TikTok video URL here (Ctrl+V)"
                                 disabled={status === 'loading' || status === 'success'}
-                                className="w-full bg-[#101210] border border-neutral-700 rounded-lg pl-10 pr-4 py-3 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 transition-[background-color,border-color,box-shadow,opacity] duration-150 disabled:cursor-not-allowed disabled:border-neutral-800 disabled:bg-neutral-900 disabled:text-neutral-500"
+                                className={`w-full border rounded-lg pl-10 pr-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 transition-[background-color,border-color,box-shadow,opacity] duration-150 disabled:cursor-not-allowed ${
+                                    isDark
+                                        ? 'bg-[#101210] border-neutral-700 text-neutral-100 disabled:border-neutral-800 disabled:bg-neutral-900 disabled:text-neutral-500'
+                                        : 'bg-white border-neutral-200 text-neutral-900 disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-400'
+                                }`}
                             />
                         </div>
                         <p className="text-xs text-neutral-500">
@@ -249,7 +259,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                         onClick={onClose}
                         className="h-9 px-4 rounded-lg border border-neutral-700 bg-[#151815] text-sm font-medium text-neutral-300 transition-[background-color,border-color,color] duration-150 hover:border-neutral-600 hover:bg-[#1A1D1A] hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                     >
-                        Cancel
+                        {t(language, 'cancel')}
                     </button>
 
                     {status === 'success' ? (
@@ -258,7 +268,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                             className="flex h-9 items-center gap-2 px-5 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold rounded-lg transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             <CheckCircle size={18} />
-                            Add to Canvas
+                            {t(language, 'addToCanvas')}
                         </button>
                     ) : (
                         <button
@@ -269,12 +279,12 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                             {status === 'loading' ? (
                                 <>
                                     <Loader2 size={18} className="animate-spin" />
-                                    Importing...
+                                    {t(language, 'importing')}
                                 </>
                             ) : (
                                 <>
                                     <Download size={18} />
-                                    Import Video
+                                    {t(language, 'importVideo')}
                                 </>
                             )}
                         </button>

@@ -8,6 +8,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Loader2, Maximize2, ImageIcon as ImageIcon, Film, Upload, Pencil, Video, GripVertical, Download, Expand, Shrink, HardDrive } from 'lucide-react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
+import { Language, t } from '../../i18n/translations';
 
 interface NodeContentProps {
     data: NodeData;
@@ -31,6 +32,7 @@ interface NodeContentProps {
     onUpdate?: (nodeId: string, updates: Partial<NodeData>) => void;
     // Social sharing
     onPostToX?: (nodeId: string, mediaUrl: string, mediaType: 'image' | 'video') => void;
+    language?: Language;
 }
 
 export const NodeContent: React.FC<NodeContentProps> = ({
@@ -51,7 +53,8 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     onImageToImage,
     onImageToVideo,
     onUpdate,
-    onPostToX
+    onPostToX,
+    language = 'zh'
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,7 +112,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     };
 
     return (
-        <div className={`transition-all duration-200 ${!selected ? 'p-0 rounded-2xl overflow-hidden' : 'p-1'}`}>
+        <div className={`transition-[background-color,border-color,opacity] duration-150 ${!selected ? 'p-0 rounded-2xl overflow-hidden' : 'p-1'}`}>
             {/* Hidden File Input - Always rendered for upload functionality (image types only) */}
             {isImageType && onUpload && (
                 <input
@@ -130,14 +133,14 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {isVideoType ? (
                         <video src={data.resultUrl} controls loop className="w-full h-full object-cover" />
                     ) : (
-                        <img src={data.resultUrl} alt="Generated" className="w-full h-full object-cover pointer-events-none" />
+                        <img src={data.resultUrl} alt={t(language, 'generated')} className="w-full h-full object-cover pointer-events-none" />
                     )}
 
                     {/* Regenerating Overlay - Shows when loading with existing content */}
                     {isLoading && (
                         <div className="pointer-events-none absolute inset-0 z-[1] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                             <Loader2 size={40} className="animate-spin text-[#D8FF00]" />
-                            <span className="mt-3 text-sm text-white font-medium">Regenerating...</span>
+                            <span className="mt-3 text-sm text-white font-medium">{t(language, 'regenerating')}</span>
                         </div>
                     )}
                 </div>
@@ -161,7 +164,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                         onUpdate?.(data.id, { prompt: localPrompt });
                                     }
                                 }}
-                                placeholder="Write your text content here..."
+                                placeholder={t(language, 'writeTextContentPlaceholder')}
                                 className="w-full bg-transparent text-white text-sm resize-none outline-none placeholder:text-neutral-600"
                                 style={{ minHeight: data.isPromptExpanded ? '300px' : '150px' }}
                                 autoFocus
@@ -172,10 +175,11 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                     onClick={() => onUpdate?.(data.id, { isPromptExpanded: !data.isPromptExpanded })}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:text-white hover:bg-neutral-700 rounded transition-colors"
-                                    title={data.isPromptExpanded ? 'Shrink text area' : 'Expand text area'}
+                                    title={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
+                                    aria-label={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                 >
                                     {data.isPromptExpanded ? <Shrink size={12} /> : <Expand size={12} />}
-                                    <span>{data.isPromptExpanded ? 'Shrink' : 'Expand'}</span>
+                                    <span>{data.isPromptExpanded ? t(language, 'shrink') : t(language, 'expand')}</span>
                                 </button>
                             </div>
                         </div>
@@ -184,24 +188,24 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         <div className="p-5 flex flex-col gap-4">
                             {/* Header */}
                             <div className="text-neutral-500 text-sm font-medium">
-                                Try to:
+                                {t(language, 'tryTo')}
                             </div>
 
                             {/* Menu Options */}
                             <div className="flex flex-col gap-1">
                                 <TextNodeMenuItem
                                     icon={<Pencil size={16} />}
-                                    label="Write your own content"
+                                    label={t(language, 'writeOwnContent')}
                                     onClick={() => onWriteContent?.(data.id)}
                                 />
                                 <TextNodeMenuItem
                                     icon={<Video size={16} />}
-                                    label="Text to Video"
+                                    label={t(language, 'textToVideo')}
                                     onClick={() => onTextToVideo?.(data.id)}
                                 />
                                 <TextNodeMenuItem
                                     icon={<ImageIcon size={16} />}
-                                    label="Text to Image"
+                                    label={t(language, 'textToImage')}
                                     onClick={() => onTextToImage?.(data.id)}
                                 />
                             </div>
@@ -217,11 +221,11 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {/* Input Image Preview for Video Nodes */}
                     {isVideoType && inputUrl && (
                         <div className="absolute inset-0 z-0">
-                            <img src={inputUrl} alt="Input Frame" className="w-full h-full object-cover opacity-30 blur-sm" />
+                            <img src={inputUrl} alt={t(language, 'inputFrame')} className="w-full h-full object-cover opacity-30 blur-sm" />
                             <div className="absolute inset-0 bg-black/40" />
                             <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-white font-medium flex items-center gap-1">
                                 <ImageIcon size={10} />
-                                Input Frame
+                                {t(language, 'inputFrame')}
                             </div>
                         </div>
                     )}
@@ -229,7 +233,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {isLoading ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
                             <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
-                            <span className="text-xs text-neutral-500 font-medium">Generating...</span>
+                            <span className="text-xs text-neutral-500 font-medium">{t(language, 'generating')}</span>
                         </div>
                     ) : (
                         <div className="relative z-10 flex flex-col items-center gap-3">
@@ -249,40 +253,40 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                         className="flex items-center gap-2 px-4 py-2 bg-neutral-800/80 hover:bg-neutral-700 rounded-lg text-white text-sm font-medium transition-colors"
                                     >
                                         <Upload size={16} />
-                                        Upload
+                                        {t(language, 'upload')}
                                     </button>
                                 </>
                             )}
 
                             <div className="text-neutral-700">
                                 {isVideoType ? (
-                                    isLocalModel ? <><Film size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-purple-400" /></> : <Film size={40} />
+                                    isLocalModel ? <><Film size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-[#D8FF00]" /></> : <Film size={40} />
                                 ) : (
-                                    isLocalModel ? <><ImageIcon size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-purple-400" /></> : <ImageIcon size={40} />
+                                    isLocalModel ? <><ImageIcon size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-[#D8FF00]" /></> : <ImageIcon size={40} />
                                 )}
                             </div>
                             {selected && (
                                 <>
                                     <div className="text-neutral-500 text-sm font-medium">
                                         {isVideoType && inputUrl
-                                            ? "Ready to animate"
+                                            ? t(language, 'readyToAnimate')
                                             : isVideoType
-                                                ? "Waiting for input..."
+                                                ? t(language, 'waitingForInput')
                                                 : isLocalModel
-                                                    ? "Select a model and enter prompt"
-                                                    : "Try to:"
+                                                    ? t(language, 'selectModelAndPrompt')
+                                                    : t(language, 'tryTo')
                                         }
                                     </div>
                                     {!isVideoType && !isLocalModel && (
                                         <div className="flex flex-col gap-1 w-full px-2">
                                             <TextNodeMenuItem
                                                 icon={<ImageIcon size={16} />}
-                                                label="Image to Image"
+                                                label={t(language, 'imageToImage')}
                                                 onClick={() => onImageToImage?.(data.id)}
                                             />
                                             <TextNodeMenuItem
                                                 icon={<Film size={16} />}
-                                                label="Image to Video"
+                                                label={t(language, 'imageToVideo')}
                                                 onClick={() => onImageToVideo?.(data.id)}
                                             />
                                         </div>

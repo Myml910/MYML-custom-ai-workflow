@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { X, ChevronRight, ChevronLeft, Loader2, Film, Users, PenTool, Sparkles, Check, Edit3, Wand2, Eye, ChevronDown } from 'lucide-react';
 import { CharacterAsset, SceneScript, StoryboardState } from '../../hooks/useStoryboardGenerator';
 import { StoryInput } from '../StoryInput';
+import { Language, t } from '../../i18n/translations';
 
 // ============================================================================
 // IMAGE MODELS (Copied from NodeControls.tsx for model selection)
@@ -41,6 +42,8 @@ interface StoryboardGeneratorModalProps {
     onGenerateComposite: () => Promise<void>;
     onRegenerateComposite: () => Promise<void>;
     onCreateNodes: () => void;
+    language?: Language;
+    canvasTheme?: 'dark' | 'light';
 }
 
 // ============================================================================
@@ -61,7 +64,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
     onOptimizeStory,
     onGenerateComposite,
     onRegenerateComposite,
-    onCreateNodes
+    onCreateNodes,
+    language = 'zh',
+    canvasTheme = 'dark'
 }) => {
     const [characterAssets, setCharacterAssets] = useState<(CharacterAsset & { category: string })[]>([]);
     const [isLoadingAssets, setIsLoadingAssets] = useState(false);
@@ -79,14 +84,36 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
     // Step definitions for progress bar
     const stepDefinitions = [
-        { id: 'characters', label: 'Characters', icon: Users },
-        { id: 'story', label: 'Story', icon: PenTool },
-        { id: 'scripts', label: 'Scripts', icon: Film },
-        { id: 'preview', label: 'Preview', icon: Eye },
-        { id: 'generate', label: 'Generate', icon: Sparkles }
+        { id: 'characters', label: language === 'zh' ? '角色' : 'Characters', icon: Users },
+        { id: 'story', label: language === 'zh' ? '故事' : 'Story', icon: PenTool },
+        { id: 'scripts', label: language === 'zh' ? '脚本' : 'Scripts', icon: Film },
+        { id: 'preview', label: language === 'zh' ? '预览' : 'Preview', icon: Eye },
+        { id: 'generate', label: language === 'zh' ? '生成' : 'Generate', icon: Sparkles }
     ];
 
     const currentStepIndex = stepDefinitions.findIndex(s => s.id === state.step);
+    const isDark = canvasTheme === 'dark';
+    const menuSurfaceClass = isDark
+        ? 'bg-[#151815] border-neutral-700 shadow-[0_16px_36px_rgba(0,0,0,0.38)]'
+        : 'bg-white border-neutral-200 shadow-[0_14px_32px_rgba(15,23,42,0.12)]';
+    const menuHeaderClass = isDark ? 'bg-[#101210] border-neutral-700/50 text-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-500';
+    const menuItemClass = (active: boolean) => active
+        ? isDark
+            ? 'bg-[#D8FF00]/[0.08] text-[#D8FF00]'
+            : 'bg-lime-50 text-lime-700'
+        : isDark
+            ? 'text-neutral-300 hover:bg-[#1A1D1A]'
+            : 'text-neutral-700 hover:bg-neutral-100';
+    const categoryLabel = (category: string) => {
+        const key = category.toLowerCase();
+        if (key === 'all') return t(language, 'all');
+        if (key === 'character') return t(language, 'character');
+        if (key === 'scene') return t(language, 'scene');
+        if (key === 'item') return t(language, 'item');
+        if (key === 'style') return t(language, 'style');
+        if (key === 'others') return t(language, 'others');
+        return category;
+    };
 
 
     // Auto-generate preview when entering preview step
@@ -259,7 +286,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                     </div>
                     <button
                         onClick={onClose}
-                        aria-label="Close storyboard generator"
+                        aria-label={t(language, 'closeStoryboardGenerator')}
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition-[background-color,color] duration-150 hover:bg-[#1A1D1A] hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group"
                     >
                         <X size={18} className="transition-colors" />
@@ -339,18 +366,22 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             <div className="relative">
                                 <button
                                     onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-[#101210] border border-neutral-700 rounded-lg text-sm text-neutral-100 hover:border-neutral-600 hover:bg-[#1A1D1A] transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                    className={`w-full flex items-center justify-between px-4 py-2.5 border rounded-lg text-sm transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                                        isDark
+                                            ? 'bg-[#101210] border-neutral-700 text-neutral-100 hover:border-neutral-600 hover:bg-[#1A1D1A]'
+                                            : 'bg-white border-neutral-200 text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100'
+                                    }`}
                                 >
                                     <span className="flex items-center gap-2">
-                                        <span className="text-neutral-400">Category:</span>
-                                        <span className="font-medium">{selectedCategory}</span>
+                                        <span className="text-neutral-400">{t(language, 'category')}:</span>
+                                        <span className="font-medium">{categoryLabel(selectedCategory)}</span>
                                         <span className="text-neutral-500 text-xs">({filteredAssets.length} items)</span>
                                     </span>
                                     <ChevronDown size={16} className={`text-neutral-400 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {isCategoryDropdownOpen && (
-                                    <div className="absolute z-20 w-full mt-1 bg-[#151815] border border-neutral-700 rounded-lg shadow-[0_16px_36px_rgba(0,0,0,0.38)] overflow-hidden">
+                                    <div className={`absolute z-20 w-full mt-1 border rounded-lg overflow-hidden motion-menu-in ${menuSurfaceClass}`}>
                                         {availableCategories.map(category => (
                                             <button
                                                 key={category}
@@ -359,12 +390,12 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     setIsCategoryDropdownOpen(false);
                                                 }}
                                                 className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${selectedCategory === category
-                                                    ? 'bg-[#D8FF00]/[0.08] text-[#D8FF00]'
-                                                    : 'text-neutral-300 hover:bg-[#1A1D1A]'
+                                                    ? menuItemClass(true)
+                                                    : menuItemClass(false)
                                                     }`}
                                             >
                                                 <span className="flex items-center justify-between">
-                                                    <span>{category}</span>
+                                                    <span>{categoryLabel(category)}</span>
                                                     <span className="text-xs opacity-60">
                                                         {category === 'All'
                                                             ? characterAssets.length
@@ -470,7 +501,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             {state.selectedCharacters.length > 0 && (
                                 <div className="mb-4 p-3 bg-[#101210] rounded-lg border border-neutral-800">
                                     <p className="text-xs text-neutral-400 mb-2">
-                                        Selected references — click to insert @mention in story:
+                                        {t(language, 'selectedReferencesHint')}
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {state.selectedCharacters.map(asset => (
@@ -491,7 +522,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     @{asset.name}
                                                 </span>
                                                 <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 bg-neutral-900 rounded">
-                                                    {asset.category || 'Others'}
+                                                    {categoryLabel(asset.category || 'Others')}
                                                 </span>
                                             </button>
                                         ))}
@@ -558,9 +589,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
                                 {/* Mention Picker Dropdown */}
                                 {showMentionPicker && mentionSuggestions.length > 0 && (
-                                    <div className="absolute left-4 top-10 w-64 bg-[#151815] border border-neutral-700 rounded-lg shadow-[0_16px_36px_rgba(0,0,0,0.38)] overflow-hidden z-50">
-                                        <div className="text-[10px] text-neutral-500 px-3 py-1 border-b border-neutral-700/50 bg-[#101210]">
-                                            Select reference (↑↓ to navigate, Enter to select)
+                                    <div className={`absolute left-4 top-10 w-64 border rounded-lg overflow-hidden z-50 motion-menu-in ${menuSurfaceClass}`}>
+                                        <div className={`text-[10px] px-3 py-1 border-b ${menuHeaderClass}`}>
+                                            {t(language, 'mentionPickerHint')}
                                         </div>
                                         <div className="max-h-48 overflow-y-auto">
                                             {mentionSuggestions.map((asset, index) => (
@@ -569,8 +600,8 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     onClick={() => insertMention(asset)}
                                                     onMouseEnter={() => setMentionIndex(index)}
                                                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${index === mentionIndex
-                                                        ? 'bg-[#D8FF00]/[0.08] text-[#D8FF00]'
-                                                        : 'hover:bg-[#1A1D1A] text-neutral-300'
+                                                        ? menuItemClass(true)
+                                                        : menuItemClass(false)
                                                         }`}
                                                 >
                                                     <img
@@ -580,7 +611,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     />
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-sm font-medium truncate">@{asset.name}</div>
-                                                        <div className="text-[10px] text-neutral-400">{asset.category || 'Others'}</div>
+                                                        <div className="text-[10px] text-neutral-400">{categoryLabel(asset.category || 'Others')}</div>
                                                     </div>
                                                 </button>
                                             ))}

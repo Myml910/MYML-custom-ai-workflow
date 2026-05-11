@@ -129,7 +129,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 <div className="flex items-center gap-3 pointer-events-auto">
                     <img
                         src="/TwitCanva-logo.png"
-                        alt="MYML Canvas Logo"
+                        alt={t(language, 'canvasLogoAlt')}
                         className="w-8 h-8 object-contain"
                     />
 
@@ -141,7 +141,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             onChange={(e) => setEditingTitleValue(e.target.value)}
                             onBlur={handleTitleBlur}
                             onKeyDown={handleTitleKeyDown}
-                            aria-label={language === 'zh' ? '画布标题' : 'Canvas title'}
+                            aria-label={t(language, 'canvasTitle')}
                             className="text-sm font-semibold tracking-[0.04em] text-neutral-100 bg-transparent border-b border-[#D8FF00]/70 outline-none min-w-[120px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                         />
                     ) : (
@@ -206,7 +206,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                     <button
                         onClick={onToggleLanguage}
-                        aria-label={language === 'zh' ? 'Switch to English' : '切换到中文'}
+                        aria-label={language === 'zh' ? t(language, 'switchToEnglish') : t(language, 'switchToChinese')}
                         className={`h-10 px-3 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black border text-xs font-semibold tracking-[0.04em] ${
                             canvasTheme === 'dark'
                                 ? 'bg-[#151815] border-neutral-800 text-neutral-300 hover:bg-[#1A1D1A] hover:border-[#D8FF00]/30 hover:text-neutral-100'
@@ -257,13 +257,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <span>{currentUser.username}</span>
                         <button
                             onClick={() => onLogout()}
-                            aria-label={language === 'zh' ? '退出登录' : 'Logout'}
+                            aria-label={t(language, 'logout')}
                             className={`w-7 h-7 rounded-md flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                 canvasTheme === 'dark'
                                     ? 'hover:bg-[#1A1D1A] hover:text-neutral-100'
                                     : 'hover:bg-lime-600 hover:text-white'
                             }`}
-                            title="Logout"
+                            title={t(language, 'logout')}
                         >
                             <LogOut size={15} />
                         </button>
@@ -275,7 +275,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {showNewConfirm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
                     <div className="bg-[#101210] border border-neutral-800 rounded-xl p-6 w-[400px] shadow-[0_18px_44px_rgba(0,0,0,0.42)]">
-                        <h3 className="text-lg font-semibold tracking-[0.02em] text-neutral-100 mb-2">
+                        <h3 className="text-base font-semibold leading-5 text-neutral-100 mb-2">
                             {t(language, 'unsavedChanges')}
                         </h3>
 
@@ -297,7 +297,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={handleDiscardAndNew}
                                 disabled={isSaving}
                                 aria-label={t(language, 'discard')}
-                                className="px-4 py-2 rounded-lg bg-[#FF4D00] hover:bg-orange-500 text-black font-bold text-sm transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-black font-semibold text-sm transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                             >
                                 {t(language, 'discard')}
                             </button>
