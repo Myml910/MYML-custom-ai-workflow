@@ -10,6 +10,7 @@ const router = express.Router();
 const DEFAULT_MATTING_BASE_URL = 'http://127.0.0.1:8000';
 
 function getMattingBaseUrl() {
+    console.log("requests from " + (process.env.MYML_MATTING_BASE_URL || DEFAULT_MATTING_BASE_URL).replace(/\/$/, ''))
     return (process.env.MYML_MATTING_BASE_URL || DEFAULT_MATTING_BASE_URL).replace(/\/$/, '');
 }
 
