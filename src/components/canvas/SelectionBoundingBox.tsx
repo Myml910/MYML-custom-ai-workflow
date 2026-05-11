@@ -172,6 +172,9 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
     const menuItemClass = isDark
         ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-neutral-100'
         : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900';
+    const toolbarShellClass = 'absolute inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap pointer-events-auto';
+    const toolbarButtonClass = 'flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-semibold leading-none transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35';
+    const dropdownItemClass = `flex h-8 w-full items-center gap-2 whitespace-nowrap px-3 text-left text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`;
     // ============================================================================
     // CALCULATIONS
     // ============================================================================
@@ -306,7 +309,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
             {/* Group Button (when multiple nodes selected but not grouped) */}
             {showGroupButton && (
                 <div
-                    className="absolute flex gap-2 pointer-events-auto"
+                    className={toolbarShellClass}
                     style={{
                         top: -10,
                         right: 0,
@@ -316,7 +319,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                 >
                     <button
                         onClick={onGroup}
-                        className={`${menuButtonClass} text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35`}
+                        className={`${menuButtonClass} ${toolbarButtonClass}`}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="3" width="7" height="7" />
@@ -332,7 +335,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
             {/* Group Toolbar (when grouped) */}
             {isGrouped && (
                 <div
-                    className="absolute flex gap-2 pointer-events-auto"
+                    className={toolbarShellClass}
                     style={{
                         top: -10,
                         left: '50%',
@@ -344,7 +347,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                     <div className="relative">
                         <button
                             onClick={() => setShowSortDropdown(!showSortDropdown)}
-                            className={`${menuButtonClass} text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35`}
+                            className={`${menuButtonClass} ${toolbarButtonClass}`}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="4" y1="6" x2="20" y2="6" />
@@ -364,7 +367,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                                         onSortNodes?.('horizontal');
                                         setShowSortDropdown(false);
                                     }}
-                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`}
+                                    className={dropdownItemClass}
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <line x1="4" y1="12" x2="20" y2="12" />
@@ -377,7 +380,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                                         onSortNodes?.('vertical');
                                         setShowSortDropdown(false);
                                     }}
-                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`}
+                                    className={dropdownItemClass}
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <line x1="12" y1="4" x2="12" y2="20" />
@@ -390,7 +393,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                                         onSortNodes?.('grid');
                                         setShowSortDropdown(false);
                                     }}
-                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`}
+                                    className={dropdownItemClass}
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <rect x="3" y="3" width="7" height="7" />
@@ -407,7 +410,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                     {/* Ungroup Button */}
                     <button
                         onClick={onUngroup}
-                        className={`${menuButtonClass} text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35`}
+                        className={`${menuButtonClass} ${toolbarButtonClass}`}
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="3" width="7" height="7" />
@@ -426,7 +429,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                                 e.stopPropagation();
                                 if (onEditStoryboard) onEditStoryboard(group.id);
                             }}
-                            className={`${menuButtonClass} text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 mr-2`}
+                            className={`${menuButtonClass} ${toolbarButtonClass}`}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -442,7 +445,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                             e.stopPropagation();
                             if (onCreateVideo) onCreateVideo();
                         }}
-                        className="bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-3.5 text-xs font-semibold leading-none text-black transition-colors duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 10l5 5-5 5" />

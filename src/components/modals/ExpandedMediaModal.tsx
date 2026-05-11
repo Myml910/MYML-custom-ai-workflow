@@ -192,7 +192,7 @@ export const ExpandedMediaModal: React.FC<ExpandedMediaModalProps> = ({
             </div>
 
             {/* Zoom Hint */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/50 text-sm pointer-events-none">
+            <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-lg border border-white/10 bg-black/45 px-3 py-1.5 text-sm text-white/60 backdrop-blur-sm">
                 Scroll to zoom • Drag to pan when zoomed
             </div>
 
@@ -215,14 +215,14 @@ export const ExpandedMediaModal: React.FC<ExpandedMediaModalProps> = ({
                         src={mediaUrl}
                         controls
                         autoPlay
-                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
                         draggable={false}
                     />
                 ) : (
                     <img
                         src={mediaUrl}
                         alt="Fullscreen preview"
-                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
                         draggable={false}
                     />
                 )}

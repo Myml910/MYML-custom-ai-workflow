@@ -93,7 +93,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       }`}
     >
       <button
-        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black mb-2 border ${
+        className={`mb-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
           isDark
             ? 'bg-[#D8FF00] text-black border-[#D8FF00]/80 hover:bg-[#e4ff3a] hover:shadow-[0_0_8px_rgba(216,255,0,0.12)]'
             : 'bg-lime-600 text-white hover:bg-lime-500 border-lime-600'
@@ -107,7 +107,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className="flex flex-col gap-3 py-2">
         <button
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
             isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onWorkflowsClick}
@@ -118,7 +118,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </button>
 
         <button
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
             isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           title={t(language, 'assets')}
@@ -129,7 +129,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </button>
 
         <button
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
             isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
           }`}
           onClick={onHistoryClick}
@@ -142,7 +142,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         {/* Tools Dropdown */}
         <div className="relative" ref={toolsRef}>
           <button
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
               isDark
                 ? `text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100 ${isToolsOpen ? 'text-[#D8FF00] bg-[#1A1D1A] ring-1 ring-[#D8FF00]/35' : ''}`
                 : `text-neutral-500 hover:bg-neutral-100 hover:text-lime-600 ${isToolsOpen ? 'text-lime-600 bg-neutral-100' : ''}`
@@ -163,7 +163,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           {/* Dropdown Menu */}
           {isToolsOpen && (
             <div
-              className={`absolute left-10 top-0 rounded-lg shadow-[0_14px_32px_rgba(0,0,0,0.36)] py-2 min-w-[240px] z-50 motion-menu-in border ${
+              className={`absolute left-10 top-0 z-50 min-w-[240px] rounded-lg border py-2 shadow-[0_14px_32px_rgba(0,0,0,0.36)] motion-menu-in ${
                 isDark
                   ? 'bg-[#151815] border-neutral-800'
                   : 'bg-white border-neutral-200'
@@ -172,21 +172,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <button
                 onClick={handleToolClick(onTikTokClick)}
                 aria-label={t(language, 'importTikTok')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-[background-color,color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group ${
+                className={`group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-[background-color,color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                   isDark ? 'hover:bg-[#1A1D1A]' : 'hover:bg-neutral-100'
                 }`}
               >
                 <div
-                  className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                     isDark ? 'bg-[#101210] border border-neutral-800 group-hover:border-[#D8FF00]/25' : 'bg-neutral-200'
                   }`}
                 >
                   <TikTokIcon size={16} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                 </div>
 
-                <div className="text-left">
+                <div className="min-w-0 text-left">
                   <p
-                    className={`text-sm font-semibold ${
+                    className={`truncate text-sm font-semibold ${
                       isDark
                         ? 'text-neutral-200 group-hover:text-neutral-100'
                         : 'text-neutral-700 group-hover:text-lime-600'
@@ -195,7 +195,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     {t(language, 'importTikTok')}
                   </p>
 
-                  <p className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                  <p className={`truncate text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
                     {t(language, 'importTikTokDesc')}
                   </p>
                 </div>
@@ -205,21 +205,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <button
                 onClick={handleToolClick(onStoryboardClick)}
                 aria-label={t(language, 'storyboardGenerator')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 transition-[background-color,color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group ${
+                className={`group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-[background-color,color,transform] duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                   isDark ? 'hover:bg-[#1A1D1A]' : 'hover:bg-neutral-100'
                 }`}
               >
                 <div
-                  className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                     isDark ? 'bg-[#101210] border border-neutral-800 group-hover:border-[#D8FF00]/25' : 'bg-neutral-200'
                   }`}
                 >
                   <Film size={16} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                 </div>
 
-                <div className="text-left">
+                <div className="min-w-0 text-left">
                   <p
-                    className={`text-sm font-semibold ${
+                    className={`truncate text-sm font-semibold ${
                       isDark
                         ? 'text-neutral-200 group-hover:text-neutral-100'
                         : 'text-neutral-700 group-hover:text-lime-600'
@@ -228,7 +228,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     {t(language, 'storyboardGenerator')}
                   </p>
 
-                  <p className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                  <p className={`truncate text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
                     {t(language, 'storyboardGeneratorDesc')}
                   </p>
                 </div>
@@ -242,7 +242,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <button
         aria-label={t(language, 'profile')}
-        className={`w-8 h-8 rounded-full overflow-hidden mb-2 transition-[border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+        className={`mb-2 h-8 w-8 shrink-0 overflow-hidden rounded-full transition-[border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
           isDark
             ? 'border border-neutral-800 hover:border-[#D8FF00]/35'
             : 'border border-neutral-300 hover:border-lime-500/60'

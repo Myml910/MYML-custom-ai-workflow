@@ -345,7 +345,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     key={step.id}
                                     onClick={() => isAccessible && onSetStep(step.id as StoryboardState['step'])}
                                     disabled={!isAccessible}
-                                    className="flex flex-col items-center gap-1.5 relative z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 rounded-lg"
+                                    className="group relative z-10 flex shrink-0 flex-col items-center gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                 >
                                     {/* Step dot */}
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow] duration-150 ${isCurrent
@@ -392,7 +392,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             <div className="relative">
                                 <button
                                     onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                                    className={`w-full flex items-center justify-between px-4 py-2.5 border rounded-lg text-sm transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                                    className={`flex h-9 w-full items-center justify-between gap-2 whitespace-nowrap rounded-lg border px-3 text-sm transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                         isDark
                                             ? 'bg-[#101210] border-neutral-700 text-neutral-100 hover:border-neutral-600 hover:bg-[#1A1D1A]'
                                             : 'bg-white border-neutral-200 text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100'
@@ -415,7 +415,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     setSelectedCategory(category);
                                                     setIsCategoryDropdownOpen(false);
                                                 }}
-                                                className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${selectedCategory === category
+                                                className={`h-9 w-full px-3 text-left text-sm transition-colors ${selectedCategory === category
                                                     ? menuItemClass(true)
                                                     : menuItemClass(false)
                                                     }`}
@@ -537,7 +537,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     const mention = `@${asset.name}`;
                                                     onSetStory(state.story + (state.story.endsWith(' ') || state.story === '' ? '' : ' ') + mention + ' ');
                                                 }}
-                                                className={`flex items-center gap-2 px-2 py-1.5 border rounded-lg transition-[background-color,border-color,color] duration-150 group ${secondaryButtonClass}`}
+                                                className={`group flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-2.5 text-xs transition-[background-color,border-color,color] duration-150 ${secondaryButtonClass}`}
                                             >
                                                 <img
                                                     src={asset.url}
@@ -830,7 +830,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                 </div>
 
                 {/* Footer */}
-                <div className={`px-5 py-4 border-t flex items-center justify-between ${headerBorderClass} ${isDark ? 'bg-[#101210]' : 'bg-neutral-50'}`}>
+                <div className={`flex items-center justify-between gap-3 border-t px-5 py-4 ${headerBorderClass} ${isDark ? 'bg-[#101210]' : 'bg-neutral-50'}`}>
                     {/* Back Button */}
                     <button
                         onClick={() => {
@@ -840,7 +840,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             else if (state.step === 'generate') onSetStep('preview');
                         }}
                         disabled={state.step === 'characters'}
-                        className={`flex h-9 items-center gap-2 px-4 rounded-lg border text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${state.step === 'characters'
+                        className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-4 text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${state.step === 'characters'
                             ? disabledButtonClass
                             : secondaryButtonClass
                             }`}
@@ -860,7 +860,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                     {state.step === 'characters' && (
                         <button
                             onClick={() => onSetStep('story')}
-                            className="flex h-9 items-center gap-2 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                            className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             {t(language, 'next')}
                             <ChevronRight size={16} />
@@ -871,7 +871,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                         <button
                             onClick={onGenerateScripts}
                             disabled={state.isGenerating || !state.story.trim()}
-                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGenerating || !state.story.trim()
+                            className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-5 text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGenerating || !state.story.trim()
                                 ? `border ${disabledButtonClass}`
                                 : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
@@ -900,7 +900,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 }
                             }}
                             disabled={state.isGeneratingPreview}
-                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGeneratingPreview
+                            className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-5 text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGeneratingPreview
                                 ? `border ${disabledButtonClass}`
                                 : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
@@ -927,7 +927,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                         <button
                             onClick={() => onSetStep('generate')}
                             disabled={!state.compositeImageUrl || state.isGeneratingPreview}
-                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${!state.compositeImageUrl || state.isGeneratingPreview
+                            className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-5 text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${!state.compositeImageUrl || state.isGeneratingPreview
                                 ? `border ${disabledButtonClass}`
                                 : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
@@ -939,7 +939,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                     {state.step === 'generate' && (
                         <button
                             onClick={onCreateNodes}
-                            className="flex h-9 items-center gap-2 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                            className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             <Film size={16} />
                             {t(language, 'createStoryboard')}

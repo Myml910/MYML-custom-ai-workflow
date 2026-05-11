@@ -270,10 +270,10 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className={`px-5 py-4 border-t flex justify-end gap-2 ${headerBorderClass} ${isDark ? 'bg-[#101210]' : 'bg-neutral-50'}`}>
+                <div className={`flex flex-nowrap justify-end gap-2 border-t px-5 py-4 ${headerBorderClass} ${isDark ? 'bg-[#101210]' : 'bg-neutral-50'}`}>
                     <button
                         onClick={onClose}
-                        className={`h-9 px-4 rounded-lg border text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${secondaryButtonClass}`}
+                        className={`h-9 shrink-0 whitespace-nowrap rounded-lg border px-4 text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${secondaryButtonClass}`}
                     >
                         {t(language, 'cancel')}
                     </button>
@@ -281,7 +281,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                     {status === 'success' ? (
                         <button
                             onClick={handleAddToCanvas}
-                            className="flex h-9 items-center gap-2 px-5 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold rounded-lg transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                            className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             <CheckCircle size={18} />
                             {t(language, 'addToCanvas')}
@@ -290,7 +290,7 @@ export const TikTokImportModal: React.FC<TikTokImportModalProps> = ({
                         <button
                             onClick={handleImport}
                             disabled={status === 'loading' || !url.trim()}
-                            className={`flex h-9 items-center gap-2 px-5 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black text-sm font-semibold rounded-lg transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:border ${disabledPrimaryClass}`}
+                            className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:border ${disabledPrimaryClass}`}
                         >
                             {status === 'loading' ? (
                                 <>

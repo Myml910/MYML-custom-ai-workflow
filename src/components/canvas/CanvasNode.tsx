@@ -97,6 +97,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [editedTitle, setEditedTitle] = React.useState(data.title || data.type);
+  const [isNodeHovered, setIsNodeHovered] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -123,32 +124,33 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       ? 'bg-[#151815] text-neutral-300 border-neutral-700 hover:bg-[#1A1D1A] hover:text-[#D8FF00] hover:border-[#D8FF00]/35'
       : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
   }`;
-  const mediaToolbarClass = `flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-[0_10px_22px_rgba(0,0,0,0.20)] backdrop-blur-md ${
+  const mediaToolbarClass = `inline-flex max-w-max flex-nowrap items-center gap-1 whitespace-nowrap rounded-lg border px-1.5 py-1 shadow-[0_10px_22px_rgba(0,0,0,0.20)] backdrop-blur-md ${
     isDark
       ? 'bg-[#151815]/95 border-neutral-700'
       : 'bg-white/95 border-neutral-200 shadow-[0_10px_22px_rgba(15,23,42,0.12)]'
   }`;
-  const mediaIconButtonClass = `flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaIconButtonClass = `flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
       ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
-  const mediaTextButtonClass = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaTextButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
       ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
-  const mediaUploadButtonClass = `flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaUploadButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
       ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
-  const mediaAccentIconButtonClass = `flex h-7 w-7 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaAccentIconButtonClass = `flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
       ? 'border-[#D8FF00]/25 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15 hover:border-[#D8FF00]/45'
       : 'border-lime-500/35 bg-lime-50 text-lime-700 hover:bg-lime-100 hover:border-lime-500/60'
   }`;
-  const mediaSeparatorClass = `w-px h-4 mx-1 ${isDark ? 'bg-neutral-600' : 'bg-neutral-200'}`;
+  const mediaSeparatorClass = `h-4 w-px shrink-0 ${isDark ? 'bg-neutral-600' : 'bg-neutral-200'}`;
+  const mediaToolbarOverlayClass = 'pointer-events-auto absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 translate-y-2 justify-center opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100';
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -162,6 +164,21 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const minEffectiveScale = 0.8;
   const effectiveScale = Math.max(zoom, minEffectiveScale);
   const localScale = effectiveScale / zoom;
+  const mediaToolbarScaleStyle = {
+    transform: `scale(${localScale})`,
+    transformOrigin: 'bottom center'
+  };
+  const nodeStackIndex = selected || isNodeHovered ? 80 : 10;
+
+  const handleNodeMouseEnter = () => {
+    setIsNodeHovered(true);
+    onMouseEnter?.();
+  };
+
+  const handleNodeMouseLeave = () => {
+    setIsNodeHovered(false);
+    onMouseLeave?.();
+  };
 
   // ============================================================================
   // EFFECTS
@@ -262,10 +279,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
-          zIndex: selected ? 50 : 10
+          zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
       >
         <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
@@ -340,25 +359,24 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
-          zIndex: selected ? 50 : 10
+          zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
       >
         <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
         {/* Relative wrapper for the Card */}
-        <div className="relative group/nodecard">
+        <div className="relative z-0 overflow-visible group/nodecard">
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
             <div
-              className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
+              className={mediaToolbarOverlayClass}
             >
               <div
-                style={{
-                  transform: `scale(${localScale})`,
-                  transformOrigin: 'bottom center'
-                }}
+                style={mediaToolbarScaleStyle}
               >
                 <div className={mediaToolbarClass}>
                 {/* Change Angle Button - Re-enable tweaking */}
@@ -370,7 +388,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label={t(language, 'changeAngle')}
                   title={t(language, 'changeAngle')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
+                  className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
                     ? angleActiveButtonClass
                     : mediaTextButtonClass
                     }`}
@@ -598,10 +616,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
-          zIndex: selected ? 50 : 10
+          zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
         onContextMenu={(e) => onContextMenu(e, data.id)}
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
       >
         <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
@@ -668,28 +688,25 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,
         transition: 'box-shadow 0.2s',
-        zIndex: selected ? 50 : 10,
+        zIndex: nodeStackIndex,
         transformOrigin: 'top left'
       }}
       onPointerDown={(e) => onNodePointerDown(e, data.id)}
       onContextMenu={(e) => onContextMenu(e, data.id)}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={handleNodeMouseEnter}
+      onMouseLeave={handleNodeMouseLeave}
     >
       <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
 
       {/* Relative wrapper for the Image Card to allow absolute positioning of controls below it */}
-      <div className="relative group/nodecard">
+      <div className="relative z-0 overflow-visible group/nodecard">
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-12 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
+            className={mediaToolbarOverlayClass}
           >
             <div
-              style={{
-                transform: `scale(${localScale})`,
-                transformOrigin: 'bottom center'
-              }}
+              style={mediaToolbarScaleStyle}
             >
               <div className={mediaToolbarClass}>
               {/* Change Angle and Upload buttons - Hidden for storyboard-generated scenes */}
@@ -704,7 +721,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label={t(language, 'changeAngle')}
                     title={t(language, 'changeAngle')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
+                    className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.angleMode
                       ? angleActiveButtonClass
                       : mediaTextButtonClass
                       }`}
@@ -891,13 +908,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         {/* Video Toolbar - Appears above the card for Video nodes on hover */}
         {data.type === NodeType.VIDEO && isSuccess && data.resultUrl && (
           <div
-            className="absolute -top-20 left-0 right-0 flex justify-center opacity-0 translate-y-2 group-hover/nodecard:opacity-100 group-hover/nodecard:translate-y-0 transition-[opacity,transform] duration-150 ease-out z-20"
+            className={mediaToolbarOverlayClass}
           >
             <div
-              style={{
-                transform: `scale(${localScale})`,
-                transformOrigin: 'bottom center'
-              }}
+              style={mediaToolbarScaleStyle}
             >
               <div className={mediaToolbarClass}>
               {/* Expand Button */}

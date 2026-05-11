@@ -104,7 +104,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
             : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
     };
 
-    const buttonBaseClass = 'w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+    const buttonBaseClass = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     // --- Handler Functions ---
 
@@ -167,7 +167,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
 
     return (
         <div
-            className={`backdrop-blur-sm rounded-xl border px-2 py-1.5 flex items-center gap-1 pointer-events-auto transition-colors duration-150 ${toolbarClass}`}
+            className={`pointer-events-auto inline-flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-xl border px-2 py-1.5 backdrop-blur-sm transition-colors duration-150 ${toolbarClass}`}
         >
             {/* Select Mode */}
             <button
@@ -224,7 +224,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                 </svg>
             </button>
 
-            <div className={`w-px h-6 mx-1 ${dividerClass}`}></div>
+            <div className={`mx-1 h-6 w-px shrink-0 ${dividerClass}`}></div>
 
             {/* Undo */}
             <button

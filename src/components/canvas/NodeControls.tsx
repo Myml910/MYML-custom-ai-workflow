@@ -1375,7 +1375,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {/* Kling V1.5 Reference Settings - For Image nodes with connected input */}
             {!isVideoNode && data.imageModel === 'kling-v1-5' && connectedImageNodes.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-neutral-800">
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">{t(language, 'referenceSettings')}</div>
+                    <div className="mb-2 text-[10px] font-semibold text-neutral-500">{t(language, 'referenceSettings')}</div>
 
                     {/* Mode Tabs */}
                     <div className="flex gap-1 mb-3 p-1 bg-neutral-800/50 rounded-lg">
@@ -1576,7 +1576,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 {/* Frame Inputs - Show when 2+ nodes are connected */}
                                 {connectedImageNodes.length >= 2 && (
                                     <div className="space-y-2">
-                                        <label className="text-[10px] text-neutral-500 uppercase tracking-wider">
+                                        <label className="text-[10px] font-semibold text-neutral-500">
                                             {videoGenerationMode === 'motion-control' ? t(language, 'inputReferences') : t(language, 'connectedFrames')}
                                             {videoGenerationMode !== 'motion-control' && <span className="text-neutral-600"> ({t(language, 'dragToReorder')})</span>}
                                         </label>

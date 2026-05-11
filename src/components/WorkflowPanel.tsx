@@ -208,10 +208,10 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
             >
                 {/* Header with Tabs */}
                 <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                    <div className="flex items-center gap-5">
+                    <div className="flex min-w-0 items-center gap-4">
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`text-[15px] font-semibold leading-5 pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`shrink-0 whitespace-nowrap pb-1 text-[15px] font-semibold leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'my'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -226,7 +226,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
 
                         <button
                             onClick={() => setActiveTab('public')}
-                            className={`text-[15px] font-semibold leading-5 pb-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`shrink-0 whitespace-nowrap pb-1 text-[15px] font-semibold leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'public'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -244,7 +244,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                         onClick={() => setIsExpanded(prev => !prev)}
                         aria-label={isExpanded ? t(language, 'collapseWorkflowsPanel') : t(language, 'expandWorkflowsPanel')}
                         aria-expanded={isExpanded}
-                        className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-neutral-100 hover:bg-[#1A1D1A]'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
@@ -309,7 +309,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                                 <button
                                                     onClick={(e) => openCoverEditor(workflow.id, e)}
-                                                    className={`group/edit p-1.5 bg-black/50 rounded-md transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                                                    className={`group/edit flex h-7 w-7 items-center justify-center rounded-md bg-black/50 transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                                         isDark
                                                             ? 'hover:bg-[#151815] hover:text-neutral-100'
                                                             : 'hover:bg-lime-600 hover:text-white'
@@ -325,7 +325,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({
                                                         e.stopPropagation();
                                                         setDeleteConfirm(workflow.id);
                                                     }}
-                                                    className="p-1.5 bg-black/50 hover:bg-red-500 rounded-md transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-black/50 transition-[background-color,transform] duration-150 hover:bg-red-500 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                                     aria-label={t(language, 'deleteWorkflowTitle')}
                                                     title={t(language, 'deleteWorkflowTitle')}
                                                 >

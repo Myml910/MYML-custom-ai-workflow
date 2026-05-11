@@ -290,13 +290,13 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     return (
         <div
-            className={`w-full backdrop-blur-sm rounded-xl border pointer-events-auto flex items-center px-3 py-2.5 gap-3 transition-colors duration-150 ${barClass}`}
+            className={`pointer-events-auto flex w-full min-w-0 flex-nowrap items-center gap-2.5 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition-colors duration-150 ${barClass}`}
         >
             {/* Left - Model Dropdown */}
-            <div className="relative flex-shrink-0" ref={modelDropdownRef}>
+            <div className="relative shrink-0" ref={modelDropdownRef}>
                 <button
                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                    className={`flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${modelButtonClass}`}
+                    className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${modelButtonClass}`}
                     title={text.selectModel}
                     aria-label={text.selectModel}
                 >
@@ -337,17 +337,17 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             </div>
 
             {/* Right - Compact Controls Group */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex shrink-0 items-center gap-1.5">
                 {/* Aspect Ratio */}
                 <div className="relative" ref={aspectDropdownRef}>
                     <button
                         onClick={() => setShowAspectDropdown(!showAspectDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                        className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
                         title={text.selectAspectRatio}
                         aria-label={text.selectAspectRatio}
                     >
                         <Crop size={10} className={accentTextClass} />
-                        <span>{selectedAspectRatio}</span>
+                        <span className="whitespace-nowrap">{selectedAspectRatio}</span>
                     </button>
 
                     {showAspectDropdown && (
@@ -374,12 +374,12 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 <div className="relative" ref={resolutionDropdownRef}>
                     <button
                         onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
-                        className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                        className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
                         title={text.selectResolution}
                         aria-label={text.selectResolution}
                     >
                         <Monitor size={10} className={accentTextClass} />
-                        <span>{selectedResolution}</span>
+                        <span className="whitespace-nowrap">{selectedResolution}</span>
                     </button>
 
                     {showResolutionDropdown && (
@@ -403,7 +403,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 </div>
 
                 {/* Batch Count */}
-                <div className={`flex items-center rounded-lg px-2 py-1.5 gap-1 text-[11px] font-medium border ${batchClass}`}>
+                <div className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2 text-[11px] font-medium ${batchClass}`}>
                     <span className="hidden sm:inline text-[10px] opacity-70">{text.batch}</span>
                     <button
                         className={`h-5 w-5 rounded-lg transition-colors duration-150 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${batchButtonClass}`}
@@ -432,7 +432,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     disabled={isGenerateDisabled}
                     title={isModelDisabled(currentModel) ? getModelDisabledReason(currentModel) : text.generate}
                     aria-label={text.generate}
-                    className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${generateButtonClass} ${disabledGenerateClass} disabled:opacity-80 disabled:cursor-not-allowed`}
+                    className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-4 text-[11px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${generateButtonClass} ${disabledGenerateClass} disabled:cursor-not-allowed disabled:opacity-80`}
                 >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                         <path d="M12 2v20M2 12h20" />

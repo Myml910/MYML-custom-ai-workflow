@@ -721,7 +721,7 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
             </div>
 
             {/* Three.js Canvas */}
-            <div className={`w-full h-[340px] rounded-xl overflow-hidden transition-all duration-200 ${isDark ? 'bg-[#111111] border border-neutral-800' : 'bg-neutral-100 border border-neutral-200'}`}>
+            <div className={`h-[340px] w-full overflow-hidden rounded-xl border transition-[background-color,border-color] duration-150 ${isDark ? 'bg-[#101210] border-neutral-800' : 'bg-neutral-100 border-neutral-200'}`}>
                 <Canvas
                     camera={{
                         position: [3.5, 2.5, 4.5],
@@ -744,7 +744,7 @@ export const OrbitCameraControl: React.FC<OrbitCameraControlProps> = ({
 
             {/* Status text */}
             <div className="flex justify-center">
-                <div className={`px-4 py-1.5 rounded-lg border text-sm transition-all duration-200 ${isDark ? 'bg-[#111111] border-[#D8FF00]/35 text-[#D8FF00]' : 'bg-lime-50 border-lime-300 text-lime-700'}`}>
+                <div className={`rounded-lg border px-4 py-1.5 text-sm transition-[background-color,border-color,color] duration-150 ${isDark ? 'bg-[#101210] border-[#D8FF00]/35 text-[#D8FF00]' : 'bg-lime-50 border-lime-300 text-lime-700'}`}>
                     {statusText}
                 </div>
             </div>

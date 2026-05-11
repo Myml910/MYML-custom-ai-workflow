@@ -226,9 +226,9 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             >
                 {/* Header */}
                 <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
-                    <div className="flex items-center gap-5">
+                    <div className="flex min-w-0 items-center gap-4">
                         <button
-                            className={`text-[15px] font-semibold leading-5 transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap pb-1 text-[15px] font-semibold leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'images'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -244,7 +244,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                         </button>
 
                         <button
-                            className={`text-[15px] font-semibold leading-5 transition-colors duration-150 pb-1 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                            className={`flex shrink-0 items-center gap-2 whitespace-nowrap pb-1 text-[15px] font-semibold leading-5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                 activeTab === 'videos'
                                     ? isDark
                                         ? 'text-[#D8FF00] border-b border-[#D8FF00]/70'
@@ -264,7 +264,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                         onClick={() => setIsExpanded(prev => !prev)}
                         aria-label={isExpanded ? t(language, 'collapseHistoryPanel') : t(language, 'expandHistoryPanel')}
                         aria-expanded={isExpanded}
-                        className={`p-2 rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             isDark
                                 ? 'text-neutral-500 hover:text-neutral-100 hover:bg-[#1A1D1A]'
                                 : 'text-neutral-400 hover:text-lime-600 hover:bg-lime-50'
@@ -390,10 +390,10 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
                             {t(language, 'deleteAssetConfirm')}
                         </p>
 
-                        <div className="flex gap-3 justify-end">
+                        <div className="flex flex-nowrap justify-end gap-2">
                             <button
                                 onClick={() => setDeleteConfirm(null)}
-                                className={`px-4 py-2 rounded-lg text-sm transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                                className={`h-9 shrink-0 whitespace-nowrap rounded-lg px-4 text-sm transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                     isDark
                                         ? 'bg-[#151815] hover:bg-[#1A1D1A] text-white border border-neutral-800'
                                         : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900'
@@ -404,7 +404,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
                             <button
                                 onClick={() => handleDelete(deleteConfirm)}
-                                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-red-600 px-4 text-sm text-white transition-[background-color,transform] duration-150 hover:bg-red-500 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                             >
                                 {t(language, 'delete')}
                             </button>

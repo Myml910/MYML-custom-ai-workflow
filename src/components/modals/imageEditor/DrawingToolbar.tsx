@@ -90,12 +90,12 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
             : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
     };
 
-    const buttonBaseClass = 'w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+    const buttonBaseClass = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     return (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50">
             <div
-                className={`backdrop-blur-sm rounded-xl border px-2 py-1.5 flex items-center gap-1 transition-colors duration-150 ${toolbarClass}`}
+                className={`inline-flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-xl border px-2 py-1.5 backdrop-blur-sm transition-colors duration-150 ${toolbarClass}`}
             >
                 {/* Brush Button with Settings Panel */}
                 <div className="relative">
@@ -119,10 +119,10 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
 
                     {/* Brush Settings Panel */}
                     {showToolSettings && drawingTool === 'brush' && (
-                        <div className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 border p-4 z-50 min-w-[220px] ${panelClass}`}>
+                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 rounded-xl border p-4 ${panelClass}`}>
                             {/* Brush Width */}
                             <div className="mb-4">
-                                <div className={`flex items-center justify-between text-sm mb-2 ${labelClass}`}>
+                                <div className={`mb-2 flex items-center justify-between gap-4 text-sm ${labelClass}`}>
                                     <span>{text.brushWidth}</span>
                                     <span>{brushWidth}</span>
                                 </div>
@@ -139,7 +139,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
 
                             {/* Preset Colors */}
                             <div className="mb-3">
-                                <div className={`text-sm mb-2 ${labelClass}`}>{text.presetColors}</div>
+                                <div className={`mb-2 text-sm ${labelClass}`}>{text.presetColors}</div>
                                 <div className="flex gap-2">
                                     {presetColors.map((color) => (
                                         <button
@@ -164,7 +164,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
 
                             {/* Custom Color */}
                             <div>
-                                <div className={`text-sm mb-2 ${labelClass}`}>{text.customColor}</div>
+                                <div className={`mb-2 text-sm ${labelClass}`}>{text.customColor}</div>
                                 <input
                                     type="color"
                                     value={brushColor}
@@ -201,10 +201,10 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
 
                     {/* Eraser Settings Panel */}
                     {showToolSettings && drawingTool === 'eraser' && (
-                        <div className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 border p-4 z-50 min-w-[220px] ${panelClass}`}>
+                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 rounded-xl border p-4 ${panelClass}`}>
                             {/* Eraser Width */}
                             <div>
-                                <div className={`flex items-center justify-between text-sm mb-2 ${labelClass}`}>
+                                <div className={`mb-2 flex items-center justify-between gap-4 text-sm ${labelClass}`}>
                                     <span>{text.eraserWidth}</span>
                                     <span>{eraserWidth}</span>
                                 </div>

@@ -321,7 +321,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                             </div>
                             <button
                                 onClick={handleLogin}
-                                className={`h-10 inline-flex items-center gap-2 px-4 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
+                                className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
                             >
                                 <TikTokIcon />
                                 {t(language, 'signInWithTikTok')}
@@ -385,12 +385,12 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                                             onClick={() => setPrivacyLevel(option.value)}
                                             disabled={status === 'posting'}
                                             aria-pressed={privacyLevel === option.value}
-                                            className={`p-3 rounded-lg border text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:opacity-60 disabled:cursor-not-allowed ${privacyLevel === option.value
+                                            className={`min-h-[74px] rounded-lg border p-3 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:cursor-not-allowed disabled:opacity-60 ${privacyLevel === option.value
                                                     ? 'border-[#D8FF00] bg-[#D8FF00]/10'
                                                     : isDark ? 'border-neutral-700 hover:border-neutral-600' : 'border-neutral-200 hover:border-neutral-300'
                                                 }`}
                                         >
-                                            <span className={`text-sm font-medium ${privacyLevel === option.value ? (isDark ? 'text-[#D8FF00]' : 'text-lime-700') : ''}`}>
+                                            <span className={`block truncate text-sm font-medium ${privacyLevel === option.value ? (isDark ? 'text-[#D8FF00]' : 'text-lime-700') : ''}`}>
                                                 {t(language, option.labelKey)}
                                             </span>
                                             <p className={`text-xs ${helperTextClass} mt-0.5`}>{t(language, option.descriptionKey)}</p>
@@ -456,11 +456,11 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className={`p-4 border-t ${dividerClass} flex justify-end gap-2`}>
+                <div className={`flex flex-nowrap justify-end gap-2 border-t p-4 ${dividerClass}`}>
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className={`h-9 px-4 rounded-lg border text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                        className={`h-9 shrink-0 whitespace-nowrap rounded-lg border px-4 text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                         {status === 'success' ? t(language, 'close') : t(language, 'cancel')}
                     </button>
@@ -469,7 +469,7 @@ export const TikTokPostModal: React.FC<TikTokPostModalProps> = ({
                         <button
                             onClick={handlePost}
                             disabled={status === 'posting' || isOverLimit || !mediaUrl}
-                            className={`h-9 inline-flex items-center gap-2 px-5 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                            className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-5 text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:opacity-60`}
                         >
                             {status === 'posting' ? (
                                 <>

@@ -349,7 +349,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                 <button
                                     onClick={() => handleRemoveScene(scene.id)}
                                     aria-label={t(language, 'removeScene')}
-                                    className="flex h-8 w-8 items-center justify-center text-neutral-600 hover:text-red-300 hover:bg-red-500/[0.08] rounded-lg transition-[background-color,color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 opacity-0 group-hover/card:opacity-100 flex-shrink-0"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-600 opacity-0 transition-[background-color,color,opacity] duration-150 hover:bg-red-500/[0.08] hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 group-hover/card:opacity-100"
                                     title={t(language, 'removeScene')}
                                 >
                                     <Trash2 size={16} />
@@ -376,7 +376,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                 <button
                                                     onClick={() => handleOptimizePrompt(scene.id)}
                                                     disabled={generatingPrompts[scene.id] || optimizingPrompts[scene.id] || !prompts[scene.id]}
-                                                    className="flex items-center gap-1.5 text-xs text-[#D8FF00] hover:text-[#e4ff3a] transition-colors disabled:cursor-not-allowed disabled:text-neutral-600"
+                                                    className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-[#D8FF00] transition-colors hover:text-[#e4ff3a] disabled:cursor-not-allowed disabled:text-neutral-600"
                                                     title={t(language, 'enhancePromptWithAI')}
                                                 >
                                                     {optimizingPrompts[scene.id] ? (
@@ -402,7 +402,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                     <button
                                                         onClick={() => handleGeneratePrompt(scene.id)}
                                                         disabled={generatingPrompts[scene.id]}
-                                                        className="pointer-events-auto flex items-center gap-2 rounded-lg text-[#D8FF00] hover:text-[#e4ff3a] transition-[color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 opacity-80 hover:opacity-100"
+                                                        className="pointer-events-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg text-[#D8FF00] opacity-80 transition-[color,opacity] duration-150 hover:text-[#e4ff3a] hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                                     >
                                                         {generatingPrompts[scene.id] ? (
                                                             <Loader2 size={14} className="animate-spin" />
@@ -423,27 +423,27 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
 
                 {/* Footer - Global Settings & Action */}
                 <div className={`px-5 py-4 border-t ${headerBorderClass} ${footerClass}`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                         {/* Settings */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
                             {/* Model Selector */}
                             <div className="flex flex-col gap-1" ref={modelDropdownRef}>
                                 <label className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wide">{t(language, 'model')}</label>
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowModelDropdown(!showModelDropdown)}
-                                        className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 min-w-[160px] justify-between ${
+                                        className={`flex h-9 min-w-[160px] shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-lg border px-3 text-xs transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                                             isDark
                                                 ? 'bg-[#151815] text-neutral-100 border-neutral-700 hover:border-neutral-600 hover:bg-[#1A1D1A]'
                                                 : 'bg-white text-neutral-900 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-100'
                                         }`}
                                     >
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex min-w-0 items-center gap-2">
                                             {currentModel.id === 'veo-3.1' ? <GoogleIcon size={14} className="text-white" /> :
                                                 currentModel.provider === 'kling' ? <KlingIcon size={16} /> :
                                                     currentModel.provider === 'hailuo' ? <HailuoIcon size={16} /> :
                                                         <Film size={14} />}
-                                            <span>{currentModel.name}</span>
+                                            <span className="truncate">{currentModel.name}</span>
                                         </div>
                                         <ChevronDown size={14} className="opacity-50" />
                                     </button>
@@ -458,9 +458,9 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                 <button
                                                     key={model.id}
                                                     onClick={() => handleModelChange(model.id)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
+                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
                                                 >
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex min-w-0 items-center gap-2">
                                                         <GoogleIcon size={14} className={settings.model === model.id ? 'text-[#D8FF00]' : 'text-neutral-400'} />
                                                         {model.name}
                                                     </div>
@@ -474,13 +474,13 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                 <button
                                                     key={model.id}
                                                     onClick={() => handleModelChange(model.id)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
+                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
                                                 >
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex min-w-0 items-center gap-2">
                                                         <KlingIcon size={16} />
                                                         {model.name}
                                                         {model.recommended && (
-                                                            <span className="text-[9px] px-1 py-0.5 bg-emerald-500/[0.10] text-emerald-300 rounded font-medium">{t(language, 'recommended')}</span>
+                                                            <span className="shrink-0 whitespace-nowrap rounded bg-emerald-500/[0.10] px-1 py-0.5 text-[9px] font-medium text-emerald-300">{t(language, 'recommended')}</span>
                                                         )}
                                                     </div>
                                                     {settings.model === model.id && <Check size={14} />}
@@ -493,9 +493,9 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                                 <button
                                                     key={model.id}
                                                     onClick={() => handleModelChange(model.id)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
+                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
                                                 >
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex min-w-0 items-center gap-2">
                                                         <HailuoIcon size={16} />
                                                         {model.name}
                                                     </div>
@@ -548,7 +548,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                             </div>
                             <button
                                 onClick={() => onCreateVideos(prompts, settings, sortedScenes.map(s => s.id))}
-                                className="flex h-9 items-center gap-2 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black pl-4 pr-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                                className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] pl-4 pr-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                             >
                                 <Play size={16} fill="currentColor" />
                                 {t(language, 'generateStoryVideos')}

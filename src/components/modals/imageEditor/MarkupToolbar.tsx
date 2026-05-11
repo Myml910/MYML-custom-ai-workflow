@@ -63,11 +63,11 @@ export const MarkupToolbar: React.FC<MarkupToolbarProps> = ({
             : 'text-neutral-700 hover:bg-neutral-100 hover:text-lime-700';
     };
 
-    const buttonBaseClass = 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+    const buttonBaseClass = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     return (
         <div
-            className={`pointer-events-auto absolute left-[calc(100%+16px)] top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-xl border p-1.5 backdrop-blur-sm transition-colors duration-150 ${panelClass}`}
+            className={`pointer-events-auto absolute left-[calc(100%+16px)] top-1/2 z-30 inline-flex -translate-y-1/2 flex-col flex-nowrap items-center gap-1 whitespace-nowrap rounded-xl border p-1.5 backdrop-blur-sm transition-colors duration-150 ${panelClass}`}
             aria-label={label.tools}
         >
             <button

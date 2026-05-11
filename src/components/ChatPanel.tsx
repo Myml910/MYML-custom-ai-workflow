@@ -368,7 +368,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <button
                             onClick={handleNewChat}
                             aria-label={t(language, 'newChat')}
-                            className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 flex items-center justify-center gap-2 ${accentButton}`}
+                            className={`flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${accentButton}`}
                         >
                             <Plus size={16} />
                             {t(language, 'newChat')}
@@ -459,7 +459,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     <button
                                         onClick={() => setShowTip(false)}
                                         aria-label={t(language, 'dismissChatTip')}
-                                        className={`h-8 px-3 rounded-lg text-sm font-medium transition-colors ${
+                                        className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors ${
                                             isDark
                                                 ? 'bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700'
                                                 : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'
@@ -538,7 +538,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     <button
                                         onClick={() => removeAttachment(media.nodeId)}
                                         aria-label={`${t(language, 'removeAttached')} ${media.type}`}
-                                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-md bg-red-500 hover:bg-red-400 text-white transition-[background-color,transform] duration-150 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-md bg-red-500 text-white transition-[background-color,transform] duration-150 hover:bg-red-400 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                     >
                                         <X size={10} aria-hidden="true" />
                                     </button>
@@ -645,7 +645,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen, languag
             onClick={onClick}
             aria-label={t(language, 'openChat')}
             aria-pressed={isOpen}
-            className="fixed bottom-6 right-6 w-12 h-12 bg-[#D8FF00] hover:bg-[#e4ff3a] rounded-xl flex items-center justify-center shadow-[0_8px_20px_rgba(216,255,0,0.12)] hover:shadow-[0_10px_22px_rgba(216,255,0,0.14)] transition-[background-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black z-50"
+            className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-xl bg-[#D8FF00] shadow-[0_8px_20px_rgba(216,255,0,0.12)] transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-[#e4ff3a] hover:shadow-[0_10px_22px_rgba(216,255,0,0.14)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
             <Sparkles size={22} className="text-black" />
         </button>

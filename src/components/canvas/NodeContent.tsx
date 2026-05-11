@@ -112,7 +112,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     };
 
     return (
-        <div className={`transition-[background-color,border-color,opacity] duration-150 ${!selected ? 'p-0 rounded-2xl overflow-hidden' : 'p-1'}`}>
+        <div className={`transition-[background-color,border-color,opacity] duration-150 ${!selected ? 'p-0 rounded-xl overflow-hidden' : 'p-1'}`}>
             {/* Hidden File Input - Always rendered for upload functionality (image types only) */}
             {isImageType && onUpload && (
                 <input
@@ -146,7 +146,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 </div>
             ) : data.type === NodeType.TEXT ? (
                 /* Text Node - Menu or Editing Mode */
-                <div className={`relative w-full bg-[#1a1a1a] rounded-2xl overflow-hidden ${selected ? 'ring-1 ring-[#D8FF00]/30' : ''}`}>
+                <div className={`relative w-full overflow-hidden rounded-xl bg-[#151815] ${selected ? 'ring-1 ring-[#D8FF00]/30' : ''}`}>
                     {data.textMode === 'editing' ? (
                         /* Editing Mode - Text Area */
                         <div className="p-4">
@@ -174,7 +174,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 <button
                                     onClick={() => onUpdate?.(data.id, { isPromptExpanded: !data.isPromptExpanded })}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:text-white hover:bg-neutral-700 rounded transition-colors"
+                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     title={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                     aria-label={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                 >
@@ -216,14 +216,14 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 /* Placeholder / Empty State for Image/Video */
                 <div className={`relative w-full aspect-[4/3] bg-[#141414] flex flex-col items-center justify-center gap-3 overflow-hidden
             ${isLoading ? 'animate-pulse' : ''} 
-            ${!selected ? 'rounded-2xl' : 'rounded-xl border border-dashed border-neutral-800'}`
+            ${!selected ? 'rounded-xl' : 'rounded-xl border border-dashed border-neutral-800'}`
                 }>
                     {/* Input Image Preview for Video Nodes */}
                     {isVideoType && inputUrl && (
                         <div className="absolute inset-0 z-0">
                             <img src={inputUrl} alt={t(language, 'inputFrame')} className="w-full h-full object-cover opacity-30 blur-sm" />
                             <div className="absolute inset-0 bg-black/40" />
-                            <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-white font-medium flex items-center gap-1">
+                            <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium text-white">
                                 <ImageIcon size={10} />
                                 {t(language, 'inputFrame')}
                             </div>
@@ -250,7 +250,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
                                         onPointerDown={(e) => e.stopPropagation()}
-                                        className="flex items-center gap-2 px-4 py-2 bg-neutral-800/80 hover:bg-neutral-700 rounded-lg text-white text-sm font-medium transition-colors"
+                                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-neutral-800/80 px-3.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     >
                                         <Upload size={16} />
                                         {t(language, 'upload')}
@@ -316,11 +316,11 @@ interface TextNodeMenuItemProps {
  */
 const TextNodeMenuItem: React.FC<TextNodeMenuItemProps> = ({ icon, label, onClick }) => (
     <button
-        className="flex items-center gap-3 w-full p-2.5 rounded-lg text-left text-neutral-400 hover:bg-[#252525] hover:text-white transition-colors"
+        className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-left text-neutral-400 transition-colors hover:bg-[#1A1D1A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onClick}
     >
         <span className="text-neutral-500">{icon}</span>
-        <span className="text-sm font-medium">{label}</span>
+        <span className="truncate text-sm font-medium">{label}</span>
     </button>
 );

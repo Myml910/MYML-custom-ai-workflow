@@ -83,25 +83,25 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
     // --- Render ---
     return (
         <div
-            className={`p-4 rounded-2xl shadow-2xl cursor-default w-[500px] transition-all duration-200 ${isDark ? 'bg-[#111111] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
+            className={`w-[500px] cursor-default rounded-xl border p-4 shadow-[0_18px_44px_rgba(0,0,0,0.34)] transition-[background-color,border-color,box-shadow] duration-150 ${isDark ? 'bg-[#151815] border-neutral-800' : 'bg-white border-neutral-200'}`}
             onPointerDown={(e) => e.stopPropagation()}
         >
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
                 <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                     3D Camera Control
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5">
                     <button
                         onClick={handleReset}
-                        className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-all duration-200 ${iconButtonClass}`}
+                        className={`flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-xs transition-[background-color,color,transform] duration-150 ${iconButtonClass}`}
                     >
                         <RotateCcw size={12} />
                         Reset
                     </button>
                     <button
                         onClick={onClose}
-                        className={`p-1.5 rounded-lg transition-all duration-200 ${iconButtonClass}`}
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 ${iconButtonClass}`}
                     >
                         <X size={18} />
                     </button>
@@ -152,7 +152,7 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
             <button
                 onClick={onGenerate}
                 disabled={isLoading}
-                className={`group w-full mt-4 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2.5 transition-all duration-200 ${isLoading
+                className={`group mt-4 flex h-10 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-lg text-sm font-semibold transition-[background-color,color,opacity,transform] duration-150 ${isLoading
                     ? 'bg-neutral-700/50 text-neutral-500 opacity-50 cursor-not-allowed'
                     : accentButtonClass
                     }`}

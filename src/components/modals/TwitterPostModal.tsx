@@ -322,7 +322,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             </div>
                             <button
                                 onClick={handleLogin}
-                                className={`h-10 inline-flex items-center gap-2 px-4 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
+                                className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
                             >
                                 <XIcon />
                                 {t(language, 'signInWithX')}
@@ -432,7 +432,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                                 href={tweetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`h-10 inline-flex items-center gap-2 px-4 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
+                                className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40`}
                             >
                                 <ExternalLink size={18} />
                                 {t(language, 'viewOnX')}
@@ -442,21 +442,21 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className={`p-4 border-t ${dividerClass} flex justify-end gap-2`}>
+                <div className={`flex flex-nowrap justify-end gap-2 border-t p-4 ${dividerClass}`}>
                     <button
                         onClick={onClose}
                         disabled={status === 'posting'}
-                        className={`h-9 px-4 rounded-lg border text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                        className={`h-9 shrink-0 whitespace-nowrap rounded-lg border px-4 text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                         {status === 'success' ? t(language, 'close') : t(language, 'cancel')}
                     </button>
 
                     {user && status !== 'success' && (
-                        <div className="flex gap-2">
+                        <div className="flex flex-nowrap gap-2">
                             <button
                                 onClick={() => handlePost(true)}
                                 disabled={status === 'posting' || isOverLimit || !tweetText.trim()}
-                                className={`h-9 inline-flex items-center gap-2 px-4 rounded-lg border text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-4 text-sm font-semibold ${secondaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:opacity-60`}
                                 title={t(language, 'postTextOnlyTitle')}
                                 aria-label={t(language, 'postTextOnlyTitle')}
                             >
@@ -465,7 +465,7 @@ export const TwitterPostModal: React.FC<TwitterPostModalProps> = ({
                             <button
                                 onClick={() => handlePost(false)}
                                 disabled={status === 'posting' || isOverLimit || !mediaUrl || !tweetText.trim()}
-                                className={`h-9 inline-flex items-center gap-2 px-5 rounded-lg text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-5 text-sm font-semibold ${primaryButtonClass} transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 disabled:cursor-not-allowed disabled:opacity-60`}
                             >
                                 {status === 'posting' ? (
                                     <>

@@ -219,7 +219,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`h-7 px-3 rounded-lg text-[11px] font-semibold leading-none whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 border motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+                        className={`h-7 shrink-0 whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold leading-none transition-[background-color,border-color,color,transform] duration-150 motion-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
                             selectedCategory === cat
                                 ? isDark
                                     ? 'bg-[#D8FF00]/90 text-black border-[#D8FF00]/70'
@@ -293,9 +293,9 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         {t(language, 'deleteAssetConfirm')}
                                     </span>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-nowrap gap-2">
                                         <button
-                                            className="h-7 px-2 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                            className="h-7 shrink-0 whitespace-nowrap rounded-md bg-red-500 px-2 text-[11px] font-medium text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
                                             onClick={(e) => handleConfirmDelete(e, asset.id)}
                                             aria-label={`${t(language, 'delete')} ${asset.name}`}
                                         >
@@ -303,7 +303,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                         </button>
 
                                         <button
-                                            className={`h-7 px-2 rounded-md text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'bg-neutral-700 hover:bg-neutral-600 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'}`}
+                                            className={`h-7 shrink-0 whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isDark ? 'bg-neutral-700 hover:bg-neutral-600 text-white' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900'}`}
                                             onClick={handleCancelDelete}
                                             aria-label={t(language, 'cancel')}
                                         >
@@ -313,7 +313,7 @@ const AssetLibraryContent: React.FC<AssetLibraryContentProps> = ({
                                 </div>
                             ) : (
                                 <button
-                                    className="absolute top-1 right-1 flex h-7 w-7 items-center justify-center bg-black/55 text-white rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] hover:bg-red-500/80 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40"
+                                    className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 hover:bg-red-500/80 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 group-hover:opacity-100"
                                     onClick={(e) => handleDeleteClick(e, asset.id)}
                                     aria-label={`${t(language, 'delete')} ${asset.name}`}
                                     title={t(language, 'delete')}
