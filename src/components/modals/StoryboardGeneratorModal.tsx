@@ -241,39 +241,39 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/65 backdrop-blur-sm motion-modal-overlay-in"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm motion-modal-overlay-in"
             />
 
             {/* Modal */}
-            <div className="relative bg-[#1a1a1a] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden border border-neutral-800 flex flex-col motion-modal-dialog-in">
+            <div className="relative bg-[#151815] rounded-xl shadow-[0_18px_44px_rgba(0,0,0,0.42)] w-full max-w-2xl max-h-[85vh] overflow-hidden border border-neutral-800 flex flex-col motion-modal-dialog-in">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-neutral-800/50 flex items-center justify-between">
+                <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.16)]">
-                            <Film size={20} className="text-white" />
+                        <div className="w-9 h-9 rounded-lg bg-[#1A1D1A] border border-neutral-800 flex items-center justify-center">
+                            <Film size={19} className="text-[#D8FF00]" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold text-white">Storyboard Generator</h2>
-                            <p className="text-xs text-neutral-500">Create scenes with AI</p>
+                            <h2 className="text-base font-semibold leading-5 text-neutral-100">Storyboard Generator</h2>
+                            <p className="text-xs leading-4 text-neutral-500">Create scenes with AI</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
                         aria-label="Close storyboard generator"
-                        className="p-2 hover:bg-neutral-800/80 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 group"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition-[background-color,color] duration-150 hover:bg-[#1A1D1A] hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group"
                     >
-                        <X size={18} className="text-neutral-500 group-hover:text-neutral-300 transition-colors" />
+                        <X size={18} className="transition-colors" />
                     </button>
                 </div>
 
                 {/* Step Indicator - Redesigned with connected dots */}
-                <div className="px-6 py-4 border-b border-neutral-800/50">
+                <div className="px-5 py-4 border-b border-neutral-800">
                     <div className="flex items-center justify-between relative">
                         {/* Progress line background */}
                         <div className="absolute top-3 left-0 right-0 h-0.5 bg-neutral-800" />
                         {/* Progress line filled */}
                         <div
-                            className="absolute top-3 left-0 right-0 h-0.5 origin-left bg-gradient-to-r from-violet-500 to-purple-500 transition-transform duration-300 ease-out"
+                            className="absolute top-3 left-0 right-0 h-0.5 origin-left bg-[#D8FF00]/70 transition-transform duration-300 ease-out"
                             style={{ transform: `scaleX(${currentStepIndex / (stepDefinitions.length - 1)})` }}
                         />
 
@@ -292,11 +292,11 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     key={step.id}
                                     onClick={() => isAccessible && onSetStep(step.id as StoryboardState['step'])}
                                     disabled={!isAccessible}
-                                    className="flex flex-col items-center gap-1.5 relative z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 rounded-lg"
+                                    className="flex flex-col items-center gap-1.5 relative z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 rounded-lg"
                                 >
                                     {/* Step dot */}
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,transform] duration-150 ${isCurrent
-                                        ? 'bg-violet-500 text-white shadow-[0_0_10px_rgba(139,92,246,0.18)] scale-105'
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow] duration-150 ${isCurrent
+                                        ? 'bg-[#D8FF00] text-black shadow-[0_0_8px_rgba(216,255,0,0.14)]'
                                         : isCompleted
                                             ? 'bg-emerald-500 text-white'
                                             : isAccessible
@@ -311,7 +311,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     </div>
                                     {/* Step label */}
                                     <span className={`text-[10px] font-medium transition-colors duration-200 ${isCurrent
-                                        ? 'text-violet-400'
+                                        ? 'text-[#D8FF00]'
                                         : isCompleted
                                             ? 'text-emerald-400'
                                             : isAccessible
@@ -328,8 +328,8 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
                 {/* Characters Step Header - Fixed outside scroll area */}
                 {state.step === 'characters' && (
-                    <div className="px-6 pt-6 pb-4 border-b border-neutral-800/30">
-                        <h3 className="text-white font-medium mb-2">Select Reference Images</h3>
+                    <div className="px-5 pt-5 pb-4 border-b border-neutral-800">
+                        <h3 className="text-neutral-100 font-semibold mb-2">Select Reference Images</h3>
                         <p className="text-neutral-400 text-sm mb-4">
                             Choose up to 3 reference images from your Asset Library to guide the AI.
                         </p>
@@ -339,7 +339,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             <div className="relative">
                                 <button
                                     onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-neutral-900 border border-neutral-700 rounded-xl text-sm text-white hover:border-neutral-600 transition-colors"
+                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-[#101210] border border-neutral-700 rounded-lg text-sm text-neutral-100 hover:border-neutral-600 hover:bg-[#1A1D1A] transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                 >
                                     <span className="flex items-center gap-2">
                                         <span className="text-neutral-400">Category:</span>
@@ -350,7 +350,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 </button>
 
                                 {isCategoryDropdownOpen && (
-                                    <div className="absolute z-20 w-full mt-1 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden">
+                                    <div className="absolute z-20 w-full mt-1 bg-[#151815] border border-neutral-700 rounded-lg shadow-[0_16px_36px_rgba(0,0,0,0.38)] overflow-hidden">
                                         {availableCategories.map(category => (
                                             <button
                                                 key={category}
@@ -359,8 +359,8 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     setIsCategoryDropdownOpen(false);
                                                 }}
                                                 className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${selectedCategory === category
-                                                    ? 'bg-violet-600 text-white'
-                                                    : 'text-neutral-300 hover:bg-neutral-800'
+                                                    ? 'bg-[#D8FF00]/[0.08] text-[#D8FF00]'
+                                                    : 'text-neutral-300 hover:bg-[#1A1D1A]'
                                                     }`}
                                             >
                                                 <span className="flex items-center justify-between">
@@ -381,10 +381,10 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                 )}
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-5">
                     {/* Error Message */}
                     {state.error && (
-                        <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-red-400 text-sm">
+                        <div className="mb-4 p-3 bg-red-500/[0.08] border border-red-500/50 rounded-lg text-red-300 text-sm">
                             {state.error}
                         </div>
                     )}
@@ -395,7 +395,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                         <div>
                             {isLoadingAssets ? (
                                 <div className="flex items-center justify-center py-12">
-                                    <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                                    <Loader2 className="w-6 h-6 text-[#D8FF00] animate-spin" />
                                 </div>
                             ) : characterAssets.length === 0 ? (
                                 <div className="text-center py-12 text-neutral-500">
@@ -417,9 +417,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                             <button
                                                 key={character.id}
                                                 onClick={() => onToggleCharacter(character)}
-                                                className={`relative aspect-square rounded-xl overflow-hidden transition-[box-shadow,filter,opacity,transform] duration-150 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${isSelected
-                                                    ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-[#1a1a1a] scale-[1.02]'
-                                                    : 'hover:scale-[1.01]'
+                                                className={`relative aspect-square rounded-lg overflow-hidden transition-[box-shadow,filter,opacity] duration-150 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${isSelected
+                                                    ? 'ring-2 ring-[#D8FF00]/60 ring-offset-2 ring-offset-[#151815]'
+                                                    : ''
                                                     }`}
                                             >
                                                 {/* Image */}
@@ -439,15 +439,15 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
                                                 {/* Selection indicator */}
                                                 <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-[background-color,opacity,transform] duration-150 ${isSelected
-                                                    ? 'bg-violet-500 scale-100 opacity-100'
-                                                    : 'bg-black/40 backdrop-blur-sm scale-90 opacity-0 group-hover:opacity-100 border border-white/20'
+                                                    ? 'bg-[#D8FF00] opacity-100'
+                                                    : 'bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 border border-white/20'
                                                     }`}>
-                                                    <Check size={12} className="text-white" strokeWidth={3} />
+                                                    <Check size={12} className="text-black" strokeWidth={3} />
                                                 </div>
 
                                                 {/* Hover overlay */}
                                                 <div className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${isSelected
-                                                    ? 'bg-violet-500/10 opacity-100'
+                                                    ? 'bg-[#D8FF00]/[0.08] opacity-100'
                                                     : 'bg-white/5 opacity-0 group-hover:opacity-100'
                                                     }`} />
                                             </button>
@@ -468,7 +468,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
                             {/* Selected Reference Images - clickable to insert @ mention */}
                             {state.selectedCharacters.length > 0 && (
-                                <div className="mb-4 p-3 bg-neutral-900/50 rounded-xl border border-neutral-800">
+                                <div className="mb-4 p-3 bg-[#101210] rounded-lg border border-neutral-800">
                                     <p className="text-xs text-neutral-400 mb-2">
                                         Selected references — click to insert @mention in story:
                                     </p>
@@ -480,7 +480,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     const mention = `@${asset.name}`;
                                                     onSetStory(state.story + (state.story.endsWith(' ') || state.story === '' ? '' : ' ') + mention + ' ');
                                                 }}
-                                                className="flex items-center gap-2 px-2 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors group"
+                                                className="flex items-center gap-2 px-2 py-1.5 bg-[#151815] hover:bg-[#1A1D1A] border border-neutral-800 rounded-lg transition-[background-color,border-color,color] duration-150 group"
                                             >
                                                 <img
                                                     src={asset.url}
@@ -502,7 +502,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             {/* Scene Count Slider */}
                             <div className="mb-4">
                                 <label className="block text-sm text-neutral-300 mb-2">
-                                    Number of Scenes: <span className="text-purple-400 font-medium">{state.sceneCount}</span>
+                                    Number of Scenes: <span className="text-[#D8FF00] font-medium">{state.sceneCount}</span>
                                 </label>
                                 <input
                                     type="range"
@@ -510,7 +510,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     max={10}
                                     value={state.sceneCount}
                                     onChange={(e) => onSetSceneCount(parseInt(e.target.value))}
-                                    className="w-full accent-purple-500"
+                                    className="w-full accent-[#D8FF00]"
                                 />
                                 <div className="flex justify-between text-xs text-neutral-500 mt-1">
                                     <span>1</span>
@@ -522,7 +522,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             <button
                                 onClick={onBrainstormStory}
                                 disabled={state.isBrainstorming}
-                                className="mb-3 flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 transition-colors group"
+                                className="mb-3 flex items-center gap-2 text-sm text-[#D8FF00] hover:text-[#e4ff3a] transition-colors group disabled:cursor-not-allowed disabled:text-neutral-600"
                             >
                                 {state.isBrainstorming ? (
                                     <>
@@ -558,8 +558,8 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
 
                                 {/* Mention Picker Dropdown */}
                                 {showMentionPicker && mentionSuggestions.length > 0 && (
-                                    <div className="absolute left-4 top-10 w-64 bg-neutral-900 border border-neutral-700 rounded-lg shadow-2xl overflow-hidden z-50">
-                                        <div className="text-[10px] text-neutral-500 px-3 py-1 border-b border-neutral-700/50 bg-neutral-900">
+                                    <div className="absolute left-4 top-10 w-64 bg-[#151815] border border-neutral-700 rounded-lg shadow-[0_16px_36px_rgba(0,0,0,0.38)] overflow-hidden z-50">
+                                        <div className="text-[10px] text-neutral-500 px-3 py-1 border-b border-neutral-700/50 bg-[#101210]">
                                             Select reference (↑↓ to navigate, Enter to select)
                                         </div>
                                         <div className="max-h-48 overflow-y-auto">
@@ -569,8 +569,8 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                     onClick={() => insertMention(asset)}
                                                     onMouseEnter={() => setMentionIndex(index)}
                                                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${index === mentionIndex
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'hover:bg-neutral-800 text-neutral-300'
+                                                        ? 'bg-[#D8FF00]/[0.08] text-[#D8FF00]'
+                                                        : 'hover:bg-[#1A1D1A] text-neutral-300'
                                                         }`}
                                                 >
                                                     <img
@@ -595,7 +595,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 <button
                                     onClick={onOptimizeStory}
                                     disabled={state.isOptimizing || !state.story.trim()}
-                                    className={`text-xs flex items-center gap-1.5 transition-colors ${state.story.trim() ? 'text-purple-400 hover:text-purple-300' : 'text-neutral-600 cursor-not-allowed'
+                                    className={`text-xs flex items-center gap-1.5 transition-colors ${state.story.trim() ? 'text-[#D8FF00] hover:text-[#e4ff3a]' : 'text-neutral-600 cursor-not-allowed'
                                         }`}
                                 >
                                     {state.isOptimizing ? (
@@ -621,9 +621,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 {state.isGenerating ? (
                                     // SKELETON LOADERS
                                     Array.from({ length: state.sceneCount }).map((_, i) => (
-                                        <div key={i} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 relative overflow-hidden">
+                                        <div key={i} className="bg-[#101210] border border-neutral-800 rounded-lg p-4 relative overflow-hidden">
                                             {/* Shimmer Effect */}
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent animate-[pulse_2s_infinite]" />
+                                            <div className="absolute inset-0 bg-neutral-800/20 animate-[pulse_2s_infinite]" />
 
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="h-4 w-20 bg-neutral-800/50 rounded animate-pulse" />
@@ -639,7 +639,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                                 <div className="h-3 w-4/6 bg-neutral-800/50 rounded animate-pulse" />
                                             </div>
 
-                                            <div className="flex items-center justify-center text-purple-400/50 text-xs font-medium gap-2 pt-2">
+                                            <div className="flex items-center justify-center text-[#D8FF00]/60 text-xs font-medium gap-2 pt-2">
                                                 <Loader2 size={12} className="animate-spin" />
                                                 Creating Scene {i + 1}...
                                             </div>
@@ -650,10 +650,10 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     state.scripts.map((script, index) => (
                                         <div
                                             key={index}
-                                            className="bg-neutral-900 border border-neutral-700 rounded-xl p-4"
+                                            className="bg-[#101210] border border-neutral-700 rounded-lg p-4"
                                         >
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="text-purple-400 text-sm font-medium">
+                                                <span className="text-[#D8FF00] text-sm font-medium">
                                                     Scene {script.sceneNumber}
                                                 </span>
                                                 <div className="flex items-center gap-2 text-xs text-neutral-500">
@@ -678,7 +678,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                             ) : (
                                                 <div
                                                     onClick={() => setEditingScriptIndex(index)}
-                                                    className="cursor-pointer hover:bg-neutral-800 rounded-lg -m-2 p-2 transition-colors group relative"
+                                                    className="cursor-pointer hover:bg-[#1A1D1A] rounded-lg -m-2 p-2 transition-colors group relative"
                                                 >
                                                     <StoryInput
                                                         value={script.description}
@@ -704,11 +704,11 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 Review the composite storyboard. This image will be used as a reference to generate individual scenes with consistent characters and environments.
                             </p>
 
-                            <div className="flex-1 bg-neutral-900 rounded-xl border border-neutral-700 overflow-hidden flex items-center justify-center p-4 relative group">
+                            <div className="flex-1 bg-[#101210] rounded-lg border border-neutral-700 overflow-hidden flex items-center justify-center p-4 relative group">
                                 {state.isGeneratingPreview ? (
                                     <div className="text-center">
-                                        <Loader2 size={48} className="animate-spin text-purple-500 mx-auto mb-4" />
-                                        <p className="text-white font-medium">Generating Preview...</p>
+                                        <Loader2 size={48} className="animate-spin text-[#D8FF00] mx-auto mb-4" />
+                                        <p className="text-neutral-100 font-medium">Generating Preview...</p>
                                         <p className="text-neutral-400 text-sm mt-2">Creating a cohesive storyboard with Nano Banana Pro</p>
                                     </div>
                                 ) : state.compositeImageUrl ? (
@@ -721,7 +721,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={onRegenerateComposite}
-                                                className="bg-black/70 hover:bg-black/90 text-white px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm flex items-center gap-2 border border-white/10"
+                                                className="bg-black/70 hover:bg-black/90 text-neutral-100 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm flex items-center gap-2 border border-white/10 transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                             >
                                                 <Wand2 size={12} />
                                                 Regenerate
@@ -733,7 +733,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                         <p>No preview available</p>
                                         <button
                                             onClick={onGenerateComposite}
-                                            className="mt-4 text-purple-400 hover:text-purple-300 text-sm underline"
+                                            className="mt-4 text-[#D8FF00] hover:text-[#e4ff3a] text-sm underline transition-colors"
                                         >
                                             Generate Preview
                                         </button>
@@ -751,21 +751,21 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 Determine the final output. The individual scenes will be extracted from your preview image.
                             </p>
 
-                            <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-4">
-                                <h4 className="text-white text-sm font-medium mb-2">Summary</h4>
+                            <div className="bg-[#101210] border border-neutral-700 rounded-lg p-4">
+                                <h4 className="text-neutral-100 text-sm font-medium mb-2">Summary</h4>
                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div className="text-neutral-400">Characters:</div>
-                                    <div className="text-white">
+                                    <div className="text-neutral-100">
                                         {state.selectedCharacters.length > 0
                                             ? state.selectedCharacters.map(c => c.name).join(', ')
                                             : 'None selected'}
                                     </div>
                                     <div className="text-neutral-400">Scenes:</div>
-                                    <div className="text-white">{state.scripts.length}</div>
+                                    <div className="text-neutral-100">{state.scripts.length}</div>
                                     <div className="text-neutral-400">Model:</div>
-                                    <div className="text-white">Nano Banana Pro</div>
+                                    <div className="text-neutral-100">Nano Banana Pro</div>
                                     <div className="text-neutral-400">Preview:</div>
-                                    <div className="text-white">{state.compositeImageUrl ? 'Generated' : 'Not available'}</div>
+                                    <div className="text-neutral-100">{state.compositeImageUrl ? 'Generated' : 'Not available'}</div>
                                 </div>
                             </div>
                         </div>
@@ -773,7 +773,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-neutral-800 flex items-center justify-between">
+                <div className="px-5 py-4 border-t border-neutral-800 bg-[#101210] flex items-center justify-between">
                     {/* Back Button */}
                     <button
                         onClick={() => {
@@ -783,9 +783,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                             else if (state.step === 'generate') onSetStep('preview');
                         }}
                         disabled={state.step === 'characters'}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${state.step === 'characters'
-                            ? 'text-neutral-600 cursor-not-allowed'
-                            : 'text-neutral-300 hover:bg-neutral-800'
+                        className={`flex h-9 items-center gap-2 px-4 rounded-lg border text-sm font-medium transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${state.step === 'characters'
+                            ? 'border-neutral-800 bg-neutral-900 text-neutral-600 cursor-not-allowed'
+                            : 'border-neutral-700 bg-[#151815] text-neutral-300 hover:border-neutral-600 hover:bg-[#1A1D1A] hover:text-neutral-100'
                             }`}
                     >
                         <ChevronLeft size={16} />
@@ -803,7 +803,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                     {state.step === 'characters' && (
                         <button
                             onClick={() => onSetStep('story')}
-                            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 shadow-[0_6px_16px_rgba(124,58,237,0.16)] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)]"
+                            className="flex h-9 items-center gap-2 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             Next
                             <ChevronRight size={16} />
@@ -814,9 +814,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                         <button
                             onClick={onGenerateScripts}
                             disabled={state.isGenerating || !state.story.trim()}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${state.isGenerating || !state.story.trim()
-                                ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-[0_6px_16px_rgba(124,58,237,0.16)] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)]'
+                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGenerating || !state.story.trim()
+                                ? 'border border-neutral-700 bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                                : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
                         >
                             {state.isGenerating ? (
@@ -843,9 +843,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                 }
                             }}
                             disabled={state.isGeneratingPreview}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${state.isGeneratingPreview
-                                ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-[0_6px_16px_rgba(124,58,237,0.16)] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)]'
+                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${state.isGeneratingPreview
+                                ? 'border border-neutral-700 bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                                : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
                         >
                             {state.isGeneratingPreview ? (
@@ -870,9 +870,9 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                         <button
                             onClick={() => onSetStep('generate')}
                             disabled={!state.compositeImageUrl || state.isGeneratingPreview}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${!state.compositeImageUrl || state.isGeneratingPreview
-                                ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-[0_6px_16px_rgba(124,58,237,0.16)] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)]'
+                            className={`flex h-9 items-center gap-2 px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${!state.compositeImageUrl || state.isGeneratingPreview
+                                ? 'border border-neutral-700 bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                                : 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black'
                                 }`}
                         >
                             Next <ChevronRight size={16} />
@@ -882,7 +882,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                     {state.step === 'generate' && (
                         <button
                             onClick={onCreateNodes}
-                            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 shadow-[0_6px_16px_rgba(124,58,237,0.16)] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)]"
+                            className="flex h-9 items-center gap-2 bg-[#D8FF00] hover:bg-[#e4ff3a] text-black px-5 rounded-lg text-sm font-semibold transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                         >
                             <Film size={16} />
                             Create Storyboard
