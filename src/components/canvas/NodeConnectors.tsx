@@ -5,7 +5,7 @@
  * Handles pointer events for drag-to-connect functionality.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Language, t } from '../../i18n/translations';
 
@@ -20,145 +20,109 @@ interface NodeConnectorsProps {
 // PLUS BUTTON MAGNET CONFIG
 // ============================================================================
 
-// Controls how far from the plus button the cursor can be before the button starts following.
-// This radius now scales with the rendered canvas/page scale.
-const MAGNET_RADIUS = 90;
-
-// Controls how close the button follows the cursor.
-// 0.75 = noticeable follow, not fully sticking to cursor.
-const FOLLOW_RATIO = 0.75;
-
+const MAGNET_RADIUS = 88;
+const FOLLOW_RATIO = 0.42;
 const IDLE_SCALE = 1;
-const HOVER_SCALE = 1.08;
-
-// Lower = softer/slower. Higher = faster/snappier.
-const FOLLOW_EASE = 0.18;
+const HOVER_SCALE = 1.045;
 
 const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
 };
 
 // ============================================================================
-// STABLE MAGNET HOOK
+// LOCAL MAGNET HOOK
 // ============================================================================
 
-const useStableMagnet = () => {
+const useLocalMagnet = () => {
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const buttonRef = useRef<HTMLButtonElement | null>(null);
     const frameRef = useRef<number | null>(null);
-
-    const currentRef = useRef({
-        x: 0,
-        y: 0,
-        scale: IDLE_SCALE
+    const pointerRef = useRef<{ x: number; y: number } | null>(null);
+    const boundsRef = useRef({
+        centerX: 0,
+        centerY: 0,
+        radius: MAGNET_RADIUS
     });
 
-    useEffect(() => {
-        const wrapper = wrapperRef.current;
+    const applyTransform = (x: number, y: number, scale: number) => {
         const button = buttonRef.current;
+        if (!button) return;
 
-        if (!wrapper || !button) return;
+        button.style.setProperty('--magnet-x', `${x}px`);
+        button.style.setProperty('--magnet-y', `${y}px`);
+        button.style.setProperty('--magnet-scale', `${scale}`);
+    };
 
-        const applyTransform = () => {
-            const current = currentRef.current;
+    const resetTransform = () => {
+        if (frameRef.current !== null) {
+            window.cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
+        }
 
-            button.style.setProperty('--magnet-x', `${current.x}px`);
-            button.style.setProperty('--magnet-y', `${current.y}px`);
-            button.style.setProperty('--magnet-scale', `${current.scale}`);
+        pointerRef.current = null;
+        applyTransform(0, 0, IDLE_SCALE);
+    };
+
+    const refreshBounds = () => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+
+        const rect = wrapper.getBoundingClientRect();
+        const renderedScale = Math.max(rect.width / Math.max(wrapper.offsetWidth, 1), 0.01);
+
+        boundsRef.current = {
+            centerX: rect.left + rect.width / 2,
+            centerY: rect.top + rect.height / 2,
+            radius: MAGNET_RADIUS * renderedScale
         };
+    };
 
-        const setTransform = (
-            targetX: number,
-            targetY: number,
-            targetScale: number
-        ) => {
-            const current = currentRef.current;
+    const updateFromPointer = () => {
+        frameRef.current = null;
 
-            current.x += (targetX - current.x) * FOLLOW_EASE;
-            current.y += (targetY - current.y) * FOLLOW_EASE;
-            current.scale += (targetScale - current.scale) * FOLLOW_EASE;
+        if (!pointerRef.current) return;
 
-            if (Math.abs(current.x) < 0.001) current.x = 0;
-            if (Math.abs(current.y) < 0.001) current.y = 0;
+        const { centerX, centerY, radius } = boundsRef.current;
+        const dx = pointerRef.current.x - centerX;
+        const dy = pointerRef.current.y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-            applyTransform();
-        };
+        if (distance > radius) {
+            applyTransform(0, 0, IDLE_SCALE);
+            return;
+        }
 
-        const resetTransform = () => {
-            currentRef.current = {
-                x: 0,
-                y: 0,
-                scale: IDLE_SCALE
-            };
+        const strength = clamp(1 - Math.max(distance, 1) / radius, 0, 1);
+        const offsetX = dx * FOLLOW_RATIO * strength;
+        const offsetY = dy * FOLLOW_RATIO * strength;
+        const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
 
-            applyTransform();
-        };
+        applyTransform(offsetX, offsetY, scale);
+    };
 
-        const handleMouseMove = (e: MouseEvent) => {
-            if (frameRef.current !== null) return;
+    const handlePointerEnter = () => {
+        refreshBounds();
+    };
 
-            frameRef.current = window.requestAnimationFrame(() => {
-                frameRef.current = null;
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        pointerRef.current = { x: e.clientX, y: e.clientY };
 
-                // Use wrapper center, not the moving button center.
-                // This prevents feedback jitter.
-                const rect = wrapper.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
+        if (frameRef.current !== null) return;
 
-                const dx = e.clientX - centerX;
-                const dy = e.clientY - centerY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+        frameRef.current = window.requestAnimationFrame(updateFromPointer);
+    };
 
-                /**
-                 * Detect rendered scale:
-                 * - rect.width is the actual screen-rendered size
-                 * - wrapper.offsetWidth is the local CSS size before transform
-                 *
-                 * This makes the magnet trigger radius change with page/canvas zoom.
-                 */
-                const renderedScale = Math.max(
-                    rect.width / Math.max(wrapper.offsetWidth, 1),
-                    0.01
-                );
-
-                const effectiveMagnetRadius = MAGNET_RADIUS * renderedScale;
-
-                if (distance > effectiveMagnetRadius) {
-                    setTransform(0, 0, IDLE_SCALE);
-                    return;
-                }
-
-                const safeDistance = Math.max(distance, 1);
-                const strength = clamp(1 - safeDistance / effectiveMagnetRadius, 0, 1);
-
-                /**
-                 * Do not divide by renderedScale here.
-                 * This makes the follow distance change naturally with page/canvas zoom.
-                 */
-                const offsetX = dx * FOLLOW_RATIO;
-                const offsetY = dy * FOLLOW_RATIO;
-
-                const scale = IDLE_SCALE + strength * (HOVER_SCALE - IDLE_SCALE);
-
-                setTransform(offsetX, offsetY, scale);
-            });
-        };
-
-        window.addEventListener('mousemove', handleMouseMove, { passive: true });
-
+    const handlePointerLeave = () => {
         resetTransform();
+    };
 
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-
-            if (frameRef.current !== null) {
-                window.cancelAnimationFrame(frameRef.current);
-            }
-        };
-    }, []);
-
-    return { wrapperRef, buttonRef };
+    return {
+        wrapperRef,
+        buttonRef,
+        handlePointerEnter,
+        handlePointerMove,
+        handlePointerLeave
+    };
 };
 
 // ============================================================================
@@ -179,21 +143,30 @@ const MagneticConnectorButton: React.FC<{
     language
 }) => {
     const isDark = canvasTheme === 'dark';
-    const { wrapperRef, buttonRef } = useStableMagnet();
+    const {
+        wrapperRef,
+        buttonRef,
+        handlePointerEnter,
+        handlePointerMove,
+        handlePointerLeave
+    } = useLocalMagnet();
 
     const sideClassName = side === 'left'
-        ? '-left-12 top-1/2 -translate-y-1/2'
-        : '-right-12 top-1/2 -translate-y-1/2';
+        ? '-left-[72px] top-1/2 -translate-y-1/2'
+        : '-right-[72px] top-1/2 -translate-y-1/2';
 
     const themeClassName = isDark
-        ? 'border-neutral-700 bg-[#0f0f0f] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00]/80 hover:bg-[#151515] hover:shadow-[0_0_10px_rgba(216,255,0,0.22)]'
-        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:shadow-[0_0_10px_rgba(132,204,22,0.14)] shadow-sm';
+        ? 'border-neutral-700 bg-[#101210] text-neutral-400 hover:text-[#D8FF00] hover:border-[#D8FF00]/70 hover:bg-[#151815]'
+        : 'border-neutral-300 bg-white text-neutral-500 hover:text-lime-600 hover:border-lime-500 hover:bg-lime-50';
     const connectorLabel = side === 'left' ? t(language, 'connectInput') : t(language, 'connectOutput');
 
     return (
         <div
             ref={wrapperRef}
-            className={`absolute w-12 h-12 flex items-center justify-center opacity-0 group-hover/node:opacity-100 z-10 transition-opacity duration-150 ${sideClassName}`}
+            onPointerEnter={handlePointerEnter}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            className={`absolute w-24 h-24 flex items-center justify-center opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto z-10 transition-opacity duration-150 ${sideClassName}`}
         >
             <button
                 ref={buttonRef}
@@ -202,9 +175,11 @@ const MagneticConnectorButton: React.FC<{
                     onConnectorDown(e, nodeId, side);
                 }}
                 aria-label={connectorLabel}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${themeClassName}`}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-crosshair transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${themeClassName}`}
                 style={{
                     transform: 'translate(var(--magnet-x, 0px), var(--magnet-y, 0px)) scale(var(--magnet-scale, 1))',
+                    transitionProperty: 'background-color, border-color, color, opacity, transform',
+                    transitionDuration: '150ms',
                     willChange: 'transform'
                 }}
                 title={connectorLabel}
