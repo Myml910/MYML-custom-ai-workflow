@@ -36,8 +36,10 @@ const CONNECTION_COLORS = {
         running: '#CFF75A',
         error: '#F59E0B',
         deleteSurface: 'rgba(18, 20, 18, 0.94)',
-        deleteBorder: 'rgba(216, 255, 0, 0.18)',
+        deleteBorder: 'rgba(216, 255, 0, 0.80)',
         deleteGlyph: 'rgba(255, 255, 255, 0.70)',
+        deleteHalo: 'rgba(216, 255, 0, 0.18)',
+        deleteSignal: 'rgba(216, 255, 0, 0.50)',
         deleteFocusBorder: 'rgba(216, 255, 0, 0.28)',
         deleteFocusGlyph: 'rgba(255, 255, 255, 0.82)',
         deleteDangerSurface: 'rgba(127, 29, 29, 0.22)',
@@ -53,8 +55,10 @@ const CONNECTION_COLORS = {
         running: '#65A30D',
         error: '#D97706',
         deleteSurface: 'rgba(248, 250, 244, 0.96)',
-        deleteBorder: 'rgba(77, 124, 15, 0.20)',
+        deleteBorder: 'rgba(90, 125, 0, 0.76)',
         deleteGlyph: 'rgba(15, 23, 42, 0.68)',
+        deleteHalo: 'rgba(90, 125, 0, 0.16)',
+        deleteSignal: 'rgba(90, 125, 0, 0.50)',
         deleteFocusBorder: 'rgba(77, 124, 15, 0.30)',
         deleteFocusGlyph: 'rgba(15, 23, 42, 0.82)',
         deleteDangerSurface: 'rgba(254, 226, 226, 0.92)',
@@ -79,7 +83,7 @@ const DELETE_PATH_SAMPLES = 48;
 const DELETE_MANUAL_SNAP_MS = 110;
 const DELETE_MANUAL_FOLLOW_MS = 60;
 const DELETE_RETURN_MS = 120;
-const CRUISING_DOT_RADIUS = 6.75;
+const CRUISING_DOT_RADIUS = 7.25;
 const CRUISING_DOT_OPACITY = 0.62;
 
 const clamp = (value: number, min: number, max: number) => {
@@ -113,9 +117,11 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
     const sensorPathRef = useRef<SVGPathElement | null>(null);
     const buttonRootRef = useRef<SVGGElement | null>(null);
     const frameRef = useRef<number | null>(null);
+    const manualFrameRef = useRef<number | null>(null);
     const returnTimerRef = useRef<number | null>(null);
     const animationStartRef = useRef<number | null>(null);
     const pathLengthRef = useRef<number | null>(null);
+    const currentProgressRef = useRef(0.5);
     const isManualPositionInitializedRef = useRef(false);
     const isManualRef = useRef(false);
     const isReducedMotionRef = useRef(false);
@@ -204,21 +210,16 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
         };
     };
 
-    const setButtonAtPoint = (
-        point: { x: number; y: number },
-        transitionMs = 0
-    ) => {
+    const setButtonAtPoint = (point: { x: number; y: number }) => {
         const buttonElement = buttonRootRef.current;
         if (!buttonElement || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
 
-        buttonElement.style.transition = transitionMs > 0
-            ? `transform ${transitionMs}ms cubic-bezier(0.2, 0.8, 0.2, 1)`
-            : 'none';
+        buttonElement.style.transition = 'none';
         buttonElement.style.transform = `translate(${point.x}px, ${point.y}px)`;
         return true;
     };
 
-    const setButtonAtProgress = (progress: number, transitionMs = 0) => {
+    const setButtonAtProgress = (progress: number) => {
         const pathElement = sensorPathRef.current;
         if (!pathElement) return false;
 
@@ -229,7 +230,61 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
         const point = getPointAtProgress(pathElement, totalLength, clampedProgress);
         if (!point) return false;
 
-        return setButtonAtPoint(point, transitionMs);
+        if (!setButtonAtPoint(point)) return false;
+
+        currentProgressRef.current = clampedProgress;
+        return true;
+    };
+
+    const cancelManualProgress = () => {
+        if (manualFrameRef.current !== null) {
+            window.cancelAnimationFrame(manualFrameRef.current);
+            manualFrameRef.current = null;
+        }
+    };
+
+    const animateProgressTo = (
+        targetProgress: number,
+        durationMs: number,
+        onComplete?: () => void
+    ) => {
+        cancelManualProgress();
+
+        const startProgress = currentProgressRef.current;
+        const startTime = performance.now();
+        const safeDuration = isReducedMotionRef.current ? 0 : Math.max(durationMs, 0);
+
+        if (safeDuration === 0) {
+            if (setButtonAtProgress(targetProgress)) {
+                onComplete?.();
+                return true;
+            }
+
+            return false;
+        }
+
+        const tick = (timestamp: number) => {
+            const linearProgress = clamp((timestamp - startTime) / safeDuration, 0, 1);
+            const easedProgress = 1 - Math.pow(1 - linearProgress, 3);
+            const nextProgress = startProgress + (targetProgress - startProgress) * easedProgress;
+
+            if (!setButtonAtProgress(nextProgress)) {
+                manualFrameRef.current = null;
+                return;
+            }
+
+            if (linearProgress < 1) {
+                manualFrameRef.current = window.requestAnimationFrame(tick);
+                return;
+            }
+
+            manualFrameRef.current = null;
+            setButtonAtProgress(targetProgress);
+            onComplete?.();
+        };
+
+        manualFrameRef.current = window.requestAnimationFrame(tick);
+        return true;
     };
 
     const getSvgPointFromMouse = (e: React.MouseEvent<SVGPathElement>) => {
@@ -286,19 +341,13 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
             return false;
         }
 
-        const point = getPointAtProgress(
-            pathElement,
-            totalLength,
-            clamp(closestProgress, DELETE_INTERACTIVE_START, DELETE_INTERACTIVE_END)
-        );
-        if (!point) return false;
-
+        const targetProgress = clamp(closestProgress, DELETE_INTERACTIVE_START, DELETE_INTERACTIVE_END);
         const transitionMs = isManualPositionInitializedRef.current
             ? DELETE_MANUAL_FOLLOW_MS
             : DELETE_MANUAL_SNAP_MS;
 
         isManualPositionInitializedRef.current = true;
-        return setButtonAtPoint(point, transitionMs);
+        return animateProgressTo(targetProgress, transitionMs);
     };
 
     const animate = (timestamp: number) => {
@@ -341,14 +390,16 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
 
     const returnToAutoFlow = () => {
         stopAutoFlow();
-        setButtonAtProgress(getAutoProgress(performance.now()), DELETE_RETURN_MS);
+        const autoProgress = getAutoProgress(performance.now());
 
-        if (isReducedMotionRef.current) return;
+        if (isReducedMotionRef.current) {
+            setButtonAtProgress(autoProgress);
+            return;
+        }
 
-        returnTimerRef.current = window.setTimeout(() => {
-            returnTimerRef.current = null;
+        animateProgressTo(autoProgress, DELETE_RETURN_MS, () => {
             startAutoFlow();
-        }, DELETE_RETURN_MS);
+        });
     };
 
     const handleSensorEnter = (e: React.MouseEvent<SVGPathElement>) => {
@@ -418,6 +469,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
         return () => {
             mediaQuery.removeEventListener('change', syncReducedMotion);
             stopAutoFlow();
+            cancelManualProgress();
         };
     }, [path, viewportZoom]);
 
@@ -654,11 +706,14 @@ const ConnectionItem: React.FC<{
         : isDeleteFocus
             ? palette.deleteFocusGlyph
             : palette.deleteGlyph;
+    const deleteSignal = isDeleteFocus ? visibleStroke : palette.deleteSignal;
+    const deleteSignalOpacity = isDeleteFocus ? 0 : 1;
+    const deleteHaloOpacity = isDeleteFocus ? 0 : 1;
     const deleteHitRadius = isDeleteFocus ? 16 : 13;
     const deleteVisualRadius = isDeleteFocus ? 11 : CRUISING_DOT_RADIUS;
+    const deleteVisualStrokeWidth = isDeleteFocus ? 1.2 : 1.8;
     const deleteGlyphOpacity = isDeleteFocus ? 1 : 0.04;
     const deleteStemOpacity = isDeleteFocus ? 0.34 : 0;
-    const deleteAnchorOpacity = isDeleteFocus ? 0.32 : 0.28;
 
     return (
         <g className="pointer-events-none">
@@ -778,12 +833,6 @@ const ConnectionItem: React.FC<{
                             opacity={deleteStemOpacity}
                             style={{ pointerEvents: 'none' }}
                         />
-                        <circle
-                            r="1.8"
-                            fill={visibleStroke}
-                            opacity={deleteAnchorOpacity}
-                            style={{ pointerEvents: 'none' }}
-                        />
                         {/* Clickable maintenance button */}
                         <g
                             className="cursor-pointer"
@@ -803,12 +852,28 @@ const ConnectionItem: React.FC<{
                                 style={{ pointerEvents: 'all', cursor: 'pointer' }}
                             />
 
+                            {/* Cruising signal halo */}
+                            <circle
+                                r={CRUISING_DOT_RADIUS + 3.5}
+                                fill={palette.deleteHalo}
+                                opacity={deleteHaloOpacity}
+                                style={{ pointerEvents: 'none' }}
+                            />
+
                             {/* Visual circle */}
                             <circle
                                 r={deleteVisualRadius}
                                 fill={deleteSurface}
                                 stroke={deleteBorder}
-                                strokeWidth="1.2"
+                                strokeWidth={deleteVisualStrokeWidth}
+                                style={{ pointerEvents: 'none' }}
+                            />
+
+                            {/* Cruising signal center */}
+                            <circle
+                                r="2"
+                                fill={deleteSignal}
+                                opacity={deleteSignalOpacity}
                                 style={{ pointerEvents: 'none' }}
                             />
 
