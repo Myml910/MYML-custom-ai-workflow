@@ -125,6 +125,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const selectionColor = isDark ? '#D8FF00' : '#65a30d';
     const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
     const editorTargetKey = `${nodeId}:${initialBackgroundUrl || imageUrl || ''}`;
+    const historyResetKey = `${isOpen ? 'open' : 'closed'}:${nodeId || 'no-node'}`;
 
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -187,7 +188,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setElements,
         setSelectedElementId: (id) => selection.setSelectedElementId(id),
         isOpen,
-        resetKey: `${isOpen ? 'open' : 'closed'}:${editorTargetKey}`,
+        resetKey: historyResetKey,
         imageUrl: localImageUrl,
         setImageUrl: setLocalImageUrl,
         onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url, status: NodeStatus.SUCCESS })

@@ -67,6 +67,7 @@ export const useImageEditorCrop = ({
     const dragHandleRef = useRef<DragHandle>(null);
     const dragStartRef = useRef<{ x: number; y: number; rect: CropRect } | null>(null);
     const cropRectRef = useRef<CropRect | null>(null);
+    const isApplyingCropRef = useRef(false);
 
     // Keep ref in sync with state for use in document event handlers
     useEffect(() => {
@@ -236,8 +237,10 @@ export const useImageEditorCrop = ({
      * Uses crossOrigin image loading with fallback for local server images
      */
     const applyCrop = useCallback(async () => {
+        if (isApplyingCropRef.current) return;
         if (!cropRect || !imageRef.current) return;
 
+        isApplyingCropRef.current = true;
         const img = imageRef.current;
         const imgSrc = img.src;
 
@@ -342,6 +345,8 @@ export const useImageEditorCrop = ({
             setCropRect(null);
         } catch (error) {
             console.error('Failed to crop image:', error);
+        } finally {
+            isApplyingCropRef.current = false;
         }
     }, [cropRect, getCropSourceDataUrl, imageRef, loadCropSourceImage, saveState, onCropApply]);
 
@@ -352,6 +357,7 @@ export const useImageEditorCrop = ({
         setIsCropMode(false);
         setCropRect(null);
         setIsDragging(false);
+        isApplyingCropRef.current = false;
         dragHandleRef.current = null;
         dragStartRef.current = null;
     }, []);
