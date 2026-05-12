@@ -6,6 +6,10 @@
   --myml-surface-panel: #121612;
   --myml-surface-floating: rgba(17, 21, 17, 0.96);
   --myml-surface-hover: #1a2018;
+  --myml-surface-input: #0a0d0a;
+  --myml-surface-section: rgba(255, 255, 255, 0.025);
+  --myml-surface-selected: rgba(216, 255, 0, 0.075);
+  --myml-surface-item-hover: rgba(216, 255, 0, 0.055);
   --myml-border-subtle: rgba(255, 255, 255, 0.07);
   --myml-border-default: rgba(255, 255, 255, 0.11);
   --myml-border-active: rgba(216, 255, 0, 0.42);
@@ -13,6 +17,7 @@
   --myml-accent-hover: #e4ff3a;
   --myml-accent-soft: rgba(216, 255, 0, 0.1);
   --myml-accent-muted: rgba(216, 255, 0, 0.22);
+  --myml-accent-faint: rgba(216, 255, 0, 0.065);
   --myml-text-primary: #f3f5ee;
   --myml-text-secondary: #b2b9ad;
   --myml-text-muted: #747d70;
@@ -20,7 +25,15 @@
   --myml-danger: #ef4444;
   --myml-danger-soft: rgba(239, 68, 68, 0.14);
   --myml-success: #76d65c;
+  --myml-success-soft: rgba(118, 214, 92, 0.12);
   --myml-warning: #f6c453;
+  --myml-warning-soft: rgba(246, 196, 83, 0.12);
+  --myml-node-header: rgba(17, 21, 17, 0.92);
+  --myml-node-body: #101410;
+  --myml-node-status-idle: rgba(116, 125, 112, 0.85);
+  --myml-node-status-running: rgba(216, 255, 0, 0.82);
+  --myml-node-status-success: rgba(118, 214, 92, 0.86);
+  --myml-node-status-error: rgba(239, 68, 68, 0.9);
   --myml-radius-control: 8px;
   --myml-radius-card: 10px;
   --myml-radius-panel: 14px;
@@ -34,6 +47,8 @@
   --myml-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --myml-density-toolbar-gap: 6px;
   --myml-density-panel-pad: 16px;
+  --myml-density-compact-control: 28px;
+  --myml-density-control: 32px;
   --myml-z-canvas: 0;
   --myml-z-node: 10;
   --myml-z-node-active: 80;
@@ -69,6 +84,28 @@
 .myml-focus-ring:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(216, 255, 0, 0.38);
+}
+
+.myml-input-surface {
+  background: var(--myml-surface-input);
+  border: 1px solid var(--myml-border-subtle);
+  color: var(--myml-text-primary);
+}
+
+.myml-input-surface:focus-within {
+  border-color: var(--myml-border-active);
+  box-shadow: 0 0 0 1px rgba(216, 255, 0, 0.16);
+}
+
+.myml-section {
+  background: var(--myml-surface-section);
+  border: 1px solid var(--myml-border-subtle);
+  border-radius: var(--myml-radius-card);
+}
+
+.myml-selected-surface {
+  background: var(--myml-surface-selected);
+  border-color: var(--myml-border-active);
 }
 
 @media (prefers-reduced-motion: reduce) {

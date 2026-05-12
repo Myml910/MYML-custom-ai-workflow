@@ -1028,11 +1028,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-xl border transition-[background-color,border-color,box-shadow] duration-150 flex flex-col shadow-[0_8px_18px_rgba(0,0,0,0.22)] ${
+          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-[var(--myml-radius-panel)] border transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-base)] flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark
-                ? 'bg-[#151815]'
+                ? 'bg-[var(--myml-node-body)]'
                 : 'bg-white'
           } ${
             isError
@@ -1041,10 +1041,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 : 'border-red-500/50 bg-red-50 ring-1 ring-red-500/20'
               : selected
               ? isDark
-                ? 'border-[#D8FF00]/60 ring-1 ring-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
+                ? 'border-[var(--myml-border-active)] ring-1 ring-[var(--myml-border-active)] shadow-[var(--myml-shadow-accent)]'
                 : 'border-lime-500/65 ring-1 ring-lime-500/30 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : isDark
-                ? 'border-neutral-800 group-hover/nodecard:border-neutral-700'
+                ? 'border-[var(--myml-border-default)] group-hover/nodecard:border-[var(--myml-border-active)]'
                 : 'border-neutral-200'
           }`}
         >
@@ -1068,7 +1068,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium outline-none whitespace-nowrap ${
                 isDark
-                  ? 'bg-[#151815] text-neutral-100 border border-[#D8FF00]/45'
+                  ? 'bg-[var(--myml-node-header)] text-[var(--myml-text-primary)] border border-[var(--myml-border-active)]'
                   : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
               }`}
               style={{ right: 'calc(100% + 8px)', minWidth: '60px' }}
@@ -1078,7 +1078,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium transition-colors cursor-text whitespace-nowrap ${
                 selected
                   ? isDark
-                    ? 'bg-[#151815] text-[#D8FF00] border border-[#D8FF00]/35'
+                    ? 'bg-[var(--myml-node-header)] text-[var(--myml-accent)] border border-[var(--myml-border-active)]'
                     : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
                   : isDark
                     ? 'text-neutral-600'
