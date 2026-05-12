@@ -25,6 +25,7 @@ import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
 import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
 import { NodeStatus } from '../../types';
+import { EditorShell, EditorStatusBar, EditorTopBar, ToolButton } from '../ui';
 
 // Sub-components
 import { DrawingToolbar } from './imageEditor/DrawingToolbar';
@@ -85,31 +86,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         editingImageAlt: t(language, 'editingImageAlt'),
     };
 
-    const accentClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
-
-    const accentBgClass = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-neutral-950'
-        : 'bg-lime-600 hover:bg-lime-500 text-neutral-50';
-
-    const panelClass = isDark
-        ? 'bg-[#101210] text-neutral-100'
-        : 'bg-neutral-50 text-neutral-900';
-
-    const topBarClass = isDark
-        ? 'bg-[#151815]/95 border-b border-neutral-800'
-        : 'bg-white/95 border-b border-neutral-200';
-
-    const iconButtonClass = isDark
-        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
-
-    const canvasAreaClass = isDark
-        ? 'bg-[#080A07]'
-        : 'bg-neutral-100';
-
-    const emptyCanvasClass = isDark
-        ? 'bg-[#151815] border border-neutral-800 text-neutral-500'
-        : 'bg-white border border-neutral-200 text-neutral-500';
+    const accentBgClass = 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-[var(--myml-accent-contrast)]';
+    const canvasAreaClass = 'bg-[var(--myml-editor-canvas)]';
+    const emptyCanvasClass = 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)] text-[var(--myml-text-muted)]';
 
     const selectionColor = isDark ? '#D8FF00' : '#65a30d';
     const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
@@ -632,27 +611,35 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Render ---
     return (
-        <div className={`fixed inset-0 z-[9999] flex flex-col ${panelClass}`}>
+        <EditorShell>
             {/* Top Bar */}
-            <div className={`h-14 flex items-center justify-between px-4 ${topBarClass}`}>
+            <EditorTopBar>
                 <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded flex items-center justify-center ${accentClass}`}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-[var(--myml-radius-control)] border border-[var(--myml-accent-muted)] bg-[var(--myml-accent-soft)] text-[var(--myml-accent)]">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <polyline points="21 15 16 10 5 21" />
                         </svg>
                     </div>
-                    <span className={`text-sm font-medium ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
-                        {t(language, 'imageEditor')}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold leading-none text-[var(--myml-text-primary)]">
+                            {t(language, 'imageEditor')}
+                        </span>
+                        <span className="text-[10px] font-medium leading-none text-[var(--myml-text-faint)]">
+                            {currentModel.name} / {selectedAspectRatio} / {selectedResolution}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <EditorStatusBar>
+                        {elements.length} marks
+                    </EditorStatusBar>
                     {/* Download Button */}
-                    <button
+                    <ToolButton
                         onClick={handleDownloadClick}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
+                        size="lg"
                         title={editorText.download}
                         aria-label={editorText.download}
                     >
@@ -661,21 +648,21 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
-                    </button>
+                    </ToolButton>
 
                     {/* Exit Button */}
-                    <button
+                    <ToolButton
                         onClick={handleCloseClick}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
+                        size="lg"
                         title={editorText.exit}
                         aria-label={editorText.exit}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </ToolButton>
                 </div>
-            </div>
+            </EditorTopBar>
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -701,11 +688,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 <div className="w-0"></div>
 
                 {/* Canvas Area - constrained to fit within available space */}
-                <div className={`flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0 ${canvasAreaClass}`}>
+                <div
+                    className={`flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0 ${canvasAreaClass}`}
+                    style={{
+                        backgroundImage: 'linear-gradient(var(--myml-editor-grid) 1px, transparent 1px), linear-gradient(90deg, var(--myml-editor-grid) 1px, transparent 1px)',
+                        backgroundSize: '28px 28px'
+                    }}
+                >
                     {localImageUrl ? (
                         <div
                             ref={imageContainerRef}
-                            className="relative max-w-full max-h-full flex items-center justify-center"
+                            className="relative max-w-full max-h-full flex items-center justify-center rounded-[var(--myml-radius-panel)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] shadow-[var(--myml-shadow-panel)]"
                             style={{ maxHeight: 'calc(100vh - 350px)' }}
                         >
                             <MarkupToolbar
@@ -723,7 +716,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                 ref={imageRef}
                                 src={localImageUrl}
                                 alt={editorText.editingImageAlt}
-                                className="max-w-full max-h-full object-contain"
+                                className="max-w-full max-h-full rounded-[calc(var(--myml-radius-panel)-4px)] object-contain"
                                 style={{ maxHeight: 'calc(100vh - 350px)' }}
                                 onLoad={(e) => {
                                     const img = e.currentTarget;
@@ -1107,6 +1100,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     promptError={promptError}
                 />
             </div>
-        </div>
+        </EditorShell>
     );
 };

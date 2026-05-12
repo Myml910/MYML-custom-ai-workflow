@@ -7,15 +7,11 @@
 
 import React from 'react';
 import { t, type Language } from '../../../i18n/translations';
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { ToolButton, ToolGroup } from '../../ui';
 
 interface DrawingToolbarProps {
     canvasTheme?: 'dark' | 'light';
     language?: Language;
-
     drawingTool: 'brush' | 'eraser';
     setDrawingTool: (tool: 'brush' | 'eraser') => void;
     brushWidth: number;
@@ -29,12 +25,8 @@ interface DrawingToolbarProps {
     presetColors: string[];
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
-    canvasTheme = 'dark',
+    canvasTheme: _canvasTheme = 'dark',
     language = 'zh',
     drawingTool,
     setDrawingTool,
@@ -48,8 +40,6 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
     setShowToolSettings,
     presetColors
 }) => {
-    const isDark = canvasTheme === 'dark';
-
     const text = {
         brush: t(language, 'brush'),
         eraser: t(language, 'eraser'),
@@ -60,46 +50,16 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
         customColor: t(language, 'customColor'),
     };
 
-    const toolbarClass = isDark
-        ? 'bg-[#151815]/95 border-neutral-800 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
-        : 'bg-white/95 border-neutral-200 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
-
-    const panelClass = isDark
-        ? 'bg-[#1A1D1A] border-neutral-800 shadow-[0_14px_34px_rgba(0,0,0,0.32)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in'
-        : 'bg-white border-neutral-200 shadow-[0_14px_34px_rgba(15,23,42,0.12)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in';
-
-    const labelClass = isDark ? 'text-neutral-300' : 'text-neutral-700';
-
-    const rangeClass = isDark
-        ? 'w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-[#D8FF00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45'
-        : 'w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-lime-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/40';
-
-    const colorInputClass = isDark
-        ? 'w-full h-10 rounded-lg cursor-pointer border border-neutral-700 bg-neutral-900 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45'
-        : 'w-full h-10 rounded-lg cursor-pointer border border-neutral-200 bg-white transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/40';
-
-    const getButtonClass = (active: boolean) => {
-        if (active) {
-            return isDark
-                ? 'bg-[#D8FF00]/12 text-[#D8FF00] ring-1 ring-[#D8FF00]/35'
-                : 'bg-lime-50 text-lime-700 ring-1 ring-lime-500/35';
-        }
-
-        return isDark
-            ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00]'
-            : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
-    };
-
-    const buttonBaseClass = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+    const panelClass = 'rounded-[var(--myml-radius-panel)] border border-[var(--myml-editor-toolbar-border)] bg-[var(--myml-editor-toolbar)] shadow-[var(--myml-shadow-floating)] transition-[opacity,transform] duration-[var(--myml-motion-base)] motion-menu-in';
+    const labelClass = 'text-[var(--myml-text-secondary)]';
+    const rangeClass = 'h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--myml-editor-control)] accent-[var(--myml-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
+    const colorInputClass = 'h-10 w-full cursor-pointer rounded-[var(--myml-radius-control)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-input)] transition-colors duration-[var(--myml-motion-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     return (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50">
-            <div
-                className={`inline-flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-xl border px-2 py-1.5 backdrop-blur-sm transition-colors duration-150 ${toolbarClass}`}
-            >
-                {/* Brush Button with Settings Panel */}
+            <ToolGroup>
                 <div className="relative">
-                    <button
+                    <ToolButton
                         onClick={() => {
                             setDrawingTool('brush');
                             if (drawingTool === 'brush') {
@@ -108,19 +68,17 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                                 setShowToolSettings(true);
                             }
                         }}
-                        className={`${buttonBaseClass} ${getButtonClass(drawingTool === 'brush')}`}
+                        active={drawingTool === 'brush'}
                         title={text.brush}
                         aria-label={text.brush}
                     >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                         </svg>
-                    </button>
+                    </ToolButton>
 
-                    {/* Brush Settings Panel */}
                     {showToolSettings && drawingTool === 'brush' && (
-                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 rounded-xl border p-4 ${panelClass}`}>
-                            {/* Brush Width */}
+                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 p-4 ${panelClass}`}>
                             <div className="mb-4">
                                 <div className={`mb-2 flex items-center justify-between gap-4 text-sm ${labelClass}`}>
                                     <span>{text.brushWidth}</span>
@@ -137,7 +95,6 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                                 />
                             </div>
 
-                            {/* Preset Colors */}
                             <div className="mb-3">
                                 <div className={`mb-2 text-sm ${labelClass}`}>{text.presetColors}</div>
                                 <div className="flex gap-2">
@@ -145,14 +102,10 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                                         <button
                                             key={color}
                                             onClick={() => setBrushColor(color)}
-                                            className={`w-8 h-8 rounded-lg border-2 transition-[border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${
+                                            className={`w-8 h-8 rounded-lg border-2 transition-[border-color,box-shadow] duration-[var(--myml-motion-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${
                                                 brushColor === color
-                                                    ? isDark
-                                                        ? 'border-neutral-100 ring-2 ring-[#D8FF00]/55'
-                                                        : 'border-white ring-2 ring-lime-500/55'
-                                                    : isDark
-                                                        ? 'border-transparent hover:border-neutral-500'
-                                                        : 'border-transparent hover:border-neutral-300'
+                                                    ? 'border-[var(--myml-text-primary)] ring-2 ring-[var(--myml-focus-ring)]'
+                                                    : 'border-transparent hover:border-[var(--myml-border-default)]'
                                             }`}
                                             style={{ backgroundColor: color }}
                                             title={`${text.presetColorOption}: ${color}`}
@@ -162,7 +115,6 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                                 </div>
                             </div>
 
-                            {/* Custom Color */}
                             <div>
                                 <div className={`mb-2 text-sm ${labelClass}`}>{text.customColor}</div>
                                 <input
@@ -177,9 +129,8 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                     )}
                 </div>
 
-                {/* Eraser Button with Settings Panel */}
                 <div className="relative">
-                    <button
+                    <ToolButton
                         onClick={() => {
                             setDrawingTool('eraser');
                             if (drawingTool === 'eraser') {
@@ -188,7 +139,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                                 setShowToolSettings(true);
                             }
                         }}
-                        className={`${buttonBaseClass} ${getButtonClass(drawingTool === 'eraser')}`}
+                        active={drawingTool === 'eraser'}
                         title={text.eraser}
                         aria-label={text.eraser}
                     >
@@ -197,12 +148,10 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                             <path d="M22 21H7" />
                             <path d="m5 11 9 9" />
                         </svg>
-                    </button>
+                    </ToolButton>
 
-                    {/* Eraser Settings Panel */}
                     {showToolSettings && drawingTool === 'eraser' && (
-                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 rounded-xl border p-4 ${panelClass}`}>
-                            {/* Eraser Width */}
+                        <div className={`absolute left-1/2 top-full z-50 mt-2 min-w-[220px] -translate-x-1/2 p-4 ${panelClass}`}>
                             <div>
                                 <div className={`mb-2 flex items-center justify-between gap-4 text-sm ${labelClass}`}>
                                     <span>{text.eraserWidth}</span>
@@ -221,7 +170,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
+            </ToolGroup>
         </div>
     );
 };
