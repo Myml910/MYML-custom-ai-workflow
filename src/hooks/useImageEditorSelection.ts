@@ -27,6 +27,7 @@ interface UseImageEditorSelectionReturn {
     setSelectedElementId: React.Dispatch<React.SetStateAction<string | null>>;
     isDraggingElement: boolean;
     isResizing: boolean;
+    isMovingElement: boolean;
     resizeHandle: 'start' | 'end' | null;
     // Handlers
     handleSelectMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
@@ -91,6 +92,7 @@ export const useImageEditorSelection = ({
         elementEndX: number;
         elementEndY: number;
     } | null>(null);
+    const hasSavedDragStateRef = useRef(false);
 
     // --- Helper Functions ---
 
@@ -115,6 +117,28 @@ export const useImageEditorSelection = ({
                 const approxHeight = el.fontSize * 1.2;
                 if (x >= el.x && x <= el.x + approxWidth && y >= el.y && y <= el.y + approxHeight) {
                     return el;
+                }
+            } else if (el.type === 'shape') {
+                const minX = Math.min(el.x, el.x + el.width);
+                const maxX = Math.max(el.x, el.x + el.width);
+                const minY = Math.min(el.y, el.y + el.height);
+                const maxY = Math.max(el.y, el.y + el.height);
+
+                if (el.shape === 'rectangle') {
+                    if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                        return el;
+                    }
+                } else {
+                    const rx = Math.abs(el.width) / 2;
+                    const ry = Math.abs(el.height) / 2;
+                    if (rx > 0 && ry > 0) {
+                        const cx = minX + rx;
+                        const cy = minY + ry;
+                        const normalized = ((x - cx) * (x - cx)) / (rx * rx) + ((y - cy) * (y - cy)) / (ry * ry);
+                        if (normalized <= 1) {
+                            return el;
+                        }
+                    }
                 }
             }
         }
@@ -151,9 +175,9 @@ export const useImageEditorSelection = ({
             if (selectedEl && selectedEl.type === 'arrow') {
                 const handle = getResizeHandleAtPosition(x, y, selectedEl);
                 if (handle) {
-                    saveState();
                     setIsResizing(true);
                     setResizeHandle(handle);
+                    hasSavedDragStateRef.current = false;
                     dragStartRef.current = {
                         x, y,
                         elementStartX: selectedEl.startX,
@@ -169,9 +193,9 @@ export const useImageEditorSelection = ({
         // Check if clicking on an element
         const element = getElementAtPosition(x, y);
         if (element) {
-            saveState();
             setSelectedElementId(element.id);
             setIsDraggingElement(true);
+            hasSavedDragStateRef.current = false;
             if (element.type === 'arrow') {
                 dragStartRef.current = {
                     x, y,
@@ -188,6 +212,14 @@ export const useImageEditorSelection = ({
                     elementEndX: element.x, // Not used for text
                     elementEndY: element.y  // Not used for text
                 };
+            } else if (element.type === 'shape') {
+                dragStartRef.current = {
+                    x, y,
+                    elementStartX: element.x,
+                    elementStartY: element.y,
+                    elementEndX: element.x + element.width,
+                    elementEndY: element.y + element.height
+                };
             }
         } else {
             setSelectedElementId(null);
@@ -203,9 +235,15 @@ export const useImageEditorSelection = ({
         const y = e.clientY - rect.top;
         const dx = x - dragStartRef.current.x;
         const dy = y - dragStartRef.current.y;
+        const hasMeaningfulMovement = Math.abs(dx) >= 1 || Math.abs(dy) >= 1;
+
+        if (hasMeaningfulMovement && !hasSavedDragStateRef.current) {
+            saveState();
+            hasSavedDragStateRef.current = true;
+        }
 
         const selectedEl = elements.find(el => el.id === selectedElementId);
-        if (!selectedEl) return;
+        if (!selectedEl || !hasMeaningfulMovement) return;
 
         if (isResizing && resizeHandle && selectedEl.type === 'arrow') {
             // Resize the arrow element
@@ -235,17 +273,24 @@ export const useImageEditorSelection = ({
                         x: dragStartRef.current!.elementStartX + dx,
                         y: dragStartRef.current!.elementStartY + dy
                     };
+                } else if (el.type === 'shape') {
+                    return {
+                        ...el,
+                        x: dragStartRef.current!.elementStartX + dx,
+                        y: dragStartRef.current!.elementStartY + dy
+                    };
                 }
                 return el;
             }));
         }
-    }, [isSelectMode, selectCanvasRef, selectedElementId, elements, isResizing, resizeHandle, isDraggingElement, setElements]);
+    }, [isSelectMode, selectCanvasRef, selectedElementId, elements, isResizing, resizeHandle, isDraggingElement, setElements, saveState]);
 
     const handleSelectMouseUp = useCallback(() => {
         setIsDraggingElement(false);
         setIsResizing(false);
         setResizeHandle(null);
         dragStartRef.current = null;
+        hasSavedDragStateRef.current = false;
     }, []);
 
     return {
@@ -255,6 +300,7 @@ export const useImageEditorSelection = ({
         setSelectedElementId,
         isDraggingElement,
         isResizing,
+        isMovingElement: isDraggingElement || isResizing,
         resizeHandle,
         handleSelectMouseDown,
         handleSelectMouseMove,

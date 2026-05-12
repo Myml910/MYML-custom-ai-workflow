@@ -92,6 +92,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     const selectionColor = isDark ? '#D8FF00' : '#65a30d';
     const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
+    const editorTargetKey = `${nodeId}:${initialBackgroundUrl || imageUrl || ''}`;
 
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -103,6 +104,37 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
+    const isMountedRef = useRef(false);
+    const isOpenRef = useRef(isOpen);
+    const isGeneratingRef = useRef(false);
+    const editorTargetKeyRef = useRef(editorTargetKey);
+    const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autosaveRequestSeqRef = useRef(0);
+    const lastSavedElementsRef = useRef<string>('');
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const targetChanged = editorTargetKeyRef.current !== editorTargetKey;
+        isOpenRef.current = isOpen;
+        editorTargetKeyRef.current = editorTargetKey;
+        if (!isOpen) {
+            isGeneratingRef.current = false;
+            setIsGenerating(false);
+        }
+        if (!isOpen || targetChanged) {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+            autosaveRequestSeqRef.current += 1;
+        }
+    }, [editorTargetKey, isOpen]);
 
     // --- Custom Hooks ---
 
@@ -118,6 +150,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setElements,
         setSelectedElementId: (id) => selection.setSelectedElementId(id),
         isOpen,
+        resetKey: `${isOpen ? 'open' : 'closed'}:${editorTargetKey}`,
         imageUrl: localImageUrl,
         setImageUrl: setLocalImageUrl,
         onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url, status: NodeStatus.SUCCESS })
@@ -238,6 +271,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const persistCompositeToNode = useCallback(async (force = false) => {
         const canvas = canvasRef.current;
         if (!nodeId) return;
+        if (!force && !isOpenRef.current) return;
+
+        const requestTargetKey = editorTargetKeyRef.current;
 
         const hasBrushContent = hasCanvasContent(canvas);
         const hasElementContent = elements.length > 0;
@@ -266,7 +302,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             if (localImageUrl && localImageUrl.startsWith('data:')) {
                 savedBackgroundUrl = await uploadAsset(localImageUrl, 'image', 'clean-background');
                 // Update local state to use the new URL locally too
-                setLocalImageUrl(savedBackgroundUrl);
+                if (isMountedRef.current && editorTargetKeyRef.current === requestTargetKey) {
+                    setLocalImageUrl(savedBackgroundUrl);
+                }
             }
         } catch (error) {
             console.error("Failed to upload assets during save:", error);
@@ -302,6 +340,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             }
         }
 
+        if (!isMountedRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+            return;
+        }
+
+        if (!force && !isOpenRef.current) {
+            return;
+        }
+
         onUpdate(nodeId, updates);
 
         if (updates.resultUrl) {
@@ -321,7 +367,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }, [persistCompositeToNode]);
 
     const handleCloseClick = useCallback(async () => {
-        await persistCompositeToNode();
+        if (autosaveTimeoutRef.current) {
+            clearTimeout(autosaveTimeoutRef.current);
+            autosaveTimeoutRef.current = null;
+        }
+        await persistCompositeToNode(true);
         onClose();
     }, [persistCompositeToNode, onClose]);
 
@@ -416,6 +466,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
         setLocalImageUrl(initialBackgroundUrl || imageUrl);
         setElements(initialElements || []);
+        lastSavedElementsRef.current = JSON.stringify(initialElements || []);
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
@@ -450,20 +501,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }
     }, [isOpen, initialCanvasData]);
 
-    // Persist elements to node when they change (with debounce to avoid excessive updates)
-    const lastSavedElementsRef = useRef<string>('');
+    // Persist elements to node when committed edits change.
     useEffect(() => {
         if (!isOpen || !nodeId || !hasInitializedRef.current) return;
+        if (selection.isMovingElement || text.editingTextId) return;
 
         const elementsJson = JSON.stringify(elements);
-        // Only save if elements actually changed since last save
-        if (elementsJson !== lastSavedElementsRef.current) {
-            lastSavedElementsRef.current = elementsJson;
+        if (elementsJson === lastSavedElementsRef.current) {
+            return;
+        }
 
+        if (autosaveTimeoutRef.current) {
+            clearTimeout(autosaveTimeoutRef.current);
+        }
+
+        const requestTargetKey = editorTargetKeyRef.current;
+        const requestSeq = ++autosaveRequestSeqRef.current;
+
+        autosaveTimeoutRef.current = setTimeout(() => {
+            autosaveTimeoutRef.current = null;
             const saveUpdate = async () => {
                 const updates: any = { editorElements: elements };
 
-                // Also update composite image
                 const compositeUrl = await generateCompositeImage();
                 if (compositeUrl) {
                     try {
@@ -472,11 +531,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                         updates.status = NodeStatus.SUCCESS;
                     } catch (e) {
                         console.error("Failed to upload composite update:", e);
-                        updates.resultUrl = compositeUrl; // Fallback
+                        updates.resultUrl = compositeUrl;
                         updates.status = NodeStatus.SUCCESS;
                     }
 
-                    // Capture canvas size for accurate scaling in overlay
                     if (imageRef.current) {
                         updates.editorCanvasSize = {
                             width: imageRef.current.clientWidth,
@@ -485,12 +543,29 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     }
                 }
 
+                if (
+                    !isMountedRef.current ||
+                    !isOpenRef.current ||
+                    editorTargetKeyRef.current !== requestTargetKey ||
+                    autosaveRequestSeqRef.current !== requestSeq
+                ) {
+                    return;
+                }
+
+                lastSavedElementsRef.current = elementsJson;
                 onUpdate(nodeId, updates);
             };
 
-            saveUpdate();
-        }
-    }, [elements, isOpen, nodeId, onUpdate, generateCompositeImage]);
+            void saveUpdate();
+        }, 700);
+
+        return () => {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+        };
+    }, [elements, isOpen, nodeId, onUpdate, generateCompositeImage, selection.isMovingElement, text.editingTextId, editorTargetKey]);
 
     // Redraw elements canvas when elements change (for undo/redo support)
     useEffect(() => {
@@ -532,6 +607,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Handlers ---
 
     const handleGenerateClick = async () => {
+        if (isGeneratingRef.current || !isOpenRef.current) return;
+
         const finalPrompt = prompt.trim();
 
         if (!finalPrompt) {
@@ -539,6 +616,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             return;
         }
 
+        isGeneratingRef.current = true;
         setPromptError('');
         setIsGenerating(true);
 
@@ -558,7 +636,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 compositeImageDataUrl: compositeImageDataUrl || undefined
             });
         } finally {
-            setIsGenerating(false);
+            isGeneratingRef.current = false;
+            if (isMountedRef.current && isOpenRef.current) {
+                setIsGenerating(false);
+            }
         }
     };
 
@@ -841,6 +922,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                         onChange={(e) => text.handleTextChange(el.id, e.target.value)}
                                         onBlur={text.handleTextBlur}
                                         onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.nativeEvent.isComposing) return;
                                             if (e.key === 'Enter' || e.key === 'Escape') {
                                                 text.handleTextBlur();
                                             }
@@ -919,6 +1001,40 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                         style={{ pointerEvents: 'auto', cursor: 'grab' }}
                                                     />
                                                 </g>
+                                            );
+                                        }
+                                        if (el.type === 'shape') {
+                                            const minX = Math.min(el.x, el.x + el.width);
+                                            const minY = Math.min(el.y, el.y + el.height);
+                                            const width = Math.abs(el.width);
+                                            const height = Math.abs(el.height);
+
+                                            return el.shape === 'rectangle' ? (
+                                                <rect
+                                                    key={el.id}
+                                                    x={minX}
+                                                    y={minY}
+                                                    width={width}
+                                                    height={height}
+                                                    fill="none"
+                                                    stroke={selectionColor}
+                                                    strokeWidth="2"
+                                                    strokeDasharray="5,5"
+                                                    opacity="0.8"
+                                                />
+                                            ) : (
+                                                <ellipse
+                                                    key={el.id}
+                                                    cx={minX + width / 2}
+                                                    cy={minY + height / 2}
+                                                    rx={width / 2}
+                                                    ry={height / 2}
+                                                    fill="none"
+                                                    stroke={selectionColor}
+                                                    strokeWidth="2"
+                                                    strokeDasharray="5,5"
+                                                    opacity="0.8"
+                                                />
                                             );
                                         }
                                         // Text selection box (future enhancement)
