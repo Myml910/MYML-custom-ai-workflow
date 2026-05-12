@@ -15,7 +15,15 @@ import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import { getDatabasePath, getDb } from './db/index.js';
 import { runMigrations } from './db/migrations.js';
-import { seedInitialAdmin } from './db/users.js';
+import { seedInitialAdmin, seedInternalTestUsers } from './db/users.js';
+import {
+    canUseLegacyRootLibrary,
+    ensureUserLibraryDirs,
+    getLibraryUrlFromPath,
+    getSafeUsername,
+    listMediaMetadata,
+    resolveLibraryUrlToPath
+} from './utils/userLibrary.js';
 import generationRoutes from './routes/generation.js';
 import twitterRoutes from './routes/twitter.js';
 import tiktokPostRoutes from './routes/tiktok-post.js';
@@ -44,6 +52,7 @@ try {
     const db = getDb();
     runMigrations(db);
     await seedInitialAdmin();
+    await seedInternalTestUsers();
     console.log(`[DB] SQLite ready: ${getDatabasePath()}`);
 } catch (error) {
     console.error('[DB] Failed to initialize database:', error.message);
@@ -69,19 +78,50 @@ app.use('/api/auth', authRoutes);
 
 // Protect core app APIs while leaving third-party OAuth callbacks untouched.
 app.use('/api', (req, res, next) => {
-    if (req.path.startsWith('/twitter/') || req.path.startsWith('/tiktok-post/')) {
+    if (req.path.startsWith('/twitter/callback') || req.path.startsWith('/tiktok-post/callback')) {
         return next();
     }
 
-    return requireAuth(req, res, next);
+    return requireAuth(req, res, () => {
+        req.library = ensureUserLibraryDirs(req.user);
+        return next();
+    });
 });
 
-// Serve static assets from library with CORS headers for cross-origin image access
-app.use('/library', (req, res, next) => {
+// Serve library assets only to the owning authenticated user.
+app.use('/library', requireAuth, (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    next();
-}, express.static(LIBRARY_DIR));
+
+    const safeUsername = getSafeUsername(req.user?.username);
+    const cleanPath = decodeURIComponent(req.path || '/').replace(/^\/+/, '');
+    const segments = cleanPath.split('/').filter(Boolean);
+
+    let filePath = null;
+    if (segments[0] === 'users') {
+        if (segments[1] !== safeUsername) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        filePath = path.resolve(LIBRARY_DIR, cleanPath);
+        const userRoot = path.resolve(LIBRARY_DIR, 'users', safeUsername);
+        if (filePath !== userRoot && !filePath.startsWith(userRoot + path.sep)) {
+            return res.status(400).json({ error: 'Invalid library path' });
+        }
+    } else if (canUseLegacyRootLibrary(req.user)) {
+        filePath = path.resolve(LIBRARY_DIR, cleanPath);
+    } else {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const libraryRoot = path.resolve(LIBRARY_DIR);
+    if (!filePath.startsWith(libraryRoot + path.sep)) {
+        return res.status(400).json({ error: 'Invalid library path' });
+    }
+
+    return res.sendFile(filePath, (error) => {
+        if (error) next(error);
+    });
+});
 
 
 const API_KEY = process.env.GEMINI_API_KEY;
@@ -174,7 +214,7 @@ app.locals.TEMP_DIR = TEMP_DIR;
  * @param {string} dataUrl - Base64 data URL (e.g., data:image/png;base64,...)
  * @returns {{ url: string } | null} - File URL path or null if not base64
  */
-function saveBase64ToFile(dataUrl) {
+function saveBase64ToFile(dataUrl, libraryDirs) {
     if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
         return null;
     }
@@ -193,19 +233,20 @@ function saveBase64ToFile(dataUrl) {
 
         if (mimeType.startsWith('video/')) {
             filename = `${id}.mp4`;
-            targetDir = VIDEOS_DIR;
+            targetDir = libraryDirs.videosDir;
             urlType = 'videos';
         } else {
             const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
             filename = `${id}.${ext}`;
-            targetDir = IMAGES_DIR;
+            targetDir = libraryDirs.imagesDir;
             urlType = 'images';
         }
 
-        fs.writeFileSync(path.join(targetDir, filename), buffer);
+        const filePath = path.join(targetDir, filename);
+        fs.writeFileSync(filePath, buffer);
         console.log(`  [Workflow Sanitize] Saved base64 → /library/${urlType}/${filename}`);
 
-        return { url: `/library/${urlType}/${filename}` };
+        return { url: getLibraryUrlFromPath(filePath) };
     } catch (err) {
         console.error('  [Workflow Sanitize] Failed to save base64:', err.message);
         return null;
@@ -218,7 +259,7 @@ function saveBase64ToFile(dataUrl) {
  * @param {Array} nodes - Array of workflow nodes
  * @returns {Array} - Sanitized nodes with file URLs instead of base64
  */
-function sanitizeWorkflowNodes(nodes) {
+function sanitizeWorkflowNodes(nodes, libraryDirs) {
     if (!nodes || !Array.isArray(nodes)) return nodes;
 
     let sanitizedCount = 0;
@@ -228,7 +269,7 @@ function sanitizeWorkflowNodes(nodes) {
 
         // Check resultUrl for base64 data
         if (cleanNode.resultUrl && cleanNode.resultUrl.startsWith('data:')) {
-            const saved = saveBase64ToFile(cleanNode.resultUrl);
+            const saved = saveBase64ToFile(cleanNode.resultUrl, libraryDirs);
             if (saved) {
                 cleanNode.resultUrl = saved.url;
                 sanitizedCount++;
@@ -237,7 +278,7 @@ function sanitizeWorkflowNodes(nodes) {
 
         // Check lastFrame for base64 data (video nodes)
         if (cleanNode.lastFrame && cleanNode.lastFrame.startsWith('data:')) {
-            const saved = saveBase64ToFile(cleanNode.lastFrame);
+            const saved = saveBase64ToFile(cleanNode.lastFrame, libraryDirs);
             if (saved) {
                 cleanNode.lastFrame = saved.url;
                 sanitizedCount++;
@@ -246,7 +287,7 @@ function sanitizeWorkflowNodes(nodes) {
 
         // Check editorCanvasData for base64 data (Image Editor)
         if (cleanNode.editorCanvasData && cleanNode.editorCanvasData.startsWith('data:')) {
-            const saved = saveBase64ToFile(cleanNode.editorCanvasData);
+            const saved = saveBase64ToFile(cleanNode.editorCanvasData, libraryDirs);
             if (saved) {
                 cleanNode.editorCanvasData = saved.url;
                 sanitizedCount++;
@@ -255,7 +296,7 @@ function sanitizeWorkflowNodes(nodes) {
 
         // Check editorBackgroundUrl for base64 data (Image Editor)
         if (cleanNode.editorBackgroundUrl && cleanNode.editorBackgroundUrl.startsWith('data:')) {
-            const saved = saveBase64ToFile(cleanNode.editorBackgroundUrl);
+            const saved = saveBase64ToFile(cleanNode.editorBackgroundUrl, libraryDirs);
             if (saved) {
                 cleanNode.editorBackgroundUrl = saved.url;
                 sanitizedCount++;
@@ -270,6 +311,17 @@ function sanitizeWorkflowNodes(nodes) {
     }
 
     return sanitized;
+}
+
+function getWorkflowPath(req, workflowId, { allowLegacy = true } = {}) {
+    const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+    const primaryPath = path.join(libraryDirs.workflowsDir, `${workflowId}.json`);
+    if (fs.existsSync(primaryPath) || !allowLegacy || !canUseLegacyRootLibrary(req.user)) {
+        return primaryPath;
+    }
+
+    const legacyPath = path.join(WORKFLOWS_DIR, `${workflowId}.json`);
+    return fs.existsSync(legacyPath) ? legacyPath : primaryPath;
 }
 
 // Mount generation routes (image and video generation)
@@ -304,7 +356,8 @@ app.post('/api/library', async (req, res) => {
         }
 
         // Determine destination directory
-        const destDir = path.join(ASSETS_DIR, category);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const destDir = path.join(libraryDirs.assetsDir, category);
         if (!fs.existsSync(destDir)) {
             fs.mkdirSync(destDir, { recursive: true });
         }
@@ -363,10 +416,8 @@ app.post('/api/library', async (req, res) => {
             // Handle URL decoding (e.g. %20 -> space)
             cleanUrl = decodeURIComponent(cleanUrl);
 
-            if (cleanUrl.startsWith('/library/images/')) {
-                sourcePath = path.join(IMAGES_DIR, cleanUrl.replace('/library/images/', ''));
-            } else if (cleanUrl.startsWith('/library/videos/')) {
-                sourcePath = path.join(VIDEOS_DIR, cleanUrl.replace('/library/videos/', ''));
+            if (cleanUrl.startsWith('/library/')) {
+                sourcePath = resolveLibraryUrlToPath(cleanUrl, req.user);
             } else if (cleanUrl.startsWith('/assets/images/')) { // Legacy support
                 sourcePath = path.join(IMAGES_DIR, cleanUrl.replace('/assets/images/', ''));
             } else if (cleanUrl.startsWith('/assets/videos/')) { // Legacy support
@@ -387,7 +438,7 @@ app.post('/api/library', async (req, res) => {
         }
 
         // Update assets.json
-        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
+        const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
         let libraryData = [];
         if (fs.existsSync(libraryJsonPath)) {
             libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
@@ -397,7 +448,7 @@ app.post('/api/library', async (req, res) => {
             id: crypto.randomUUID(),
             name: name,
             category: category,
-            url: `/library/assets/${category}/${destFilename}`,
+            url: getLibraryUrlFromPath(destPath),
             type: sourceUrl.includes('video') || (sourceUrl.startsWith('data:video')) ? 'video' : 'image',
             createdAt: new Date().toISOString(),
             ...meta
@@ -416,11 +467,23 @@ app.post('/api/library', async (req, res) => {
 // List library assets
 app.get('/api/library', async (req, res) => {
     try {
-        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
-        if (!fs.existsSync(libraryJsonPath)) {
-            return res.json([]);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
+        let libraryData = [];
+        if (fs.existsSync(libraryJsonPath)) {
+            libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
         }
-        const libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
+
+        if (canUseLegacyRootLibrary(req.user)) {
+            const legacyJsonPath = path.join(ASSETS_DIR, 'assets.json');
+            if (fs.existsSync(legacyJsonPath)) {
+                libraryData = [
+                    ...libraryData,
+                    ...JSON.parse(fs.readFileSync(legacyJsonPath, 'utf8'))
+                ];
+            }
+        }
+
         // Sort newest first
         libraryData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         res.json(libraryData);
@@ -434,7 +497,14 @@ app.get('/api/library', async (req, res) => {
 app.delete('/api/library/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const libraryJsonPath = path.join(ASSETS_DIR, 'assets.json');
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        let libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
+        if (!fs.existsSync(libraryJsonPath) && canUseLegacyRootLibrary(req.user)) {
+            const legacyJsonPath = path.join(ASSETS_DIR, 'assets.json');
+            if (fs.existsSync(legacyJsonPath)) {
+                libraryJsonPath = legacyJsonPath;
+            }
+        }
 
         if (!fs.existsSync(libraryJsonPath)) {
             return res.status(404).json({ error: "Library not found" });
@@ -449,12 +519,9 @@ app.delete('/api/library/:id', async (req, res) => {
 
         const asset = libraryData[assetIndex];
 
-        // Delete the actual file if it exists in our assets folder
-        // asset.url usually looks like /library/assets/Category/file.ext
-        if (asset.url && asset.url.startsWith('/library/assets/')) {
-            const relativePath = asset.url.replace('/library/assets/', '');
-            const filePath = path.join(ASSETS_DIR, relativePath);
-            if (fs.existsSync(filePath)) {
+        if (asset.url && asset.url.startsWith('/library/')) {
+            const filePath = resolveLibraryUrlToPath(asset.url, req.user);
+            if (filePath && fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
             }
         }
@@ -485,7 +552,8 @@ app.post('/api/workflows', async (req, res) => {
         }
 
 
-        const filePath = path.join(WORKFLOWS_DIR, `${workflow.id}.json`);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const filePath = path.join(libraryDirs.workflowsDir, `${workflow.id}.json`);
 
         // Preserve existing coverUrl if it exists
         if (fs.existsSync(filePath)) {
@@ -501,7 +569,7 @@ app.post('/api/workflows', async (req, res) => {
 
         // Sanitize nodes: convert any base64 data to file URLs before saving
         if (workflow.nodes) {
-            workflow.nodes = sanitizeWorkflowNodes(workflow.nodes);
+            workflow.nodes = sanitizeWorkflowNodes(workflow.nodes, libraryDirs);
         }
 
         fs.writeFileSync(filePath, JSON.stringify(workflow, null, 2));
@@ -592,9 +660,17 @@ app.get('/api/public-workflows/:id', async (req, res) => {
 // List all workflows
 app.get('/api/workflows', async (req, res) => {
     try {
-        const files = fs.readdirSync(WORKFLOWS_DIR).filter(f => f.endsWith('.json'));
-        const workflows = files.map(file => {
-            const content = fs.readFileSync(path.join(WORKFLOWS_DIR, file), 'utf8');
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const workflowDirs = [libraryDirs.workflowsDir];
+        if (canUseLegacyRootLibrary(req.user)) {
+            workflowDirs.push(WORKFLOWS_DIR);
+        }
+
+        const workflows = workflowDirs.flatMap(workflowsDir => {
+            if (!fs.existsSync(workflowsDir)) return [];
+            const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+            return files.map(file => {
+                const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
             const workflow = JSON.parse(content);
             return {
                 id: workflow.id,
@@ -604,6 +680,7 @@ app.get('/api/workflows', async (req, res) => {
                 nodeCount: workflow.nodes?.length || 0,
                 coverUrl: workflow.coverUrl
             };
+            });
         });
         workflows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         res.json(workflows);
@@ -616,7 +693,7 @@ app.get('/api/workflows', async (req, res) => {
 // Load specific workflow
 app.get('/api/workflows/:id', async (req, res) => {
     try {
-        const filePath = path.join(WORKFLOWS_DIR, `${req.params.id}.json`);
+        const filePath = getWorkflowPath(req, req.params.id);
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Workflow not found" });
         }
@@ -631,7 +708,7 @@ app.get('/api/workflows/:id', async (req, res) => {
 // Delete workflow
 app.delete('/api/workflows/:id', async (req, res) => {
     try {
-        const filePath = path.join(WORKFLOWS_DIR, `${req.params.id}.json`);
+        const filePath = getWorkflowPath(req, req.params.id);
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Workflow not found" });
         }
@@ -647,7 +724,7 @@ app.delete('/api/workflows/:id', async (req, res) => {
 app.put('/api/workflows/:id/cover', async (req, res) => {
     try {
         const { coverUrl } = req.body;
-        const filePath = path.join(WORKFLOWS_DIR, `${req.params.id}.json`);
+        const filePath = getWorkflowPath(req, req.params.id);
 
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Workflow not found" });
@@ -718,14 +795,8 @@ app.post('/api/gemini/describe-image', async (req, res) => {
             console.log(`[Gemini DescribeV2] Cleaned path: ${cleanUrl}`);
 
             if (cleanUrl.startsWith('/library/')) {
-                // Need to read the file from disk
-                // Convert URL path to system path
-                let fullPath = '';
-
-                if (cleanUrl.startsWith('/library/images/')) {
-                    const relativePath = cleanUrl.replace('/library/images/', '');
-                    fullPath = path.join(IMAGES_DIR, relativePath);
-                } else if (cleanUrl.startsWith('/library/videos/')) {
+                const fullPath = resolveLibraryUrlToPath(cleanUrl, req.user);
+                if (cleanUrl.includes('/videos/')) {
                     return res.status(400).json({ error: 'Video description not directly supported, use a frame.' });
                 }
 
@@ -862,7 +933,8 @@ app.post('/api/assets/:type', async (req, res) => {
             return res.status(400).json({ error: 'Invalid asset type' });
         }
 
-        const targetDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const targetDir = type === 'images' ? libraryDirs.imagesDir : libraryDirs.videosDir;
         const id = Date.now().toString();
         const ext = type === 'images' ? 'png' : 'mp4';
         const filename = `${id}.${ext}`;
@@ -870,7 +942,8 @@ app.post('/api/assets/:type', async (req, res) => {
 
         // Save the asset file
         const base64Data = data.replace(/^data:[^;]+;base64,/, '');
-        fs.writeFileSync(path.join(targetDir, filename), base64Data, 'base64');
+        const assetPath = path.join(targetDir, filename);
+        fs.writeFileSync(assetPath, base64Data, 'base64');
 
         // Save metadata
         const metadata = {
@@ -882,7 +955,7 @@ app.post('/api/assets/:type', async (req, res) => {
         };
         fs.writeFileSync(path.join(targetDir, metaFilename), JSON.stringify(metadata, null, 2));
 
-        res.json({ success: true, id, filename, url: `/library/${type}/${filename}` });
+        res.json({ success: true, id, filename, url: getLibraryUrlFromPath(assetPath) });
     } catch (error) {
         console.error('Save asset error:', error);
         res.status(500).json({ error: error.message });
@@ -900,28 +973,10 @@ app.get('/api/assets/:type', async (req, res) => {
             return res.status(400).json({ error: 'Invalid asset type' });
         }
 
-        const targetDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
-
-        if (!fs.existsSync(targetDir)) {
-            // Return paginated format if limit is specified, otherwise array for backward compatibility
-            return res.json(limit > 0 ? { assets: [], total: 0, hasMore: false } : []);
-        }
-
-        const files = fs.readdirSync(targetDir);
-        const assets = [];
-
-        for (const file of files) {
-            if (file.endsWith('.json')) {
-                try {
-                    const content = fs.readFileSync(path.join(targetDir, file), 'utf8');
-                    const metadata = JSON.parse(content);
-                    metadata.url = `/library/${type}/${metadata.filename}`;
-                    assets.push(metadata);
-                } catch (e) {
-                    // Skip invalid JSON files
-                }
-            }
-        }
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const targetDir = type === 'images' ? libraryDirs.imagesDir : libraryDirs.videosDir;
+        const legacyDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
+        const assets = listMediaMetadata({ user: req.user, type, primaryDir: targetDir, legacyDir });
 
         // Sort by createdAt descending (newest first)
         assets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -953,8 +1008,17 @@ app.delete('/api/assets/:type/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid asset type' });
         }
 
-        const targetDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
-        const metaPath = path.join(targetDir, `${id}.json`);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const targetDir = type === 'images' ? libraryDirs.imagesDir : libraryDirs.videosDir;
+        let metaPath = path.join(targetDir, `${id}.json`);
+        if (!fs.existsSync(metaPath) && canUseLegacyRootLibrary(req.user)) {
+            const legacyDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
+            const legacyMetaPath = path.join(legacyDir, `${id}.json`);
+            if (fs.existsSync(legacyMetaPath)) {
+                metaPath = legacyMetaPath;
+            }
+        }
+        const assetDir = path.dirname(metaPath);
 
         // Read metadata to get the actual filename (may differ from ID)
         let assetFilename = null;
@@ -969,7 +1033,7 @@ app.delete('/api/assets/:type/:id', async (req, res) => {
 
         // Delete the media file using filename from metadata
         if (assetFilename) {
-            const assetPath = path.join(targetDir, assetFilename);
+            const assetPath = path.join(assetDir, assetFilename);
             if (fs.existsSync(assetPath)) {
                 fs.unlinkSync(assetPath);
                 console.log(`Deleted asset file: ${assetPath}`);
@@ -1011,7 +1075,8 @@ app.post('/api/tiktok/import', async (req, res) => {
 
         console.log(`[TikTok API] Processing import request for: ${url}`);
 
-        const result = await processTikTokVideo(url, VIDEOS_DIR, enableTrim);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const result = await processTikTokVideo(url, libraryDirs.videosDir, enableTrim);
 
         res.json(result);
     } catch (error) {
@@ -1135,8 +1200,8 @@ app.post('/api/trim-video', async (req, res) => {
 
         // Resolve video path from URL
         let inputPath;
-        if (cleanVideoUrl.startsWith('/library/videos/')) {
-            inputPath = path.join(VIDEOS_DIR, cleanVideoUrl.replace('/library/videos/', ''));
+        if (cleanVideoUrl.startsWith('/library/')) {
+            inputPath = resolveLibraryUrlToPath(cleanVideoUrl, req.user);
         } else if (cleanVideoUrl.startsWith('http')) {
             // For remote URLs, we'd need to download first - for now, only local library videos
             return res.status(400).json({ error: 'Only local library videos can be trimmed' });
@@ -1145,7 +1210,7 @@ app.post('/api/trim-video', async (req, res) => {
         }
 
         // Check if input file exists
-        if (!fs.existsSync(inputPath)) {
+        if (!inputPath || !fs.existsSync(inputPath)) {
             console.error(`[Video Trim] Input file not found: ${inputPath}`);
             return res.status(404).json({ error: 'Source video not found' });
         }
@@ -1154,7 +1219,8 @@ app.post('/api/trim-video', async (req, res) => {
         const timestamp = Date.now();
         const hash = crypto.randomBytes(4).toString('hex');
         const outputFilename = `trimmed_${timestamp}_${hash}.mp4`;
-        const outputPath = path.join(VIDEOS_DIR, outputFilename);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const outputPath = path.join(libraryDirs.videosDir, outputFilename);
 
         // Trim the video
         await trimVideoWithFFmpeg(inputPath, outputPath, startTime, endTime);
@@ -1173,9 +1239,9 @@ app.post('/api/trim-video', async (req, res) => {
             createdAt: new Date().toISOString(),
             type: 'videos'
         };
-        fs.writeFileSync(path.join(VIDEOS_DIR, metaFilename), JSON.stringify(metadata, null, 2));
+        fs.writeFileSync(path.join(libraryDirs.videosDir, metaFilename), JSON.stringify(metadata, null, 2));
 
-        const resultUrl = `/library/videos/${outputFilename}`;
+        const resultUrl = getLibraryUrlFromPath(outputPath);
         console.log(`[Video Trim] Saved: ${resultUrl}`);
 
         res.json({
@@ -1221,7 +1287,11 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: "message or media is required" });
         }
 
-        const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey, {
+            chatsDir: libraryDirs.chatsDir,
+            user: req.user
+        });
 
         res.json({
             success: true,
@@ -1238,7 +1308,8 @@ app.post('/api/chat', async (req, res) => {
 // List all chat sessions
 app.get('/api/chat/sessions', async (req, res) => {
     try {
-        const sessions = chatAgent.listSessions();
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const sessions = chatAgent.listSessions({ chatsDir: libraryDirs.chatsDir });
         res.json(sessions);
     } catch (error) {
         console.error("List sessions error:", error);
@@ -1249,7 +1320,8 @@ app.get('/api/chat/sessions', async (req, res) => {
 // Delete a chat session
 app.delete('/api/chat/sessions/:id', async (req, res) => {
     try {
-        chatAgent.deleteSession(req.params.id);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        chatAgent.deleteSession(req.params.id, { chatsDir: libraryDirs.chatsDir });
         res.json({ success: true });
     } catch (error) {
         console.error("Delete session error:", error);
@@ -1260,7 +1332,8 @@ app.delete('/api/chat/sessions/:id', async (req, res) => {
 // Get full session data (for loading a specific chat)
 app.get('/api/chat/sessions/:id', async (req, res) => {
     try {
-        const sessionData = chatAgent.getSessionData(req.params.id);
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        const sessionData = chatAgent.getSessionData(req.params.id, { chatsDir: libraryDirs.chatsDir });
         if (!sessionData) {
             return res.status(404).json({ error: "Session not found" });
         }

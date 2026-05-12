@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import crypto from 'crypto';
+import { getLibraryUrlFromPath } from '../utils/userLibrary.js';
 
 // ============================================================================
 // CONSTANTS
@@ -389,7 +390,7 @@ export async function processTikTokVideo(tiktokUrl, videosDir, enableTrim = true
 
     // 7. Return result
     const filename = path.basename(finalPath);
-    const videoUrl = `/library/videos/${filename}`;
+    const videoUrl = getLibraryUrlFromPath(finalPath);
 
     console.log(`[TikTok] Video saved: ${videoUrl}`);
 

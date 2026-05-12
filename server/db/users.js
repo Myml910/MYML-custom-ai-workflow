@@ -58,6 +58,16 @@ export async function createUser({ username, password, role = 'designer', status
     return getPublicUserById(id);
 }
 
+export async function createUserIfMissing({ username, password, role = 'designer', status = 'active' }) {
+    const existing = findUserByUsername(username);
+    if (existing) {
+        return { created: false, user: toPublicUser(existing) };
+    }
+
+    const user = await createUser({ username, password, role, status });
+    return { created: true, user };
+}
+
 export function getPublicUserById(id) {
     return toPublicUser(findUserById(id));
 }
@@ -99,4 +109,28 @@ export async function seedInitialAdmin() {
 
     console.log(`[Auth] Seeded initial admin user: ${user.username}`);
     return { seeded: true, user };
+}
+
+export async function seedInternalTestUsers() {
+    const users = [
+        {
+            username: process.env.MYML_GROUP1_USERNAME || 'group1.design@yxfa.cn',
+            password: process.env.MYML_GROUP1_PASSWORD || 'MymlGroup1@2026',
+            role: 'user',
+            status: 'active'
+        },
+        {
+            username: process.env.MYML_GROUP2_USERNAME || 'group2.design@yxfa.cn',
+            password: process.env.MYML_GROUP2_PASSWORD || 'MymlGroup2@2026',
+            role: 'user',
+            status: 'active'
+        }
+    ];
+
+    const results = [];
+    for (const user of users) {
+        results.push(await createUserIfMissing(user));
+    }
+
+    return results;
 }

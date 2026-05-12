@@ -15,6 +15,8 @@ import { generateOpenAIImage } from '../services/openai.js';
 import { generateCustomImage, generateCustomVideo } from '../services/customApi.js';
 import { generateSeedanceVideo } from '../services/seedance.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
+import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
+import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 
 const router = express.Router();
 const MAX_IMAGE_REFERENCES = 6;
@@ -26,7 +28,8 @@ const MAX_IMAGE_REFERENCES = 6;
 router.post('/generate-image', async (req, res) => {
     try {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
-        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY, IMAGES_DIR } = req.app.locals;
+        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;
+        const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
 
         // Determine provider
         const isKlingModel = imageModel && imageModel.startsWith('kling-');
@@ -49,7 +52,7 @@ router.post('/generate-image', async (req, res) => {
             let resolvedImages = null;
             if (rawImageBase64) {
                 const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
-                resolvedImages = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
+                resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
             console.log(`Custom image references: ${resolvedImages ? resolvedImages.length : 0}`);
@@ -79,7 +82,7 @@ router.post('/generate-image', async (req, res) => {
             let resolvedImages = null;
             if (rawImageBase64) {
                 const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
-                resolvedImages = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
+                resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
             let klingImageUrl;
@@ -155,7 +158,7 @@ router.post('/generate-image', async (req, res) => {
             let imageBase64Array = null;
             if (rawImageBase64) {
                 const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
-                imageBase64Array = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
+                imageBase64Array = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
             imageBuffer = await generateOpenAIImage({
@@ -175,7 +178,7 @@ router.post('/generate-image', async (req, res) => {
             let imageBase64Array = null;
             if (rawImageBase64) {
                 const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
-                imageBase64Array = rawImages.map(img => resolveImageToBase64(img)).filter(Boolean);
+                imageBase64Array = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
             imageBuffer = await generateGeminiImage({
@@ -188,7 +191,7 @@ router.post('/generate-image', async (req, res) => {
         }
 
         // Save to library - use unique filename to preserve previous generations
-        const saved = saveBufferToFile(imageBuffer, IMAGES_DIR, 'img', imageFormat);
+        const saved = saveBufferToFile(imageBuffer, imagesDir, 'img', imageFormat);
 
         // Determine metadata ID: use nodeId for recovery if available, otherwise use file ID
         const metadataId = nodeId || saved.id;
@@ -202,7 +205,7 @@ router.post('/generate-image', async (req, res) => {
             createdAt: new Date().toISOString(),
             type: 'images'
         };
-        fs.writeFileSync(path.join(IMAGES_DIR, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+        fs.writeFileSync(path.join(imagesDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
 
         console.log(`Image saved: ${saved.url} (model: ${imageModel || 'gemini-pro'})`);
         return res.json({ resultUrl: saved.url });
@@ -220,12 +223,13 @@ router.post('/generate-image', async (req, res) => {
 router.post('/generate-video', async (req, res) => {
     try {
         const { nodeId, prompt, imageBase64: rawImageBase64, lastFrameBase64: rawLastFrameBase64, motionReferenceUrl: rawMotionReferenceUrl, aspectRatio, resolution, duration, videoModel, generateAudio } = req.body;
-        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, HAILUO_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY, VIDEOS_DIR } = req.app.locals;
+        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, HAILUO_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;
+        const videosDir = req.library?.videosDir || req.app.locals.VIDEOS_DIR;
 
         // Resolve file URLs to base64
-        const imageBase64 = resolveImageToBase64(rawImageBase64);
-        const lastFrameBase64 = resolveImageToBase64(rawLastFrameBase64);
-        const motionReferenceUrl = resolveImageToBase64(rawMotionReferenceUrl);
+        const imageBase64 = resolveImageToBase64(rawImageBase64, req.user);
+        const lastFrameBase64 = resolveImageToBase64(rawLastFrameBase64, req.user);
+        const motionReferenceUrl = resolveImageToBase64(rawMotionReferenceUrl, req.user);
 
         // Determine provider
         const isKlingModel = videoModel && videoModel.startsWith('kling-');
@@ -405,7 +409,7 @@ router.post('/generate-video', async (req, res) => {
         }
 
         // Save to library - use unique filename to preserve previous generations
-        const saved = saveBufferToFile(videoBuffer, VIDEOS_DIR, 'vid', 'mp4');
+        const saved = saveBufferToFile(videoBuffer, videosDir, 'vid', 'mp4');
 
         // Determine metadata ID: use nodeId for recovery if available, otherwise use file ID
         const metadataId = nodeId || saved.id;
@@ -421,7 +425,7 @@ router.post('/generate-video', async (req, res) => {
             createdAt: new Date().toISOString(),
             type: 'videos'
         };
-        fs.writeFileSync(path.join(VIDEOS_DIR, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+        fs.writeFileSync(path.join(videosDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
 
         if (isSeedanceModel) {
             console.log('[Seedance][saved]', {
@@ -450,20 +454,33 @@ router.post('/generate-video', async (req, res) => {
 router.get('/generation-status/:nodeId', async (req, res) => {
     try {
         const { nodeId } = req.params;
-        const { IMAGES_DIR, VIDEOS_DIR } = req.app.locals;
+        const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
+        const videosDir = req.library?.videosDir || req.app.locals.VIDEOS_DIR;
 
         // Check images metadata
-        const imageMetaPath = path.join(IMAGES_DIR, `${nodeId}.json`);
+        let imageMetaPath = path.join(imagesDir, `${nodeId}.json`);
+        if (!fs.existsSync(imageMetaPath) && canUseLegacyRootLibrary(req.user)) {
+            const legacyImageMetaPath = path.join(IMAGES_DIR, `${nodeId}.json`);
+            if (fs.existsSync(legacyImageMetaPath)) {
+                imageMetaPath = legacyImageMetaPath;
+            }
+        }
         if (fs.existsSync(imageMetaPath)) {
             const meta = JSON.parse(fs.readFileSync(imageMetaPath, 'utf8'));
-            return res.json({ status: 'success', resultUrl: `/library/images/${meta.filename}`, type: 'image', createdAt: meta.createdAt });
+            return res.json({ status: 'success', resultUrl: getLibraryUrlFromPath(path.join(path.dirname(imageMetaPath), meta.filename)), type: 'image', createdAt: meta.createdAt });
         }
 
         // Check videos metadata
-        const videoMetaPath = path.join(VIDEOS_DIR, `${nodeId}.json`);
+        let videoMetaPath = path.join(videosDir, `${nodeId}.json`);
+        if (!fs.existsSync(videoMetaPath) && canUseLegacyRootLibrary(req.user)) {
+            const legacyVideoMetaPath = path.join(VIDEOS_DIR, `${nodeId}.json`);
+            if (fs.existsSync(legacyVideoMetaPath)) {
+                videoMetaPath = legacyVideoMetaPath;
+            }
+        }
         if (fs.existsSync(videoMetaPath)) {
             const meta = JSON.parse(fs.readFileSync(videoMetaPath, 'utf8'));
-            return res.json({ status: 'success', resultUrl: `/library/videos/${meta.filename}`, type: 'video', createdAt: meta.createdAt });
+            return res.json({ status: 'success', resultUrl: getLibraryUrlFromPath(path.join(path.dirname(videoMetaPath), meta.filename)), type: 'video', createdAt: meta.createdAt });
         }
 
         res.json({ status: 'pending' });

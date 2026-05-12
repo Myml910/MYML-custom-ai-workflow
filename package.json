@@ -10,7 +10,8 @@
     "start": "node server/index.js",
     "build": "vite build",
     "preview": "vite preview --port=10758 --host=0.0.0.0 ",
-    "setup:local-models": "node -e \"require('child_process').execSync(process.platform === 'win32' ? 'setup-local-models.bat' : 'bash setup-local-models.sh', {stdio: 'inherit'})\""
+    "setup:local-models": "node -e \"require('child_process').execSync(process.platform === 'win32' ? 'setup-local-models.bat' : 'bash setup-local-models.sh', {stdio: 'inherit'})\"",
+    "seed:internal-users": "node server/seed-internal-users.js"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.0",

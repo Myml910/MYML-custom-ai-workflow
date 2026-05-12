@@ -14,6 +14,7 @@ import {
     clearSession
 } from '../services/tiktok-post.js';
 import { LIBRARY_DIR } from '../config/paths.js';
+import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 
 const router = Router();
 
@@ -184,6 +185,10 @@ router.post('/post', async (req, res) => {
 
         if (!mediaUrl) {
             return res.status(400).json({ error: 'Video URL is required' });
+        }
+
+        if (mediaUrl.startsWith('/library/') && !resolveLibraryUrlToPath(mediaUrl, req.user)) {
+            return res.status(403).json({ error: 'Media is not available for this user' });
         }
 
         // Get library directory from app locals

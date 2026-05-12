@@ -8,6 +8,7 @@
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { IMAGES_DIR } from '../config/paths.js';
+import { getLibraryUrlFromPath } from '../utils/userLibrary.js';
 
 const router = express.Router();
 
@@ -185,7 +186,7 @@ Respond ONLY with valid JSON, no other text.`;
             console.log('[Storyboard] Processing reference images for scripts...');
             for (const ref of referenceImages) {
                 try {
-                    const fullDataUrl = await resolveImageToBase64(ref.url);
+                    const fullDataUrl = await resolveImageToBase64(ref.url, req.user);
                     if (fullDataUrl && fullDataUrl.startsWith('data:')) {
                         const matches = fullDataUrl.match(/^data:(.+);base64,(.+)$/);
                         if (matches) {
@@ -231,7 +232,7 @@ Respond ONLY with valid JSON, no other text.`;
             console.log('[Storyboard] Processing character images for scripts...');
             for (const [name, url] of Object.entries(characterImages)) {
                 try {
-                    const fullDataUrl = await resolveImageToBase64(url);
+                    const fullDataUrl = await resolveImageToBase64(url, req.user);
                     if (fullDataUrl && fullDataUrl.startsWith('data:')) {
                         const matches = fullDataUrl.match(/^data:(.+);base64,(.+)$/);
                         if (matches) {
@@ -362,7 +363,7 @@ Respond with ONLY the story synopsis, no additional text or formatting.`;
             console.log('[Storyboard] Processing reference images for brainstorming...');
             for (const ref of referenceImages) {
                 try {
-                    const fullDataUrl = await resolveImageToBase64(ref.url);
+                    const fullDataUrl = await resolveImageToBase64(ref.url, req.user);
                     if (fullDataUrl && fullDataUrl.startsWith('data:')) {
                         const matches = fullDataUrl.match(/^data:(.+);base64,(.+)$/);
                         if (matches) {
@@ -384,7 +385,7 @@ Respond with ONLY the story synopsis, no additional text or formatting.`;
         else if (characterImages && Object.keys(characterImages).length > 0) {
             for (const [name, url] of Object.entries(characterImages)) {
                 try {
-                    const fullDataUrl = await resolveImageToBase64(url);
+                    const fullDataUrl = await resolveImageToBase64(url, req.user);
                     if (fullDataUrl && fullDataUrl.startsWith('data:')) {
                         const matches = fullDataUrl.match(/^data:(.+);base64,(.+)$/);
                         if (matches) {
@@ -541,7 +542,7 @@ router.post('/generate-composite', async (req, res) => {
 
                 try {
                     console.log(`[Storyboard] Resolving image for: ${ref.name} (${ref.category})`);
-                    const base64Data = resolveImageToBase64(ref.url);
+                    const base64Data = resolveImageToBase64(ref.url, req.user);
                     if (base64Data) {
                         const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
                         if (matches) {
@@ -608,7 +609,7 @@ router.post('/generate-composite', async (req, res) => {
 
                 try {
                     console.log(`[Storyboard] Resolving image for: ${name}`);
-                    const base64Data = resolveImageToBase64(url);
+                    const base64Data = resolveImageToBase64(url, req.user);
                     if (base64Data) {
                         const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
                         if (matches) {
@@ -761,11 +762,11 @@ CRITICAL:
                 const fileName = `storyboard_composite_${timestamp}.png`;
                 const fs = await import('fs/promises');
                 const path = await import('path');
-                const assetsDir = req.app.locals.IMAGES_DIR || IMAGES_DIR;
+                const assetsDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR || IMAGES_DIR;
                 const filePath = path.join(assetsDir, fileName);
 
                 await fs.writeFile(filePath, imageBuffer);
-                imageUrl = `/library/images/${fileName}`;
+                imageUrl = getLibraryUrlFromPath(filePath);
                 console.log(`[Storyboard] Composite image saved: ${imageUrl}`);
                 break;
             }

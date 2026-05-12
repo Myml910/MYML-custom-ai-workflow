@@ -15,6 +15,7 @@ import path from 'path';
 import { createChatGraph, generateTopicTitle } from "./graph/chatGraph.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { CHATS_DIR, IMAGES_DIR } from '../config/paths.js';
+import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 
 // ============================================================================
 // FILE PATHS
@@ -29,7 +30,7 @@ if (!fs.existsSync(CHATS_DIR)) {
  * Resolve an image URL or base64 to a base64 data URL
  * Handles both file paths (/library/images/...) and data URLs
  */
-function resolveImageToBase64(imageInput) {
+function resolveImageToBase64(imageInput, user = null) {
     if (!imageInput) return null;
 
     // Already a base64 data URL
@@ -52,12 +53,11 @@ function resolveImageToBase64(imageInput) {
     cleanPath = decodeURIComponent(cleanPath);
 
     // File URL - read from disk
-    if (cleanPath.startsWith('/library/images/')) {
-        const filename = cleanPath.replace('/library/images/', '');
-        const filePath = path.join(IMAGES_DIR, filename);
-        if (fs.existsSync(filePath)) {
+    if (cleanPath.startsWith('/library/')) {
+        const filePath = resolveLibraryUrlToPath(cleanPath, user);
+        if (filePath && fs.existsSync(filePath)) {
             const buffer = fs.readFileSync(filePath);
-            const ext = path.extname(filename).toLowerCase();
+            const ext = path.extname(filePath).toLowerCase();
             const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
             return `data:${mimeType};base64,${buffer.toString('base64')}`;
         }
@@ -139,15 +139,15 @@ function deserializeMessages(messages) {
 /**
  * Get the file path for a session
  */
-function getSessionPath(sessionId) {
-    return path.join(CHATS_DIR, `${sessionId}.json`);
+function getSessionPath(sessionId, chatsDir = CHATS_DIR) {
+    return path.join(chatsDir, `${sessionId}.json`);
 }
 
 /**
  * Save a session to disk
  */
-function saveSession(sessionId, session) {
-    const filePath = getSessionPath(sessionId);
+function saveSession(sessionId, session, chatsDir = CHATS_DIR) {
+    const filePath = getSessionPath(sessionId, chatsDir);
     const data = {
         id: sessionId,
         topic: session.topic,
@@ -161,8 +161,8 @@ function saveSession(sessionId, session) {
 /**
  * Load a session from disk
  */
-function loadSession(sessionId) {
-    const filePath = getSessionPath(sessionId);
+function loadSession(sessionId, chatsDir = CHATS_DIR) {
+    const filePath = getSessionPath(sessionId, chatsDir);
     if (!fs.existsSync(filePath)) {
         return null;
     }
@@ -186,16 +186,22 @@ function loadSession(sessionId) {
  * @param {string} sessionId - Unique session identifier
  * @returns {object} Session object
  */
-export function getSession(sessionId) {
+function getScopedSessionCacheKey(sessionId, chatsDir = CHATS_DIR) {
+    return `${chatsDir}:${sessionId}`;
+}
+
+export function getSession(sessionId, options = {}) {
+    const chatsDir = options.chatsDir || CHATS_DIR;
+    const cacheKey = getScopedSessionCacheKey(sessionId, chatsDir);
     // Check cache first
-    if (sessionCache.has(sessionId)) {
-        return sessionCache.get(sessionId);
+    if (sessionCache.has(cacheKey)) {
+        return sessionCache.get(cacheKey);
     }
 
     // Try to load from disk
-    const loaded = loadSession(sessionId);
+    const loaded = loadSession(sessionId, chatsDir);
     if (loaded) {
-        sessionCache.set(sessionId, loaded);
+        sessionCache.set(cacheKey, loaded);
         return loaded;
     }
 
@@ -205,7 +211,7 @@ export function getSession(sessionId) {
         topic: null,
         createdAt: new Date(),
     };
-    sessionCache.set(sessionId, newSession);
+    sessionCache.set(cacheKey, newSession);
     return newSession;
 }
 
@@ -214,10 +220,11 @@ export function getSession(sessionId) {
  * @param {string} sessionId - Session to delete
  * @returns {boolean} Whether session existed and was deleted
  */
-export function deleteSession(sessionId) {
-    sessionCache.delete(sessionId);
+export function deleteSession(sessionId, options = {}) {
+    const chatsDir = options.chatsDir || CHATS_DIR;
+    sessionCache.delete(getScopedSessionCacheKey(sessionId, chatsDir));
 
-    const filePath = getSessionPath(sessionId);
+    const filePath = getSessionPath(sessionId, chatsDir);
     if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
         return true;
@@ -229,17 +236,18 @@ export function deleteSession(sessionId) {
  * List all sessions from disk (for chat history)
  * @returns {Array} Array of session summaries
  */
-export function listSessions() {
-    if (!fs.existsSync(CHATS_DIR)) {
+export function listSessions(options = {}) {
+    const chatsDir = options.chatsDir || CHATS_DIR;
+    if (!fs.existsSync(chatsDir)) {
         return [];
     }
 
-    const files = fs.readdirSync(CHATS_DIR).filter(f => f.endsWith('.json'));
+    const files = fs.readdirSync(chatsDir).filter(f => f.endsWith('.json'));
     const sessions = [];
 
     for (const file of files) {
         try {
-            const filePath = path.join(CHATS_DIR, file);
+            const filePath = path.join(chatsDir, file);
             const content = fs.readFileSync(filePath, 'utf8');
             const data = JSON.parse(content);
             sessions.push({
@@ -263,8 +271,9 @@ export function listSessions() {
  * @param {string} sessionId - Session ID
  * @returns {object|null} Full session data with messages
  */
-export function getSessionData(sessionId) {
-    const filePath = getSessionPath(sessionId);
+export function getSessionData(sessionId, options = {}) {
+    const chatsDir = options.chatsDir || CHATS_DIR;
+    const filePath = getSessionPath(sessionId, chatsDir);
     if (!fs.existsSync(filePath)) {
         return null;
     }
@@ -290,8 +299,8 @@ export function getSessionData(sessionId) {
  * @param {string} apiKey - Google AI API key
  * @returns {Promise<object>} { response: string, topic?: string }
  */
-export async function sendMessage(sessionId, content, media, apiKey) {
-    const session = getSession(sessionId);
+export async function sendMessage(sessionId, content, media, apiKey, options = {}) {
+    const session = getSession(sessionId, options);
     const graph = createChatGraph();
 
     // Debug: Log session state
@@ -305,7 +314,7 @@ export async function sendMessage(sessionId, content, media, apiKey) {
 
         for (const m of media) {
             // Resolve file URLs to base64 if needed
-            const resolvedBase64 = resolveImageToBase64(m.base64);
+            const resolvedBase64 = resolveImageToBase64(m.base64, options.user);
             if (!resolvedBase64) continue;
 
             const mimeType = m.type === 'video' ? 'video/mp4' : 'image/png';
@@ -393,7 +402,7 @@ export async function sendMessage(sessionId, content, media, apiKey) {
     }
 
     // Save session to disk after each message
-    saveSession(sessionId, session);
+    saveSession(sessionId, session, options.chatsDir);
 
     return {
         response: aiResponse.content.toString(),

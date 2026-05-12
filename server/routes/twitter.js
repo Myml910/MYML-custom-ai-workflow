@@ -15,6 +15,7 @@ import {
     clearSession
 } from '../services/twitter.js';
 import { LIBRARY_DIR } from '../config/paths.js';
+import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 
 const router = Router();
 
@@ -197,6 +198,9 @@ router.post('/post', async (req, res) => {
 
         // Upload media if provided
         if (mediaUrl && mediaType) {
+            if (mediaUrl.startsWith('/library/') && !resolveLibraryUrlToPath(mediaUrl, req.user)) {
+                return res.status(403).json({ error: 'Media is not available for this user' });
+            }
             console.log(`[Twitter] Uploading ${mediaType} from: ${mediaUrl}`);
             mediaId = await uploadMediaFromUrl(sessionId, mediaUrl, mediaType, libraryDir);
         }

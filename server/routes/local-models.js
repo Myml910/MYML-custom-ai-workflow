@@ -522,7 +522,8 @@ router.post('/generate', async (req, res) => {
             resolution,
             steps,
             guidanceScale,
-            seed
+            seed,
+            outputDir: req.library?.imagesDir
         });
 
         if (result.success) {

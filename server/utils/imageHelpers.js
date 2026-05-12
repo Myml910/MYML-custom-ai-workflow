@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { LIBRARY_DIR } from '../config/paths.js';
+import { getLibraryUrlFromPath, resolveLibraryUrlToPath } from './userLibrary.js';
 
 // ============================================================================
 // BASE64 HELPERS
@@ -17,7 +17,7 @@ import { LIBRARY_DIR } from '../config/paths.js';
  * @param {string} input - Base64 data URL or file URL
  * @returns {string|null} Base64 data URL
  */
-export function resolveImageToBase64(input) {
+export function resolveImageToBase64(input, user = null) {
     if (!input) return null;
 
     // Already a data URL
@@ -45,10 +45,9 @@ export function resolveImageToBase64(input) {
             // Strip query string (e.g., ?t=1234567890) used for cache-busting
             const pathWithoutQuery = filePath.split('?')[0];
 
-            const relativePath = pathWithoutQuery.replace('/library/', '');
-            const absolutePath = path.join(LIBRARY_DIR, relativePath);
+            const absolutePath = resolveLibraryUrlToPath(pathWithoutQuery, user);
 
-            if (fs.existsSync(absolutePath)) {
+            if (absolutePath && fs.existsSync(absolutePath)) {
                 const fileBuffer = fs.readFileSync(absolutePath);
                 const ext = path.extname(absolutePath).toLowerCase();
                 const mimeType = {
@@ -134,9 +133,7 @@ export function saveBufferToFile(buffer, dir, prefix, extension, customId) {
 
     fs.writeFileSync(filePath, buffer);
 
-    // Determine URL path based on directory name
-    const dirName = path.basename(dir);
-    const url = `/library/${dirName}/${filename}`;
+    const url = getLibraryUrlFromPath(filePath);
 
     return { id, path: filePath, url, filename };
 }
