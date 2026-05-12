@@ -146,7 +146,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 </div>
             ) : data.type === NodeType.TEXT ? (
                 /* Text Node - Menu or Editing Mode */
-                <div className={`relative w-full overflow-hidden rounded-xl bg-[#151815] ${selected ? 'ring-1 ring-[#D8FF00]/30' : ''}`}>
+                <div className={`relative w-full overflow-hidden rounded-[var(--myml-radius-panel)] bg-[var(--myml-surface-raised)] ${selected ? 'ring-1 ring-[var(--myml-border-active)]' : ''}`}>
                     {data.textMode === 'editing' ? (
                         /* Editing Mode - Text Area */
                         <div className="p-4">
@@ -316,7 +316,7 @@ interface TextNodeMenuItemProps {
  */
 const TextNodeMenuItem: React.FC<TextNodeMenuItemProps> = ({ icon, label, onClick }) => (
     <button
-        className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-left text-neutral-400 transition-colors hover:bg-[#1A1D1A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                    className="flex h-9 w-full items-center gap-3 rounded-[var(--myml-radius-control)] px-2.5 text-left text-[var(--myml-text-muted)] transition-colors duration-[var(--myml-motion-base)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onClick}
     >

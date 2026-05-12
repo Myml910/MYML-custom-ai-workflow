@@ -164,13 +164,13 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
     const accentColor = '#D8FF00';
     const isDark = canvasTheme === 'dark';
     const menuButtonClass = isDark
-        ? 'bg-[#151815] border border-neutral-800 hover:bg-[#1A1D1A] hover:border-neutral-700 text-neutral-100'
+        ? 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)] hover:bg-[var(--myml-surface-hover)] hover:border-[var(--myml-border-active)] text-[var(--myml-text-primary)] shadow-[var(--myml-shadow-floating)]'
         : 'bg-white border border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300 text-neutral-800';
     const menuSurfaceClass = isDark
-        ? 'bg-[#151815] border-neutral-800 shadow-[0_14px_32px_rgba(0,0,0,0.36)]'
+        ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)] shadow-[var(--myml-shadow-floating)]'
         : 'bg-white border-neutral-200 shadow-[0_14px_32px_rgba(15,23,42,0.12)]';
     const menuItemClass = isDark
-        ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-neutral-100'
+        ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]'
         : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900';
     const toolbarShellClass = 'absolute inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap pointer-events-auto';
     const toolbarButtonClass = 'flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-semibold leading-none transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35';

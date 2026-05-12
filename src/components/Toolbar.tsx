@@ -8,6 +8,7 @@ import {
   Film
 } from 'lucide-react';
 import { Language, t } from '../i18n/translations';
+import { IconButton } from './ui';
 
 // ============================================================================
 // TIKTOK ICON COMPONENT
@@ -86,67 +87,63 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <div
-      className={`fixed left-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 p-1.5 rounded-xl shadow-[0_14px_32px_rgba(0,0,0,0.32)] z-50 transition-[background-color,border-color,box-shadow] duration-150 ${
+      className={`fixed left-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 p-1.5 rounded-[var(--myml-radius-panel)] shadow-[var(--myml-shadow-floating)] z-50 transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-base)] ${
         isDark
-          ? 'bg-[#101210]/95 border border-neutral-800'
+          ? 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)]'
           : 'bg-white/90 backdrop-blur-sm border border-neutral-200'
       }`}
     >
-      <button
-        className={`mb-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-          isDark
-            ? 'bg-[#D8FF00] text-black border-[#D8FF00]/80 hover:bg-[#e4ff3a] hover:shadow-[0_0_8px_rgba(216,255,0,0.12)]'
-            : 'bg-lime-600 text-white hover:bg-lime-500 border-lime-600'
-        }`}
+      <IconButton
+        size="lg"
+        variant={isDark ? 'primary' : 'secondary'}
+        className={`mb-2 ${!isDark ? 'bg-lime-600 text-white hover:bg-lime-500 border-lime-600' : ''}`}
         onClick={onAddClick}
         aria-label={t(language, 'addNodes')}
         title={t(language, 'addNodes')}
       >
         <Plus size={20} />
-      </button>
+      </IconButton>
 
       <div className="flex flex-col gap-3 py-2">
-        <button
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-            isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
-          }`}
+        <IconButton
+          variant="ghost"
+          className={!isDark ? 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600' : ''}
           onClick={onWorkflowsClick}
           aria-label={t(language, 'myWorkflows')}
           title={t(language, 'myWorkflows')}
         >
           <LayoutGrid size={20} />
-        </button>
+        </IconButton>
 
-        <button
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-            isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
-          }`}
+        <IconButton
+          variant="ghost"
+          className={!isDark ? 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600' : ''}
           title={t(language, 'assets')}
           aria-label={t(language, 'assets')}
           onClick={onAssetsClick}
         >
           <ImageIcon size={20} />
-        </button>
+        </IconButton>
 
-        <button
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-            isDark ? 'text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100' : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600'
-          }`}
+        <IconButton
+          variant="ghost"
+          className={!isDark ? 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-600' : ''}
           onClick={onHistoryClick}
           aria-label={t(language, 'history')}
           title={t(language, 'history')}
         >
           <History size={20} />
-        </button>
+        </IconButton>
 
         {/* Tools Dropdown */}
         <div className="relative" ref={toolsRef}>
-          <button
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+          <IconButton
+            variant="ghost"
+            className={
               isDark
-                ? `text-neutral-500 hover:bg-[#1A1D1A] hover:text-neutral-100 ${isToolsOpen ? 'text-[#D8FF00] bg-[#1A1D1A] ring-1 ring-[#D8FF00]/35' : ''}`
+                ? `${isToolsOpen ? 'text-[var(--myml-accent)] bg-[var(--myml-surface-hover)] ring-1 ring-[var(--myml-border-active)]' : ''}`
                 : `text-neutral-500 hover:bg-neutral-100 hover:text-lime-600 ${isToolsOpen ? 'text-lime-600 bg-neutral-100' : ''}`
-            }`}
+            }
             onClick={() => {
               if (!isToolsOpen) {
                 onToolsOpen?.(); // Close other panels when opening tools
@@ -158,14 +155,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             title={t(language, 'tools')}
           >
             <Wrench size={20} />
-          </button>
+          </IconButton>
 
           {/* Dropdown Menu */}
           {isToolsOpen && (
             <div
-              className={`absolute left-10 top-0 z-50 min-w-[240px] rounded-lg border py-2 shadow-[0_14px_32px_rgba(0,0,0,0.36)] motion-menu-in ${
+              className={`absolute left-10 top-0 z-50 min-w-[240px] rounded-[var(--myml-radius-card)] border py-2 shadow-[var(--myml-shadow-floating)] motion-menu-in ${
                 isDark
-                  ? 'bg-[#151815] border-neutral-800'
+                  ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)]'
                   : 'bg-white border-neutral-200'
               }`}
             >
@@ -240,16 +237,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       <div className={`w-8 h-[1px] my-1 ${isDark ? 'bg-neutral-800' : 'bg-neutral-200'}`} />
 
-      <button
+      <IconButton
         aria-label={t(language, 'profile')}
-        className={`mb-2 h-8 w-8 shrink-0 overflow-hidden rounded-full transition-[border-color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+        className={`mb-2 overflow-hidden rounded-full ${
           isDark
-            ? 'border border-neutral-800 hover:border-[#D8FF00]/35'
+            ? 'border border-[var(--myml-border-default)] hover:border-[var(--myml-border-active)]'
             : 'border border-neutral-300 hover:border-lime-500/60'
         }`}
       >
         <img src="https://picsum.photos/40/40" alt={t(language, 'profile')} className="w-full h-full object-cover" />
-      </button>
+      </IconButton>
     </div>
   );
 };

@@ -1,0 +1,80 @@
+:root {
+  --myml-bg-canvas: #030503;
+  --myml-bg-canvas-soft: #070907;
+  --myml-surface-base: #0c0f0c;
+  --myml-surface-raised: #111511;
+  --myml-surface-panel: #121612;
+  --myml-surface-floating: rgba(17, 21, 17, 0.96);
+  --myml-surface-hover: #1a2018;
+  --myml-border-subtle: rgba(255, 255, 255, 0.07);
+  --myml-border-default: rgba(255, 255, 255, 0.11);
+  --myml-border-active: rgba(216, 255, 0, 0.42);
+  --myml-accent: #d8ff00;
+  --myml-accent-hover: #e4ff3a;
+  --myml-accent-soft: rgba(216, 255, 0, 0.1);
+  --myml-accent-muted: rgba(216, 255, 0, 0.22);
+  --myml-text-primary: #f3f5ee;
+  --myml-text-secondary: #b2b9ad;
+  --myml-text-muted: #747d70;
+  --myml-text-faint: #535b50;
+  --myml-danger: #ef4444;
+  --myml-danger-soft: rgba(239, 68, 68, 0.14);
+  --myml-success: #76d65c;
+  --myml-warning: #f6c453;
+  --myml-radius-control: 8px;
+  --myml-radius-card: 10px;
+  --myml-radius-panel: 14px;
+  --myml-radius-modal: 16px;
+  --myml-shadow-floating: 0 14px 34px rgba(0, 0, 0, 0.34);
+  --myml-shadow-panel: 0 18px 44px rgba(0, 0, 0, 0.38);
+  --myml-shadow-accent: 0 0 12px rgba(216, 255, 0, 0.13);
+  --myml-motion-fast: 120ms;
+  --myml-motion-base: 160ms;
+  --myml-motion-panel: 220ms;
+  --myml-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --myml-density-toolbar-gap: 6px;
+  --myml-density-panel-pad: 16px;
+  --myml-z-canvas: 0;
+  --myml-z-node: 10;
+  --myml-z-node-active: 80;
+  --myml-z-selection: 90;
+  --myml-z-panel: 40;
+  --myml-z-chrome: 50;
+  --myml-z-popover: 1000;
+  --myml-z-modal: 1100;
+}
+
+.myml-surface {
+  background: var(--myml-surface-raised);
+  border: 1px solid var(--myml-border-default);
+  color: var(--myml-text-primary);
+}
+
+.myml-panel {
+  background: var(--myml-surface-floating);
+  border: 1px solid var(--myml-border-default);
+  border-radius: var(--myml-radius-panel);
+  box-shadow: var(--myml-shadow-panel);
+  color: var(--myml-text-primary);
+}
+
+.myml-popover {
+  background: var(--myml-surface-floating);
+  border: 1px solid var(--myml-border-default);
+  border-radius: var(--myml-radius-card);
+  box-shadow: var(--myml-shadow-floating);
+  color: var(--myml-text-primary);
+}
+
+.myml-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(216, 255, 0, 0.38);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --myml-motion-fast: 1ms;
+    --myml-motion-base: 1ms;
+    --myml-motion-panel: 1ms;
+  }
+}

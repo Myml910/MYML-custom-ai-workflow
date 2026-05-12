@@ -260,7 +260,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
     return (
         <div
-            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-[0_16px_36px_rgba(0,0,0,0.32)] motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
+            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-[var(--myml-shadow-panel)] motion-panel-in transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${
                 showHighlight
                     ? isDark
                         ? 'border-neutral-800 ring-2 ring-[#D8FF00]/40'
@@ -268,7 +268,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     : isDark
                         ? 'border-neutral-800'
                         : 'border-neutral-200'
-            } ${isDark ? 'bg-[#101210]' : 'bg-white'}`}
+            } ${isDark ? 'bg-[var(--myml-surface-panel)]' : 'bg-white'}`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -292,7 +292,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
             {/* History Panel */}
             {showHistory && (
-                <div className={`absolute inset-0 z-20 flex flex-col ${isDark ? 'bg-[#101210]' : 'bg-white'}`}>
+                <div className={`absolute inset-0 z-20 flex flex-col ${isDark ? 'bg-[var(--myml-surface-panel)]' : 'bg-white'}`}>
                     {/* History Header */}
                     <div className={`flex items-center gap-3 px-4 py-3 border-b ${isDark ? 'border-neutral-800' : 'border-neutral-200'}`}>
                         <button
@@ -334,7 +334,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         aria-label={`${t(language, 'openChat')}: ${session.topic}`}
                                         className={`w-full text-left px-3 py-2.5 rounded-lg transition-[background-color,border-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 group cursor-pointer ${
                                             isDark
-                                                ? 'bg-[#151815] hover:bg-[#1A1D1A] border border-neutral-800 hover:border-[#D8FF00]/25'
+                                                ? 'bg-[var(--myml-surface-raised)] hover:bg-[var(--myml-surface-hover)] border border-[var(--myml-border-default)] hover:border-[var(--myml-border-active)]'
                                                 : 'bg-neutral-100 hover:bg-lime-50 border border-transparent hover:border-lime-200'
                                         }`}
                                     >
