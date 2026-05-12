@@ -37,6 +37,36 @@ import { PromptBar } from './imageEditor/PromptBar';
 // COMPONENT
 // ============================================================================
 
+const isFiniteNumber = (value: number) => Number.isFinite(value);
+
+const isRenderableElement = (element: EditorElement) => {
+    if (element.type === 'arrow') {
+        return [
+            element.startX,
+            element.startY,
+            element.endX,
+            element.endY,
+            element.lineWidth
+        ].every(isFiniteNumber);
+    }
+
+    if (element.type === 'text') {
+        return [
+            element.x,
+            element.y,
+            element.fontSize
+        ].every(isFiniteNumber);
+    }
+
+    return [
+        element.x,
+        element.y,
+        element.width,
+        element.height,
+        element.strokeWidth
+    ].every(isFiniteNumber);
+};
+
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     isOpen,
     nodeId,
@@ -342,24 +372,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }
 
         // 3. Draw Elements (Arrows/Text)
-        elements.forEach(element => {
-            if (element.type === 'arrow') {
-                drawArrowWithStyle(
-                    ctx,
-                    element.startX,
-                    element.startY,
-                    element.endX,
-                    element.endY,
-                    element.color,
-                    element.lineWidth
-                );
-            } else if (element.type === 'text') {
-                ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                ctx.fillStyle = element.color;
-                ctx.textBaseline = 'top';
-                ctx.fillText(element.text, element.x, element.y);
-            } else if (element.type === 'shape') {
-                drawShapeElement(ctx, element);
+        elements.filter(isRenderableElement).forEach(element => {
+            try {
+                if (element.type === 'arrow') {
+                    drawArrowWithStyle(
+                        ctx,
+                        element.startX,
+                        element.startY,
+                        element.endX,
+                        element.endY,
+                        element.color,
+                        element.lineWidth
+                    );
+                } else if (element.type === 'text') {
+                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
+                    ctx.fillStyle = element.color;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(element.text, element.x, element.y);
+                } else if (element.type === 'shape') {
+                    drawShapeElement(ctx, element);
+                }
+            } catch (error) {
+                console.error('Failed to render image editor element into composite:', error);
             }
         });
 
@@ -768,24 +802,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Clear and redraw all elements
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        elements.forEach(element => {
-            if (element.type === 'arrow') {
-                drawArrowWithStyle(
-                    ctx,
-                    element.startX,
-                    element.startY,
-                    element.endX,
-                    element.endY,
-                    element.color,
-                    element.lineWidth
-                );
-            } else if (element.type === 'text' && element.id !== text.editingTextId) {
-                ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                ctx.fillStyle = element.color;
-                ctx.textBaseline = 'top';
-                ctx.fillText(element.text, element.x, element.y);
-            } else if (element.type === 'shape') {
-                drawShapeElement(ctx, element);
+        elements.filter(isRenderableElement).forEach(element => {
+            try {
+                if (element.type === 'arrow') {
+                    drawArrowWithStyle(
+                        ctx,
+                        element.startX,
+                        element.startY,
+                        element.endX,
+                        element.endY,
+                        element.color,
+                        element.lineWidth
+                    );
+                } else if (element.type === 'text' && element.id !== text.editingTextId) {
+                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
+                    ctx.fillStyle = element.color;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(element.text, element.x, element.y);
+                } else if (element.type === 'shape') {
+                    drawShapeElement(ctx, element);
+                }
+            } catch (error) {
+                console.error('Failed to redraw image editor element:', error);
             }
         });
     }, [elements, text.editingTextId]);
@@ -1110,7 +1148,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             {/* Selection UI - Shows handles for selected element */}
                             {selection.isSelectMode && selection.selectedElementId && (
                                 <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }}>
-                                    {elements.filter(el => el.id === selection.selectedElementId).map(el => {
+                                    {elements.filter(el => el.id === selection.selectedElementId && isRenderableElement(el)).map(el => {
                                         if (el.type === 'arrow') {
                                             return (
                                                 <g key={el.id}>
