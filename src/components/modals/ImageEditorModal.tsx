@@ -47,6 +47,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     initialResolution,
     initialElements,
     initialCanvasData,
+    initialCanvasSize,
     initialBackgroundUrl,
     canvasTheme = 'dark',
     language = 'zh',
@@ -73,6 +74,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Image State (for crop undo/redo) ---
     const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(imageUrl);
+    const [displaySize, setDisplaySize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
     // --- Theme / Language ---
     const isDark = canvasTheme === 'dark';
@@ -102,6 +104,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const textCanvasRef = useRef<HTMLCanvasElement>(null);
     const elementsCanvasRef = useRef<HTMLCanvasElement>(null);
     const imageContainerRef = useRef<HTMLDivElement>(null);
+    const imageViewportRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
     const isMountedRef = useRef(false);
@@ -111,6 +114,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const autosaveRequestSeqRef = useRef(0);
     const lastSavedElementsRef = useRef<string>('');
+    const scaledElementsKeyRef = useRef<string | null>(null);
+    const displaySizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -133,6 +138,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 autosaveTimeoutRef.current = null;
             }
             autosaveRequestSeqRef.current += 1;
+            displaySizeRef.current = { width: 0, height: 0 };
+            setDisplaySize({ width: 0, height: 0 });
         }
     }, [editorTargetKey, isOpen]);
 
@@ -190,6 +197,116 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         strokeColor: drawing.brushColor,
         strokeWidth: drawing.brushWidth
     });
+
+    const syncCanvasToDisplaySize = useCallback((
+        canvas: HTMLCanvasElement | null,
+        width: number,
+        height: number,
+        preserveContent = false
+    ) => {
+        if (!canvas || width <= 0 || height <= 0) return;
+        if (canvas.width === width && canvas.height === height) return;
+
+        if (preserveContent && canvas.width > 0 && canvas.height > 0) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (tempCtx) {
+                tempCtx.drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(tempCanvas, 0, 0, width, height);
+            }
+            return;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+    }, []);
+
+    const syncOverlayCanvases = useCallback((width: number, height: number) => {
+        syncCanvasToDisplaySize(canvasRef.current, width, height, true);
+        syncCanvasToDisplaySize(arrowCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(shapeCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(elementsCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(textCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(selectCanvasRef.current, width, height);
+    }, [syncCanvasToDisplaySize]);
+
+    const scaleElementsToDisplaySize = useCallback((sourceElements: EditorElement[], sourceSize: { width: number; height: number }, targetSize: { width: number; height: number }): EditorElement[] => {
+        if (sourceSize.width <= 0 || sourceSize.height <= 0 || targetSize.width <= 0 || targetSize.height <= 0) {
+            return sourceElements;
+        }
+
+        if (sourceSize.width === targetSize.width && sourceSize.height === targetSize.height) {
+            return sourceElements;
+        }
+
+        const scaleX = targetSize.width / sourceSize.width;
+        const scaleY = targetSize.height / sourceSize.height;
+        const fontScale = (scaleX + scaleY) / 2;
+
+        return sourceElements.map(element => {
+            if (element.type === 'arrow') {
+                return {
+                    ...element,
+                    startX: element.startX * scaleX,
+                    startY: element.startY * scaleY,
+                    endX: element.endX * scaleX,
+                    endY: element.endY * scaleY,
+                    lineWidth: element.lineWidth * fontScale
+                };
+            }
+
+            if (element.type === 'text') {
+                return {
+                    ...element,
+                    x: element.x * scaleX,
+                    y: element.y * scaleY,
+                    fontSize: element.fontSize * fontScale
+                };
+            }
+
+            return {
+                ...element,
+                x: element.x * scaleX,
+                y: element.y * scaleY,
+                width: element.width * scaleX,
+                height: element.height * scaleY,
+                strokeWidth: element.strokeWidth * fontScale
+            };
+        });
+    }, []);
+
+    const updateDisplaySizeFromImage = useCallback(() => {
+        const img = imageRef.current;
+        if (!img) return;
+
+        const width = Math.round(img.clientWidth);
+        const height = Math.round(img.clientHeight);
+        if (width <= 0 || height <= 0) return;
+
+        const previousSize = displaySizeRef.current;
+        const hasPreviousSize = previousSize.width > 0 && previousSize.height > 0;
+        const sizeChanged = previousSize.width !== width || previousSize.height !== height;
+
+        syncOverlayCanvases(width, height);
+
+        if (hasPreviousSize && sizeChanged) {
+            setElements(prev => scaleElementsToDisplaySize(prev, previousSize, { width, height }));
+        }
+
+        if (sizeChanged) {
+            displaySizeRef.current = { width, height };
+            setDisplaySize({ width, height });
+        }
+    }, [scaleElementsToDisplaySize, syncOverlayCanvases]);
 
     // Helper to generate composite image (Background + Brush + Elements)
     const generateCompositeImage = useCallback(async () => {
@@ -467,10 +584,40 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setLocalImageUrl(initialBackgroundUrl || imageUrl);
         setElements(initialElements || []);
         lastSavedElementsRef.current = JSON.stringify(initialElements || []);
+        scaledElementsKeyRef.current = null;
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
     }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl]);
+
+    useEffect(() => {
+        if (!isOpen || !imageRef.current) return;
+
+        updateDisplaySizeFromImage();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateDisplaySizeFromImage);
+            return () => window.removeEventListener('resize', updateDisplaySizeFromImage);
+        }
+
+        const observer = new ResizeObserver(updateDisplaySizeFromImage);
+        observer.observe(imageRef.current);
+
+        return () => observer.disconnect();
+    }, [isOpen, localImageUrl, updateDisplaySizeFromImage]);
+
+    useEffect(() => {
+        if (!isOpen || !initialElements || initialElements.length === 0 || !initialCanvasSize) return;
+        if (displaySize.width <= 0 || displaySize.height <= 0) return;
+
+        const scaleKey = `${nodeId}:${initialBackgroundUrl || imageUrl || ''}:${initialCanvasSize.width}x${initialCanvasSize.height}`;
+        if (scaledElementsKeyRef.current === scaleKey) return;
+
+        const scaledElements = scaleElementsToDisplaySize(initialElements, initialCanvasSize, displaySize);
+        scaledElementsKeyRef.current = scaleKey;
+        setElements(scaledElements);
+        lastSavedElementsRef.current = JSON.stringify(scaledElements);
+    }, [displaySize, imageUrl, initialBackgroundUrl, initialCanvasSize, initialElements, isOpen, nodeId, scaleElementsToDisplaySize]);
 
     // Restore brush canvas data from node when modal opens
     useEffect(() => {
@@ -793,61 +940,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                 onToggleFilled={() => shapes.setFilled(!shapes.filled)}
                             />
 
+                            <div
+                                ref={imageViewportRef}
+                                className="relative inline-flex max-h-full max-w-full items-center justify-center rounded-[calc(var(--myml-radius-panel)-4px)]"
+                            >
                             <img
                                 ref={imageRef}
                                 src={localImageUrl}
                                 alt={editorText.editingImageAlt}
-                                className="max-w-full max-h-full rounded-[calc(var(--myml-radius-panel)-4px)] object-contain"
+                                className="block max-w-full max-h-full rounded-[calc(var(--myml-radius-panel)-4px)] object-contain"
                                 style={{ maxHeight: 'calc(100vh - 350px)' }}
-                                onLoad={(e) => {
-                                    const img = e.currentTarget;
-                                    const canvas = canvasRef.current;
-                                    const arrowCanvas = arrowCanvasRef.current;
-                                    const shapeCanvas = shapeCanvasRef.current;
-                                    const elementsCanvas = elementsCanvasRef.current;
-
-                                    if (canvas) {
-                                        canvas.width = img.clientWidth;
-                                        canvas.height = img.clientHeight;
-                                    }
-                                    if (arrowCanvas) {
-                                        arrowCanvas.width = img.clientWidth;
-                                        arrowCanvas.height = img.clientHeight;
-                                    }
-                                    if (shapeCanvas) {
-                                        shapeCanvas.width = img.clientWidth;
-                                        shapeCanvas.height = img.clientHeight;
-                                    }
-                                    if (elementsCanvas) {
-                                        elementsCanvas.width = img.clientWidth;
-                                        elementsCanvas.height = img.clientHeight;
-                                        // Redraw elements immediately after resize
-                                        const ctx = elementsCanvas.getContext('2d');
-                                        if (ctx) {
-                                            ctx.clearRect(0, 0, elementsCanvas.width, elementsCanvas.height);
-                                            elements.forEach(element => {
-                                                if (element.type === 'arrow') {
-                                                    drawArrowWithStyle(
-                                                        ctx,
-                                                        element.startX,
-                                                        element.startY,
-                                                        element.endX,
-                                                        element.endY,
-                                                        element.color,
-                                                        element.lineWidth
-                                                    );
-                                                } else if (element.type === 'text' && element.id !== text.editingTextId) {
-                                                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                                                    ctx.fillStyle = element.color;
-                                                    ctx.textBaseline = 'top';
-                                                    ctx.fillText(element.text, element.x, element.y);
-                                                } else if (element.type === 'shape') {
-                                                    drawShapeElement(ctx, element);
-                                                }
-                                            });
-                                        }
-                                    }
-                                }}
+                                onLoad={updateDisplaySizeFromImage}
                             />
 
                             {/* Main Canvas - For persistent brush drawings */}
@@ -1154,6 +1257,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     </div>
                                 </div>
                             )}
+                            </div>
                         </div>
                     ) : (
                         <div className={`w-[600px] h-[400px] rounded-lg flex items-center justify-center ${emptyCanvasClass}`}>
