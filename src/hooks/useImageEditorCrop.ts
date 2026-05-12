@@ -23,7 +23,8 @@ type DragHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se' | null;
 interface UseImageEditorCropProps {
     imageRef: React.RefObject<HTMLImageElement>;
     saveState: () => void;
-    onCropApply: (croppedImageDataUrl: string) => void;
+    onCropApply: (croppedImageDataUrl: string) => void | Promise<void>;
+    getCropSourceDataUrl?: () => Promise<string | null>;
 }
 
 interface UseImageEditorCropReturn {
@@ -54,7 +55,8 @@ const MIN_CROP_SIZE = 20; // Minimum crop area size
 export const useImageEditorCrop = ({
     imageRef,
     saveState,
-    onCropApply
+    onCropApply,
+    getCropSourceDataUrl
 }: UseImageEditorCropProps): UseImageEditorCropReturn => {
     // --- State ---
     const [isCropMode, setIsCropMode] = useState(false);
@@ -217,6 +219,18 @@ export const useImageEditorCrop = ({
         }
     }, [isCropMode, cropRect, getImageCoordinatesFromEvent, getHandleAtPosition]);
 
+    const loadCropSourceImage = useCallback((src: string, crossOrigin = true) => (
+        new Promise<HTMLImageElement>((resolve, reject) => {
+            const sourceImg = new Image();
+            if (crossOrigin && !src.startsWith('data:')) {
+                sourceImg.crossOrigin = 'anonymous';
+            }
+            sourceImg.onload = () => resolve(sourceImg);
+            sourceImg.onerror = reject;
+            sourceImg.src = src;
+        })
+    ), []);
+
     /**
      * Apply the crop and generate a new cropped image
      * Uses crossOrigin image loading with fallback for local server images
@@ -227,23 +241,22 @@ export const useImageEditorCrop = ({
         const img = imageRef.current;
         const imgSrc = img.src;
 
-        // Calculate scale between displayed size and natural size
-        const scaleX = img.naturalWidth / img.clientWidth;
-        const scaleY = img.naturalHeight / img.clientHeight;
-
-        // Set canvas size to the cropped area (in natural pixels)
-        const cropWidth = Math.round(cropRect.width * scaleX);
-        const cropHeight = Math.round(cropRect.height * scaleY);
-        const sourceX = Math.round(cropRect.x * scaleX);
-        const sourceY = Math.round(cropRect.y * scaleY);
-
         /**
          * Helper to draw the crop and export
          */
         const drawCropAndExport = (sourceImg: HTMLImageElement): string | null => {
+            const sourceWidth = sourceImg.naturalWidth || sourceImg.width;
+            const sourceHeight = sourceImg.naturalHeight || sourceImg.height;
+            const scaleX = sourceWidth / img.clientWidth;
+            const scaleY = sourceHeight / img.clientHeight;
+            const cropWidth = Math.round(cropRect.width * scaleX);
+            const cropHeight = Math.round(cropRect.height * scaleY);
+            const sourceX = Math.round(cropRect.x * scaleX);
+            const sourceY = Math.round(cropRect.y * scaleY);
+
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            if (!ctx) return null;
+            if (!ctx || cropWidth <= 0 || cropHeight <= 0) return null;
 
             canvas.width = cropWidth;
             canvas.height = cropHeight;
@@ -266,12 +279,41 @@ export const useImageEditorCrop = ({
 
         try {
             let croppedDataUrl: string | null = null;
+            let cropSourceDataUrl: string | null = null;
 
-            if (imgSrc.startsWith('data:')) {
-                // Already a data URL, use the original image directly
-                croppedDataUrl = drawCropAndExport(img);
-            } else {
-                // Try loading with crossOrigin anonymous first
+            try {
+                cropSourceDataUrl = await getCropSourceDataUrl?.() || null;
+            } catch (error) {
+                console.error('Failed to generate composite crop source:', error);
+            }
+
+            const sourceSrc = cropSourceDataUrl || imgSrc;
+
+            try {
+                const cropSourceImg = await loadCropSourceImage(sourceSrc);
+                croppedDataUrl = drawCropAndExport(cropSourceImg);
+            } catch {
+                if (!cropSourceDataUrl && imgSrc.startsWith('data:')) {
+                    croppedDataUrl = drawCropAndExport(img);
+                } else {
+                    // Fallback to the current image source if composite loading fails.
+                    console.log('Composite crop source failed, trying current image source...');
+                    try {
+                        const fallbackImg = await loadCropSourceImage(imgSrc);
+                        croppedDataUrl = drawCropAndExport(fallbackImg);
+                    } catch {
+                        // If crossOrigin fails, try direct drawing (may work for same-origin)
+                        console.log('CrossOrigin loading failed, trying direct draw...');
+                        try {
+                            croppedDataUrl = drawCropAndExport(img);
+                        } catch {
+                            console.error('All crop methods failed');
+                        }
+                    }
+                }
+            }
+
+            if (!croppedDataUrl && !cropSourceDataUrl && !imgSrc.startsWith('data:')) {
                 try {
                     const crossOriginImg = await new Promise<HTMLImageElement>((resolve, reject) => {
                         const newImg = new Image();
@@ -282,15 +324,7 @@ export const useImageEditorCrop = ({
                         newImg.src = imgSrc + (imgSrc.includes('?') ? '&' : '?') + '_t=' + Date.now();
                     });
                     croppedDataUrl = drawCropAndExport(crossOriginImg);
-                } catch {
-                    // If crossOrigin fails, try direct drawing (may work for same-origin)
-                    console.log('CrossOrigin loading failed, trying direct draw...');
-                    try {
-                        croppedDataUrl = drawCropAndExport(img);
-                    } catch {
-                        console.error('All crop methods failed');
-                    }
-                }
+                } catch {}
             }
 
             if (!croppedDataUrl) {
@@ -301,7 +335,7 @@ export const useImageEditorCrop = ({
             saveState();
 
             // Pass cropped image to callback
-            onCropApply(croppedDataUrl);
+            await onCropApply(croppedDataUrl);
 
             // Reset crop state
             setIsCropMode(false);
@@ -309,7 +343,7 @@ export const useImageEditorCrop = ({
         } catch (error) {
             console.error('Failed to crop image:', error);
         }
-    }, [cropRect, imageRef, saveState, onCropApply]);
+    }, [cropRect, getCropSourceDataUrl, imageRef, loadCropSourceImage, saveState, onCropApply]);
 
     /**
      * Cancel crop mode without applying changes

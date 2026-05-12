@@ -483,22 +483,47 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         await persistCompositeToNode();
     }, [persistCompositeToNode]);
 
-    const handleCloseClick = useCallback(async () => {
+    const cancelPendingAutosave = useCallback(() => {
         if (autosaveTimeoutRef.current) {
             clearTimeout(autosaveTimeoutRef.current);
             autosaveTimeoutRef.current = null;
         }
+        autosaveRequestSeqRef.current += 1;
+    }, []);
+
+    const handleCloseClick = useCallback(async () => {
+        cancelPendingAutosave();
         await persistCompositeToNode(true);
         onClose();
-    }, [persistCompositeToNode, onClose]);
+    }, [cancelPendingAutosave, persistCompositeToNode, onClose]);
 
     const handleCropApply = async (croppedImageDataUrl: string) => {
+        cancelPendingAutosave();
+        const requestTargetKey = editorTargetKeyRef.current;
+
         // Update local preview immediately
         setLocalImageUrl(croppedImageDataUrl);
+        lastSavedElementsRef.current = JSON.stringify([]);
+
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (canvas && ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        setElements([]);
+        selection.setSelectedElementId(null);
+        text.setEditingTextId(null);
+        text.setIsTextMode(false);
+        text.setShowTextSettings(false);
 
         try {
             // Upload the cropped image
             const savedCropUrl = await uploadAsset(croppedImageDataUrl, 'image', 'crop-result');
+
+            if (!isMountedRef.current || !isOpenRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+                return;
+            }
 
             // Update local state with server URL
             setLocalImageUrl(savedCropUrl);
@@ -507,15 +532,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             onUpdate(nodeId, {
                 resultUrl: savedCropUrl,
                 status: NodeStatus.SUCCESS,
-                editorBackgroundUrl: savedCropUrl
+                editorBackgroundUrl: savedCropUrl,
+                editorElements: [],
+                editorCanvasData: undefined,
+                editorCanvasSize: displaySizeRef.current.width > 0 && displaySizeRef.current.height > 0
+                    ? displaySizeRef.current
+                    : undefined
             });
         } catch (error) {
             console.error("Failed to upload crop:", error);
+            if (!isMountedRef.current || !isOpenRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+                return;
+            }
             // Fallback
             onUpdate(nodeId, {
                 resultUrl: croppedImageDataUrl,
                 status: NodeStatus.SUCCESS,
-                editorBackgroundUrl: croppedImageDataUrl
+                editorBackgroundUrl: croppedImageDataUrl,
+                editorElements: [],
+                editorCanvasData: undefined,
+                editorCanvasSize: displaySizeRef.current.width > 0 && displaySizeRef.current.height > 0
+                    ? displaySizeRef.current
+                    : undefined
             });
         }
     };
@@ -523,7 +561,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const crop = useImageEditorCrop({
         imageRef,
         saveState,
-        onCropApply: handleCropApply
+        onCropApply: handleCropApply,
+        getCropSourceDataUrl: generateCompositeImage
     });
 
     const clearPrimaryModes = useCallback(() => {
