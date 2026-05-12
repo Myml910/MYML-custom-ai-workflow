@@ -10,7 +10,7 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 
 const variantClass: Record<IconButtonVariant, string> = {
   primary:
-    'border-[var(--myml-accent)] bg-[var(--myml-accent)] text-black hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)]',
+    'border-[var(--myml-accent)] bg-[var(--myml-accent)] text-[var(--myml-accent-contrast)] hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)]',
   secondary:
     'border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] text-[var(--myml-text-secondary)] hover:border-[var(--myml-border-active)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]',
   ghost:

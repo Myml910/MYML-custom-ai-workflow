@@ -680,7 +680,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         }
 
         return isDark
-            ? 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-black shadow-[var(--myml-shadow-accent)] active:scale-[0.98]'
+            ? 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-[var(--myml-accent-contrast)] shadow-[var(--myml-shadow-accent)] active:scale-[0.98]'
             : 'bg-lime-600 hover:bg-lime-500 text-white active:scale-[0.98]';
     };
     const controlPanelTitle = isVideoNode
@@ -1502,8 +1502,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         <>
                             <div className="space-y-1 mb-3">
                                 <div className="flex justify-between text-[10px]">
-                                    <span className="text-neutral-400">{t(language, 'faceReference')}</span>
-                                    <span className="text-white font-medium">{data.klingFaceIntensity ?? 65}</span>
+                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'faceReference')}</span>
+                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 65}</span>
                                 </div>
                                 <input
                                     type="range"
@@ -1516,8 +1516,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             </div>
                             <div className="space-y-1">
                                 <div className="flex justify-between text-[10px]">
-                                    <span className="text-neutral-400">{t(language, 'subjectReference')}</span>
-                                    <span className="text-white font-medium">{data.klingSubjectIntensity ?? 50}</span>
+                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'subjectReference')}</span>
+                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingSubjectIntensity ?? 50}</span>
                                 </div>
                                 <input
                                     type="range"
@@ -1535,8 +1535,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                     {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && (
                         <div className="space-y-1">
                             <div className="flex justify-between text-[10px]">
-                                <span className="text-neutral-400">{t(language, 'referenceStrength')}</span>
-                                <span className="text-white font-medium">{data.klingFaceIntensity ?? 42}</span>
+                                <span className="text-[var(--myml-text-muted)]">{t(language, 'referenceStrength')}</span>
+                                <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 42}</span>
                             </div>
                             <input
                                 type="range"
@@ -1576,11 +1576,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             <div id="node-controls-advanced-settings" className="mt-3 space-y-3 rounded-[var(--myml-radius-card)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] p-3">
                                 {/* Audio Toggle - Only for Kling 2.6 (Veo 3.1 SDK doesn't support generateAudio yet) */}
                                 {data.videoModel === 'kling-v2-6' && (
-                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[#151815] rounded-lg border border-neutral-800 w-fit">
+                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[var(--myml-surface-raised)] rounded-lg border border-[var(--myml-border-subtle)] w-fit">
                                         <svg className={`w-3.5 h-3.5 ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                                         </svg>
-                                        <span className="text-[11px] text-neutral-300">{t(language, 'audio')}</span>
+                                        <span className="text-[11px] text-[var(--myml-text-secondary)]">{t(language, 'audio')}</span>
                                         <button
                                             onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
                                             aria-label={data.generateAudio !== false ? t(language, 'disableAudioGeneration') : t(language, 'enableAudioGeneration')}

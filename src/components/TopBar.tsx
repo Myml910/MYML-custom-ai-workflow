@@ -143,7 +143,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             onBlur={handleTitleBlur}
                             onKeyDown={handleTitleKeyDown}
                             aria-label={t(language, 'canvasTitle')}
-                            className="min-w-[120px] bg-transparent border-b border-[#D8FF00]/70 text-sm font-semibold text-neutral-100 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                            className="min-w-[120px] bg-transparent border-b border-[var(--myml-border-active)] text-sm font-semibold text-[var(--myml-text-primary)] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                         />
                     ) : (
                         <span
@@ -276,11 +276,11 @@ export const TopBar: React.FC<TopBarProps> = ({
             {showNewConfirm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
                     <Panel className="w-[400px] p-6">
-                        <h3 className="text-base font-semibold leading-5 text-neutral-100 mb-2">
+                        <h3 className="text-base font-semibold leading-5 text-[var(--myml-text-primary)] mb-2">
                             {t(language, 'unsavedChanges')}
                         </h3>
 
-                        <p className="text-neutral-400 text-sm mb-6">
+                        <p className="text-[var(--myml-text-muted)] text-sm mb-6">
                             {t(language, 'unsavedChangesDesc')}
                         </p>
 
@@ -298,7 +298,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={handleDiscardAndNew}
                                 disabled={isSaving}
                                 aria-label={t(language, 'discard')}
-                                className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-red-500 px-4 text-sm font-semibold text-black transition-[background-color,opacity,transform] duration-150 hover:bg-red-400 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                                className="h-9 shrink-0 whitespace-nowrap rounded-lg bg-[var(--myml-danger)] px-4 text-sm font-semibold text-white transition-[background-color,opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                             >
                                 {t(language, 'discard')}
                             </button>
@@ -307,7 +307,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 onClick={handleSaveAndNew}
                                 disabled={isSaving}
                                 aria-label={t(language, 'saveAndNew')}
-                                className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-accent)] px-4 text-sm font-semibold text-black transition-[background-color,box-shadow,transform,opacity] duration-[var(--myml-motion-base)] hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                                className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-accent)] px-4 text-sm font-semibold text-[var(--myml-accent-contrast)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--myml-motion-base)] hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                             >
                                 {isSaving ? (
                                     <>

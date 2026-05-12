@@ -445,7 +445,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                             e.stopPropagation();
                             if (onCreateVideo) onCreateVideo();
                         }}
-                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-accent)] px-3.5 text-xs font-semibold leading-none text-black transition-colors duration-[var(--myml-motion-base)] hover:bg-[var(--myml-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-accent)] px-3.5 text-xs font-semibold leading-none text-[var(--myml-accent-contrast)] transition-colors duration-[var(--myml-motion-base)] hover:bg-[var(--myml-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 10l5 5-5 5" />

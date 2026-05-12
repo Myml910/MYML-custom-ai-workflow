@@ -1098,7 +1098,10 @@ function CanvasApp({
   const showZoomControl = false;
 
   return (
-    <div className={`w-screen h-screen ${canvasTheme === 'dark' ? 'bg-[#030303] text-white' : 'bg-neutral-50 text-neutral-900'} overflow-hidden select-none font-sans transition-colors duration-300`}>
+    <div
+      data-theme={canvasTheme}
+      className={`w-screen h-screen ${canvasTheme === 'dark' ? 'bg-[#030303] text-white' : 'bg-neutral-50 text-neutral-900'} overflow-hidden select-none font-sans transition-colors duration-300`}
+    >
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
         <Toolbar
           onAddClick={handleToolbarAdd}

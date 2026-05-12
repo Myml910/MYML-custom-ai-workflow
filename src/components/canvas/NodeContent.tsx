@@ -165,7 +165,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                     }
                                 }}
                                 placeholder={t(language, 'writeTextContentPlaceholder')}
-                                className="w-full bg-transparent text-white text-sm resize-none outline-none placeholder:text-neutral-600"
+                                className="w-full bg-transparent text-sm text-[var(--myml-text-primary)] resize-none outline-none placeholder:text-[var(--myml-text-faint)]"
                                 style={{ minHeight: data.isPromptExpanded ? '300px' : '150px' }}
                                 autoFocus
                             />
@@ -174,7 +174,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 <button
                                     onClick={() => onUpdate?.(data.id, { isPromptExpanded: !data.isPromptExpanded })}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     title={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                     aria-label={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                 >
@@ -187,7 +187,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         /* Menu Mode - Show Options */
                         <div className="p-5 flex flex-col gap-4">
                             {/* Header */}
-                            <div className="text-neutral-500 text-sm font-medium">
+                            <div className="text-[var(--myml-text-muted)] text-sm font-medium">
                                 {t(language, 'tryTo')}
                             </div>
 
@@ -233,7 +233,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {isLoading ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
                             <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
-                            <span className="text-xs text-neutral-500 font-medium">{t(language, 'generating')}</span>
+                            <span className="text-xs text-[var(--myml-text-muted)] font-medium">{t(language, 'generating')}</span>
                         </div>
                     ) : (
                         <div className="relative z-10 flex flex-col items-center gap-3">
@@ -258,7 +258,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 </>
                             )}
 
-                            <div className="text-neutral-700">
+                            <div className="text-[var(--myml-text-faint)]">
                                 {isVideoType ? (
                                     isLocalModel ? <><Film size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-[#D8FF00]" /></> : <Film size={40} />
                                 ) : (
@@ -267,7 +267,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                             </div>
                             {selected && (
                                 <>
-                                    <div className="text-neutral-500 text-sm font-medium">
+                                    <div className="text-[var(--myml-text-muted)] text-sm font-medium">
                                         {isVideoType && inputUrl
                                             ? t(language, 'readyToAnimate')
                                             : isVideoType
@@ -320,7 +320,7 @@ const TextNodeMenuItem: React.FC<TextNodeMenuItemProps> = ({ icon, label, onClic
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onClick}
     >
-        <span className="text-neutral-500">{icon}</span>
+        <span className="text-[var(--myml-text-muted)]">{icon}</span>
         <span className="truncate text-sm font-medium">{label}</span>
     </button>
 );
