@@ -129,6 +129,20 @@ if (typeof window !== 'undefined') {
   }
 }
 
+const isEditableElement = (element: Element | null): boolean => {
+  if (!element) return false;
+
+  if (element instanceof HTMLElement && element.isContentEditable) {
+    return true;
+  }
+
+  const editableTarget = element.closest(
+    'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]'
+  );
+
+  return Boolean(editableTarget);
+};
+
 function CanvasApp({
   currentUser,
   onLogout
@@ -149,6 +163,8 @@ function CanvasApp({
   });
 
   const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('dark');
+  const [isSpacePanMode, setIsSpacePanMode] = useState(false);
+  const [isSpacePanning, setIsSpacePanning] = useState(false);
   
   const [language, setLanguage] = useState<Language>(() => {
     return (localStorage.getItem('myml-language') as Language) || 'zh';
@@ -694,6 +710,88 @@ function CanvasApp({
     });
   }, []);
 
+  const isModalBlockingSpacePan =
+    isCreateAssetModalOpen ||
+    isTikTokModalOpen ||
+    storyboardGenerator.isModalOpen ||
+    storyboardVideoModal.isOpen ||
+    twitterModal.isOpen ||
+    tiktokModal.isOpen ||
+    editorModal.isOpen ||
+    videoEditorModal.isOpen ||
+    Boolean(expandedImageUrl);
+
+  const endTemporarySpacePan = React.useCallback(() => {
+    setIsSpacePanMode(false);
+    setIsSpacePanning(false);
+    endPanning();
+  }, [endPanning]);
+
+  React.useEffect(() => {
+    const isSpaceKey = (e: KeyboardEvent) => e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (isSpacePanMode || isSpacePanning)) {
+        endTemporarySpacePan();
+        return;
+      }
+
+      if (!isSpaceKey(e)) return;
+
+      if (isSpacePanMode || isSpacePanning) {
+        e.preventDefault();
+        return;
+      }
+
+      if (e.repeat || isModalBlockingSpacePan) return;
+      if (isEditableElement(e.target instanceof Element ? e.target : null)) return;
+      if (isEditableElement(document.activeElement)) return;
+
+      e.preventDefault();
+      setIsSpacePanMode(true);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!isSpaceKey(e)) return;
+
+      if (isSpacePanMode || isSpacePanning) {
+        e.preventDefault();
+      }
+
+      endTemporarySpacePan();
+    };
+
+    const handleWindowBlur = () => {
+      endTemporarySpacePan();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [
+    endTemporarySpacePan,
+    isModalBlockingSpacePan,
+    isSpacePanMode,
+    isSpacePanning
+  ]);
+
+  React.useEffect(() => {
+    if (isModalBlockingSpacePan && (isSpacePanMode || isSpacePanning)) {
+      endTemporarySpacePan();
+    }
+  }, [
+    endTemporarySpacePan,
+    isModalBlockingSpacePan,
+    isSpacePanMode,
+    isSpacePanning
+  ]);
+
   // Context menu handlers
   const {
     handleDoubleClick,
@@ -1000,8 +1098,29 @@ function CanvasApp({
   // EVENT HANDLERS
   // ============================================================================
 
+  const startTemporaryPanFromPointer = (e: React.PointerEvent, shouldStopPropagation = false) => {
+    if (!isSpacePanMode || e.button !== 0) return false;
+    if (isEditableElement(e.target instanceof Element ? e.target : null)) return false;
+
+    e.preventDefault();
+    if (shouldStopPropagation) {
+      e.stopPropagation();
+    }
+
+    startPanning(e);
+    setIsSpacePanning(true);
+    setSelectedConnection(null);
+    setContextMenu(prev => ({ ...prev, isOpen: false }));
+
+    return true;
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).id === 'canvas-background') {
+      if (startTemporaryPanFromPointer(e)) {
+        return;
+      }
+
       // Left-click (button 0): Start selection box
       if (e.button === 0) {
         startSelection(e);
@@ -1022,6 +1141,9 @@ function CanvasApp({
   };
 
   const handleGlobalPointerMove = (e: React.PointerEvent) => {
+    // 1. Space-hand pan takes priority over selection, node drag, and connection drag.
+    if (isSpacePanning && updatePanning(e, setViewport)) return;
+
     // 1. Handle Selection Box Update
     if (updateSelection(e)) return;
 
@@ -1068,6 +1190,14 @@ function CanvasApp({
   }, [setNodes]);
 
   const handleGlobalPointerUp = (e: React.PointerEvent) => {
+    // 1. End Space-hand panning before selection or connection completion.
+    if (isSpacePanning) {
+      endPanning();
+      setIsSpacePanning(false);
+      releasePointerCapture(e);
+      return;
+    }
+
     // 1. Handle Selection Box End
     if (isSelecting) {
       const selectedIds = endSelection(nodes, viewport);
@@ -1091,6 +1221,12 @@ function CanvasApp({
     // 5. Release capture
     releasePointerCapture(e);
   };
+
+  const canvasCursorClass = isSpacePanning
+    ? 'cursor-grabbing'
+    : isSpacePanMode
+      ? 'cursor-grab'
+      : 'cursor-grab active:cursor-grabbing';
 
   // Context menu handlers provided by useContextMenuHandlers hook
   // handleDoubleClick, handleGlobalContextMenu, handleAddNext, handleNodeContextMenu,
@@ -1241,7 +1377,7 @@ function CanvasApp({
       <div
         ref={canvasRef}
         id="canvas-background"
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        className={`absolute inset-0 ${canvasCursorClass}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handleGlobalPointerMove}
         onPointerUp={handleGlobalPointerUp}
@@ -1329,6 +1465,10 @@ function CanvasApp({
                 selected={selectedNodeIds.includes(node.id)}
                 showControls={selectedNodeIds.length === 1 && selectedNodeIds.includes(node.id)}
                 onNodePointerDown={(e) => {
+                  if (startTemporaryPanFromPointer(e, true)) {
+                    return;
+                  }
+
                   // If shift is held, preserve selection for multi-drag/multi-select
                   if (e.shiftKey) {
                     if (selectedNodeIds.includes(node.id)) {
@@ -1389,6 +1529,10 @@ function CanvasApp({
               }}
               onBoundingBoxPointerDown={(e) => {
                 // Start dragging all selected nodes when clicking on bounding box
+                if (startTemporaryPanFromPointer(e, true)) {
+                  return;
+                }
+
                 e.stopPropagation();
                 if (selectedNodeIds.length > 0) {
                   handleNodePointerDown(e, selectedNodeIds[0], undefined);
@@ -1426,6 +1570,10 @@ function CanvasApp({
                 onUngroup={() => ungroupNodes(group.id, setNodes)}
                 onBoundingBoxPointerDown={(e) => {
                   // Select all nodes in this group and start dragging
+                  if (startTemporaryPanFromPointer(e, true)) {
+                    return;
+                  }
+
                   e.stopPropagation();
                   const nodeIds = groupNodes.map(n => n.id);
                   setSelectedNodeIds(nodeIds);
