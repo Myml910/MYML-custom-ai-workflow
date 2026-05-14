@@ -4,38 +4,28 @@
  * LangGraph state graph for the chat agent.
  * Defines the workflow: receives messages → processes with LLM → returns response.
  *
- * This version uses an OpenAI-compatible Chat Completions API.
- * Example:
- * CHAT_API_BASE_URL=https://ai.t8star.cn/v1
- * CHAT_API_KEY=your_key
- * CHAT_MODEL=gpt-5.4
+ * APIMart /responses is preferred when configured. Legacy OpenAI-compatible
+ * Chat Completions remains as fallback.
  */
 
 import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { CHAT_AGENT_SYSTEM_PROMPT, TOPIC_GENERATION_PROMPT } from "../prompts/system.js";
+import { getAiProviderConfig, getLegacyChatConfig, isApimartTextConfigured } from "../../services/ai/aiProviderConfig.js";
+import { createTextResponse, extractResponseText } from "../../services/ai/providers/apimartProvider.js";
 
 // ============================================================================
 // MODEL CONFIGURATION
 // ============================================================================
 
 function getChatConfig(runtimeApiKey) {
-    const baseUrl = process.env.CHAT_API_BASE_URL || "https://api.openai.com/v1";
-
-    const apiKey =
-        process.env.CHAT_API_KEY ||
-        runtimeApiKey ||
-        process.env.OPENAI_API_KEY ||
-        "";
-
-    const model = process.env.CHAT_MODEL || "gpt-5.4";
-    const reasoningEffort = process.env.CHAT_REASONING_EFFORT || "none";
+    const aiConfig = getAiProviderConfig();
+    const legacyChatConfig = getLegacyChatConfig(runtimeApiKey, aiConfig);
 
     return {
-        baseUrl: baseUrl.replace(/\/$/, ""),
-        apiKey,
-        model,
-        reasoningEffort,
+        provider: isApimartTextConfigured(aiConfig) ? "apimart" : "legacy",
+        aiConfig,
+        ...legacyChatConfig,
     };
 }
 
@@ -177,6 +167,37 @@ async function callChatCompletions({
     return "";
 }
 
+async function callTextModel({
+    messages,
+    chatConfig,
+    temperature = 0.7,
+    maxTokens = 2048,
+}) {
+    if (chatConfig.provider === "apimart") {
+        console.log("[ChatGraph] Calling APIMart /responses");
+        console.log(`[ChatGraph] Model: ${chatConfig.aiConfig.apimart.textModel}`);
+
+        const data = await createTextResponse(messages, {
+            config: chatConfig.aiConfig,
+            model: chatConfig.aiConfig.apimart.textModel,
+            temperature,
+            maxTokens
+        });
+
+        return extractResponseText(data);
+    }
+
+    return await callChatCompletions({
+        messages,
+        apiKey: chatConfig.apiKey,
+        baseUrl: chatConfig.baseUrl,
+        model: chatConfig.model,
+        reasoningEffort: chatConfig.reasoningEffort,
+        temperature,
+        maxTokens,
+    });
+}
+
 // ============================================================================
 // GRAPH NODES
 // ============================================================================
@@ -189,12 +210,9 @@ async function agentNode(state, config) {
 
     const openAIMessages = toOpenAICompatibleMessages(allMessages);
 
-    const responseText = await callChatCompletions({
+    const responseText = await callTextModel({
         messages: openAIMessages,
-        apiKey: chatConfig.apiKey,
-        baseUrl: chatConfig.baseUrl,
-        model: chatConfig.model,
-        reasoningEffort: chatConfig.reasoningEffort,
+        chatConfig,
         temperature: 0.7,
         maxTokens: 2048,
     });
@@ -239,17 +257,14 @@ export async function generateTopicTitle(messages, apiKey) {
 
     const prompt = `${TOPIC_GENERATION_PROMPT}\n\nConversation:\n${conversationSummary}`;
 
-    const responseText = await callChatCompletions({
+    const responseText = await callTextModel({
         messages: [
             {
                 role: "user",
                 content: prompt,
             },
         ],
-        apiKey: chatConfig.apiKey,
-        baseUrl: chatConfig.baseUrl,
-        model: process.env.CHAT_TOPIC_MODEL || chatConfig.model,
-        reasoningEffort: chatConfig.reasoningEffort,
+        chatConfig,
         temperature: 0.3,
         maxTokens: 80,
     });

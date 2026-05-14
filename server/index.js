@@ -25,6 +25,9 @@ import {
     resolveLibraryUrlToPath
 } from './utils/userLibrary.js';
 import generationRoutes from './routes/generation.js';
+import { getAiProviderConfig, isApimartTextConfigured } from './services/ai/aiProviderConfig.js';
+import { createTextResponse, extractResponseText } from './services/ai/providers/apimartProvider.js';
+import { resolveImageToBase64 } from './utils/imageHelpers.js';
 import twitterRoutes from './routes/twitter.js';
 import tiktokPostRoutes from './routes/tiktok-post.js';
 import { processTikTokVideo, isValidTikTokUrl } from './tools/tiktok.js';
@@ -859,6 +862,31 @@ app.post('/api/gemini/describe-image', async (req, res) => {
             return res.status(400).json({ error: 'Image URL is required' });
         }
 
+        const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
+        if (isApimartTextConfigured(aiProviderConfig)) {
+            const resolvedImage = resolveImageToBase64(imageUrl, req.user);
+            if (!resolvedImage) {
+                return res.status(400).json({ error: 'Could not process image URL. Provide base64 data or a valid library path.', debug: { imageUrl } });
+            }
+
+            const data = await createTextResponse([
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'input_text', text: prompt || 'Describe this image in detail for video generation.' },
+                        { type: 'input_image', image_url: resolvedImage }
+                    ]
+                }
+            ], { config: aiProviderConfig });
+
+            const text = extractResponseText(data);
+            if (!text) {
+                return res.status(500).json({ error: 'Failed to describe image' });
+            }
+
+            return res.json({ description: text });
+        }
+
         // Handle base64 or file URL
         let imagePart;
 
@@ -974,8 +1002,30 @@ app.post('/api/gemini/optimize-prompt', async (req, res) => {
             return res.status(400).json({ error: 'Prompt is required' });
         }
 
-        const client = getClient();
         const systemInstruction = "You are an expert video prompt engineer. Your goal is to rewrite the user's prompt to be descriptive, visual, and optimized for AI video generation models like Veo, Kling, and Hailuo. detailed, cinematic, and focused on motion and atmosphere. Keep it under 60 words. Output ONLY the rewritten prompt.";
+
+        const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
+        if (isApimartTextConfigured(aiProviderConfig)) {
+            const data = await createTextResponse([
+                {
+                    role: 'system',
+                    content: systemInstruction
+                },
+                {
+                    role: 'user',
+                    content: `User Prompt: ${prompt}`
+                }
+            ], { config: aiProviderConfig });
+
+            const optimized = extractResponseText(data).trim().replace(/^["']|["']$/g, '');
+            if (!optimized) {
+                return res.status(500).json({ error: 'Failed to optimize prompt' });
+            }
+
+            return res.json({ optimizedPrompt: optimized });
+        }
+
+        const client = getClient();
 
         const result = await client.models.generateContent({
             model: "gemini-2.0-flash",
@@ -1371,11 +1421,14 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { sessionId, message, media } = req.body;
 
-        const chatApiKey = process.env.CHAT_API_KEY || process.env.OPENAI_API_KEY || API_KEY;
+        const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
+        const chatApiKey = isApimartTextConfigured(aiProviderConfig)
+            ? aiProviderConfig.apimart.apiKey
+            : (aiProviderConfig.legacy.chatApiKey || API_KEY);
 
         if (!chatApiKey) {
             return res.status(500).json({
-                error: "Server missing CHAT_API_KEY config. Add CHAT_API_KEY to .env and restart the server."
+                error: "Server missing AI text config. Add APIMART_API_KEY or fallback CHAT_API_KEY to .env and restart the server."
             });
         }
 
