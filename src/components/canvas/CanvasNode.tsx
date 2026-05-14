@@ -168,7 +168,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     transform: `scale(${localScale})`,
     transformOrigin: 'bottom center'
   };
-  const nodeStackIndex = selected || isNodeHovered ? 80 : 10;
+  const nodeStackIndex = selected || isNodeHovered || isHoveredForConnection ? 80 : 10;
 
   const handleNodeMouseEnter = () => {
     setIsNodeHovered(true);
@@ -286,7 +286,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onMouseEnter={handleNodeMouseEnter}
         onMouseLeave={handleNodeMouseLeave}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
         {/* Image Editor Node Card */}
         <div
@@ -366,7 +366,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onMouseEnter={handleNodeMouseEnter}
         onMouseLeave={handleNodeMouseLeave}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
         {/* Relative wrapper for the Card */}
         <div className="relative z-0 overflow-visible group/nodecard">
@@ -623,7 +623,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         onMouseEnter={handleNodeMouseEnter}
         onMouseLeave={handleNodeMouseLeave}
       >
-        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
+        <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
         {/* Video Editor Node Card */}
         <div
@@ -696,7 +696,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       onMouseEnter={handleNodeMouseEnter}
       onMouseLeave={handleNodeMouseLeave}
     >
-      <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} canvasTheme={canvasTheme} language={language} />
+      <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
       {/* Relative wrapper for the Image Card to allow absolute positioning of controls below it */}
       <div className="relative z-0 overflow-visible group/nodecard">
