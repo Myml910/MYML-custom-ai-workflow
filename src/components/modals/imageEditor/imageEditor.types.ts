@@ -137,9 +137,7 @@ export interface ImageEditorThemeProps {
 // ============================================================================
 
 /**
- * Available image generation models
- * Note: Only kling-v1-5 supports single-image reference via image_reference parameter
- * Note: Kling V2/V2.1 only support references via Multi-Image API
+ * Available image generation models.
  */
 export const IMAGE_MODELS: ImageModel[] = [
     {
@@ -153,29 +151,6 @@ export const IMAGE_MODELS: ImageModel[] = [
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
     },
     {
-        id: 'gpt-image-1.5',
-        name: 'GPT Image 1.5',
-        provider: 'openai',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        recommended: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ['Auto', '1K', '2K', '4K'],
-        aspectRatios: ['Auto', '1024x1024', '1536x1024', '1024x1536']
-    },
-    {
-        id: 'gemini-pro',
-        name: 'Nano Banana Pro',
-        provider: 'google',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ['1K', '2K', '4K'],
-        aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', '4:5', '21:9']
-    },
-    {
         id: 'custom-image-nano-banana-3-1-flash',
         name: 'Nano Banana 3.1 Flash',
         provider: 'custom',
@@ -183,29 +158,6 @@ export const IMAGE_MODELS: ImageModel[] = [
         supportsMultiImage: true,
         resolutions: ['Auto', '1K', '2K', '4K'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
-    },
-    {
-        id: 'kling-v1-5',
-        name: 'Kling V1.5',
-        provider: 'kling',
-        supportsImageToImage: true,
-        supportsMultiImage: false,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ['1K', '2K'],
-        aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '21:9']
-    },
-    {
-        id: 'kling-v2-1',
-        name: 'Kling V2.1',
-        provider: 'kling',
-        supportsImageToImage: false,
-        supportsMultiImage: true,
-        recommended: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ['1K', '2K'],
-        aspectRatios: ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '21:9']
     },
 ];
 

@@ -67,6 +67,16 @@ const isRenderableElement = (element: EditorElement) => {
     ].every(isFiniteNumber);
 };
 
+const DEFAULT_IMAGE_MODEL_ID = 'custom-image-gpt-image-2';
+
+const getAvailableImageModelId = (modelId?: string) => {
+    if (modelId && IMAGE_MODELS.some(model => model.id === modelId)) {
+        return modelId;
+    }
+
+    return DEFAULT_IMAGE_MODEL_ID;
+};
+
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     isOpen,
     nodeId,
@@ -95,7 +105,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const [showResolutionDropdown, setShowResolutionDropdown] = useState(false);
 
     // --- Model State ---
-    const [selectedModel, setSelectedModel] = useState(initialModel || 'custom-image-gpt-image-2');
+    const [selectedModel, setSelectedModel] = useState(getAvailableImageModelId(initialModel));
     const [selectedAspectRatio, setSelectedAspectRatio] = useState(initialAspectRatio || 'Auto');
     const [selectedResolution, setSelectedResolution] = useState(initialResolution || '1K');
 
@@ -651,7 +661,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Initialize state from props
         setPrompt(initialPrompt || '');
-        setSelectedModel(initialModel || 'custom-image-gpt-image-2');
+        setSelectedModel(getAvailableImageModelId(initialModel));
         setSelectedAspectRatio(initialAspectRatio || 'Auto');
         setSelectedResolution(initialResolution || '1K');
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)

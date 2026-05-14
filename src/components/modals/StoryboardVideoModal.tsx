@@ -8,7 +8,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Film, Loader2, Play, Check, ChevronDown, Wand2, Trash2 } from 'lucide-react';
 import { NodeData } from '../../types';
-import { GoogleIcon, KlingIcon, HailuoIcon } from '../icons/BrandIcons';
 import { Language, t } from '../../i18n/translations';
 
 interface StoryboardVideoModalProps {
@@ -32,31 +31,19 @@ interface StoryboardVideoModalProps {
     canvasTheme?: 'dark' | 'light';
 }
 
-// Video durations in seconds
-const VIDEO_DURATIONS = [5, 6, 8, 10];
-const VIDEO_RESOLUTIONS = ["Auto", "1080p", "768p", "720p", "512p"];
+const VIDEO_DISABLED_MESSAGE = 'Video generation is currently disabled.';
+const VIDEO_DURATIONS = [5];
+const VIDEO_RESOLUTIONS = ['Auto'];
 
 const VIDEO_MODELS = [
     {
-        id: 'veo-3.1',
-        name: 'Veo 3.1',
-        provider: 'google',
-        durations: [4, 6, 8],
-        resolutions: ['Auto', '720p', '1080p'],
-        // Explicitly map durations to allowed resolutions to prevent API errors
-        durationResolutionMap: {
-            4: ['Auto', '720p'],
-            6: ['Auto', '720p'],
-            8: ['Auto', '720p', '1080p']
-        }
-    },
-    { id: 'kling-v2-1', name: 'Kling V2.1', provider: 'kling', recommended: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'] },
-    { id: 'kling-v2-1-master', name: 'Kling V2.1 Master', provider: 'kling', durations: [5, 10], resolutions: ['Auto', '720p', '1080p'] },
-    { id: 'kling-v2-5-turbo', name: 'Kling V2.5 Turbo', provider: 'kling', durations: [5, 10], resolutions: ['Auto', '720p', '1080p'] },
-    { id: 'kling-v2-6', name: 'Kling 2.6 (Motion)', provider: 'kling', durations: [5, 10], resolutions: ['Auto', '720p', '1080p'] },
-    { id: 'hailuo-2.3', name: 'Hailuo 2.3', provider: 'hailuo', durations: [5], resolutions: ['768p', '1080p'] },
-    { id: 'hailuo-2.3-fast', name: 'Hailuo 2.3 Fast', provider: 'hailuo', durations: [5], resolutions: ['768p', '1080p'] },
-    { id: 'hailuo-02', name: 'Hailuo 02', provider: 'hailuo', durations: [5], resolutions: ['768p', '1080p'] },
+        id: 'video-disabled',
+        name: 'Video generation disabled',
+        provider: 'disabled',
+        durations: [5],
+        resolutions: ['Auto'],
+        disabled: true
+    }
 ];
 
 export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
@@ -84,9 +71,9 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
 
     const [prompts, setPrompts] = useState<Record<string, string>>({});
     const [settings, setSettings] = useState({
-        model: 'veo-3.1',
-        duration: 4, // Default to 4s for Veo
-        resolution: '720p' // Safe default
+        model: 'video-disabled',
+        duration: 5,
+        resolution: 'Auto'
     });
     const [generatingPrompts, setGeneratingPrompts] = useState<Record<string, boolean>>({});
     const [optimizingPrompts, setOptimizingPrompts] = useState<Record<string, boolean>>({});
@@ -194,7 +181,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
         }
     }, [isOpen, scenes]);
 
-    // Handle single prompt generation using Gemini
+    // Handle single prompt generation through the text assistant endpoint.
     const handleGeneratePrompt = async (nodeId: string) => {
         const scene = scenes.find(s => s.id === nodeId);
         if (!scene || !scene.resultUrl) return;
@@ -242,7 +229,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
         }
     };
 
-    // Handle optimizing manually entered prompts using Gemini
+    // Handle optimizing manually entered prompts through the text assistant endpoint.
     const handleOptimizePrompt = async (nodeId: string) => {
         const currentPrompt = prompts[nodeId];
         if (!currentPrompt) return; // Nothing to optimize
@@ -439,10 +426,7 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                         }`}
                                     >
                                         <div className="flex min-w-0 items-center gap-2">
-                                            {currentModel.id === 'veo-3.1' ? <GoogleIcon size={14} className="text-white" /> :
-                                                currentModel.provider === 'kling' ? <KlingIcon size={16} /> :
-                                                    currentModel.provider === 'hailuo' ? <HailuoIcon size={16} /> :
-                                                        <Film size={14} />}
+                                            <Film size={14} />
                                             <span className="truncate">{currentModel.name}</span>
                                         </div>
                                         <ChevronDown size={14} className="opacity-50" />
@@ -451,52 +435,17 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                     {/* Dropdown */}
                                     {showModelDropdown && (
                                         <div className={`absolute bottom-full mb-2 left-0 w-64 border rounded-lg overflow-hidden z-50 flex flex-col max-h-[400px] overflow-y-auto motion-menu-in ${menuSurfaceClass}`}>
-
-                                            {/* Google */}
-                                            <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wide ${menuHeaderClass}`}>Google</div>
-                                            {VIDEO_MODELS.filter(m => m.provider === 'google').map(model => (
+                                            <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wide ${menuHeaderClass}`}>MYML</div>
+                                            {VIDEO_MODELS.map(model => (
                                                 <button
                                                     key={model.id}
+                                                    disabled
+                                                    title={VIDEO_DISABLED_MESSAGE}
                                                     onClick={() => handleModelChange(model.id)}
-                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
+                                                    className={`flex h-9 w-full cursor-not-allowed items-center justify-between gap-2 px-3 text-xs opacity-70 transition-colors ${menuItemClass(settings.model === model.id)}`}
                                                 >
                                                     <div className="flex min-w-0 items-center gap-2">
-                                                        <GoogleIcon size={14} className={settings.model === model.id ? 'text-[#D8FF00]' : 'text-neutral-400'} />
-                                                        {model.name}
-                                                    </div>
-                                                    {settings.model === model.id && <Check size={14} />}
-                                                </button>
-                                            ))}
-
-                                            {/* Kling */}
-                                            <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wide border-t ${menuHeaderClass}`}>Kling AI</div>
-                                            {VIDEO_MODELS.filter(m => m.provider === 'kling').map(model => (
-                                                <button
-                                                    key={model.id}
-                                                    onClick={() => handleModelChange(model.id)}
-                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
-                                                >
-                                                    <div className="flex min-w-0 items-center gap-2">
-                                                        <KlingIcon size={16} />
-                                                        {model.name}
-                                                        {model.recommended && (
-                                                            <span className="shrink-0 whitespace-nowrap rounded bg-emerald-500/[0.10] px-1 py-0.5 text-[9px] font-medium text-emerald-300">{t(language, 'recommended')}</span>
-                                                        )}
-                                                    </div>
-                                                    {settings.model === model.id && <Check size={14} />}
-                                                </button>
-                                            ))}
-
-                                            {/* Hailuo */}
-                                            <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wide border-t ${menuHeaderClass}`}>Hailuo AI</div>
-                                            {VIDEO_MODELS.filter(m => m.provider === 'hailuo').map(model => (
-                                                <button
-                                                    key={model.id}
-                                                    onClick={() => handleModelChange(model.id)}
-                                                    className={`flex h-9 w-full items-center justify-between gap-2 px-3 text-xs transition-colors ${menuItemClass(settings.model === model.id)}`}
-                                                >
-                                                    <div className="flex min-w-0 items-center gap-2">
-                                                        <HailuoIcon size={16} />
+                                                        <Film size={14} />
                                                         {model.name}
                                                     </div>
                                                     {settings.model === model.id && <Check size={14} />}
@@ -512,8 +461,10 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                 <label className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wide">{t(language, 'duration')}</label>
                                 <select
                                     value={settings.duration}
+                                    disabled
                                     onChange={(e) => setSettings(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                                    className={`text-xs px-3 py-2 rounded-lg border focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 min-w-[80px] ${
+                                    title={VIDEO_DISABLED_MESSAGE}
+                                    className={`text-xs px-3 py-2 rounded-lg border opacity-70 cursor-not-allowed focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 min-w-[80px] ${
                                         isDark ? 'bg-[#151815] text-neutral-100 border-neutral-700' : 'bg-white text-neutral-900 border-neutral-200'
                                     }`}
                                 >
@@ -528,8 +479,10 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                                 <label className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wide">{t(language, 'resolution')}</label>
                                 <select
                                     value={settings.resolution}
+                                    disabled
                                     onChange={(e) => setSettings(prev => ({ ...prev, resolution: e.target.value }))}
-                                    className={`text-xs px-3 py-2 rounded-lg border focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 min-w-[80px] ${
+                                    title={VIDEO_DISABLED_MESSAGE}
+                                    className={`text-xs px-3 py-2 rounded-lg border opacity-70 cursor-not-allowed focus:outline-none focus:border-[#D8FF00]/60 focus:ring-2 focus:ring-[#D8FF00]/20 min-w-[80px] ${
                                         isDark ? 'bg-[#151815] text-neutral-100 border-neutral-700' : 'bg-white text-neutral-900 border-neutral-200'
                                     }`}
                                 >
@@ -543,12 +496,16 @@ export const StoryboardVideoModal: React.FC<StoryboardVideoModalProps> = ({
                         {/* Generate Action */}
                         <div className="flex items-center gap-3">
                             <div className="text-right mr-2">
-                                <div className="text-xs text-neutral-400">{t(language, 'estimatedCost')}</div>
-                                <div className={`text-sm font-medium ${titleClass}`}>~{(sortedScenes.length * 0.1 * (settings.duration / 5)).toFixed(2)} {t(language, 'credits')}</div>
+                                <div className="text-xs text-neutral-400">{VIDEO_DISABLED_MESSAGE}</div>
+                                <div className={`text-sm font-medium ${titleClass}`}>{t(language, 'notAvailable')}</div>
                             </div>
                             <button
+                                disabled
+                                title={VIDEO_DISABLED_MESSAGE}
                                 onClick={() => onCreateVideos(prompts, settings, sortedScenes.map(s => s.id))}
-                                className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] pl-4 pr-5 text-sm font-semibold text-black transition-[background-color,opacity] duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                                className={`flex h-9 shrink-0 cursor-not-allowed items-center gap-2 whitespace-nowrap rounded-lg pl-4 pr-5 text-sm font-semibold opacity-70 transition-[background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${
+                                    isDark ? 'bg-neutral-800 text-neutral-500' : 'bg-neutral-100 text-neutral-400'
+                                }`}
                             >
                                 <Play size={16} fill="currentColor" />
                                 {t(language, 'generateStoryVideos')}

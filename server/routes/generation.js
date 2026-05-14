@@ -22,6 +22,12 @@ import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 
 const router = express.Router();
 const MAX_IMAGE_REFERENCES = 6;
+const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
+const SUPPORTED_IMAGE_MODELS = new Set([
+    'custom-image-gpt-image-2',
+    'custom-image-nano-banana-3-1-flash'
+]);
+const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
 
 // ============================================================================
 // IMAGE GENERATION
@@ -30,14 +36,27 @@ const MAX_IMAGE_REFERENCES = 6;
 router.post('/generate-image', async (req, res) => {
     try {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
-        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;
+        const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY } = req.app.locals;
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
+        const effectiveImageModel = imageModel || DEFAULT_IMAGE_MODEL;
+
+        if (!SUPPORTED_IMAGE_MODELS.has(effectiveImageModel)) {
+            return res.status(400).json({
+                error: `Image model unavailable: ${effectiveImageModel}. Available models: ${Array.from(SUPPORTED_IMAGE_MODELS).join(', ')}`
+            });
+        }
+
+        if (!isApimartImageConfigured(aiProviderConfig)) {
+            return res.status(500).json({
+                error: 'APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.'
+            });
+        }
 
         // Determine provider
-        const isKlingModel = imageModel && imageModel.startsWith('kling-');
-        const isOpenAIModel = imageModel && imageModel.startsWith('gpt-image-');
-        const isCustomImageModel = imageModel && imageModel.startsWith('custom-image-');
+        const isKlingModel = effectiveImageModel && effectiveImageModel.startsWith('kling-');
+        const isOpenAIModel = effectiveImageModel && effectiveImageModel.startsWith('gpt-image-');
+        const isCustomImageModel = effectiveImageModel && effectiveImageModel.startsWith('custom-image-');
 
         let imageBuffer;
         let imageFormat = 'png';
@@ -50,64 +69,43 @@ router.post('/generate-image', async (req, res) => {
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
-            if (isApimartImageConfigured(aiProviderConfig)) {
-                let resolvedApimartModel;
-                try {
-                    resolvedApimartModel = resolveApimartImageModel(imageModel, aiProviderConfig.apimart.imageModel);
-                } catch (error) {
-                    return res.status(400).json({ error: error.message });
-                }
+            let resolvedApimartModel;
+            try {
+                resolvedApimartModel = resolveApimartImageModel(effectiveImageModel, aiProviderConfig.apimart.imageModel);
+            } catch (error) {
+                return res.status(400).json({ error: error.message });
+            }
 
-                const apimartSize = aspectRatio || aiProviderConfig.apimart.imageSize;
-                const apimartResolution = normalizeResolution(resolvedApimartModel, resolution || aiProviderConfig.apimart.imageResolution);
-                const referenceCount = resolvedImages ? resolvedImages.length : 0;
+            const apimartSize = aspectRatio || aiProviderConfig.apimart.imageSize;
+            const apimartResolution = normalizeResolution(resolvedApimartModel, resolution || aiProviderConfig.apimart.imageResolution);
+            const referenceCount = resolvedImages ? resolvedImages.length : 0;
 
-                console.log('[APIMart][image route]', {
-                    projectModelId: imageModel,
-                    resolvedApimartModel,
-                    referenceCount,
-                    size: apimartSize,
-                    resolution: apimartResolution
-                });
+            console.log('[APIMart][image route]', {
+                projectModelId: effectiveImageModel,
+                resolvedApimartModel,
+                referenceCount,
+                size: apimartSize,
+                resolution: apimartResolution
+            });
 
-                const apimartResult = await generateApimartImage({
-                    prompt,
-                    imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
-                    size: apimartSize,
-                    resolution: apimartResolution,
-                    model: resolvedApimartModel
-                }, { config: aiProviderConfig });
+            const apimartResult = await generateApimartImage({
+                prompt,
+                imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
+                size: apimartSize,
+                resolution: apimartResolution,
+                model: resolvedApimartModel
+            }, { config: aiProviderConfig });
 
-                if (apimartResult.status !== 'completed') {
-                    throw new Error(apimartResult.error || 'APIMart image generation failed.');
-                }
+            if (apimartResult.status !== 'completed') {
+                throw new Error(apimartResult.error || 'APIMart image generation failed.');
+            }
 
-                imageBuffer = await imageResultToBuffer(apimartResult);
-                const mimeType = apimartResult.images?.[0]?.mimeType || '';
-                if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
-                    imageFormat = 'jpg';
-                } else if (mimeType.includes('webp')) {
-                    imageFormat = 'webp';
-                }
-            } else {
-                if (!CUSTOM_API_BASE_URL || !CUSTOM_API_KEY) {
-                    return res.status(500).json({
-                        error: "Image provider not configured. Add APIMART_BASE_URL and APIMART_API_KEY, or fallback CUSTOM_API_BASE_URL and CUSTOM_API_KEY to .env"
-                    });
-                }
-
-                console.log(`Using legacy Custom API image model: ${imageModel}`);
-                console.log(`Custom image references: ${resolvedImages ? resolvedImages.length : 0}`);
-
-                imageBuffer = await generateCustomImage({
-                    prompt,
-                    imageBase64: resolvedImages && resolvedImages.length > 0 ? resolvedImages.slice(0, MAX_IMAGE_REFERENCES) : undefined,
-                    aspectRatio,
-                    resolution,
-                    modelId: imageModel,
-                    apiBaseUrl: CUSTOM_API_BASE_URL,
-                    apiKey: CUSTOM_API_KEY
-                });
+            imageBuffer = await imageResultToBuffer(apimartResult);
+            const mimeType = apimartResult.images?.[0]?.mimeType || '';
+            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+                imageFormat = 'jpg';
+            } else if (mimeType.includes('webp')) {
+                imageFormat = 'webp';
             }
 
         } else if (isKlingModel) {
@@ -118,7 +116,7 @@ router.post('/generate-image', async (req, res) => {
                 });
             }
 
-            console.log(`Using Kling AI model for image: ${imageModel}`);
+            console.log(`Using Kling AI model for image: ${effectiveImageModel}`);
 
             // Resolve images if provided
             let resolvedImages = null;
@@ -132,16 +130,16 @@ router.post('/generate-image', async (req, res) => {
             // Determine which API to use based on model and reference images:
             // - kling-v1-5: Uses standard API with image_reference parameter
             // - kling-v2, kling-v2-1: Use Multi-Image API (image_reference not supported)
-            const isV2Model = imageModel === 'kling-v2' || imageModel === 'kling-v2-1' || imageModel === 'kling-v2-new';
+            const isV2Model = effectiveImageModel === 'kling-v2' || effectiveImageModel === 'kling-v2-1' || effectiveImageModel === 'kling-v2-new';
             const hasReferenceImages = resolvedImages && resolvedImages.length > 0;
 
             if (hasReferenceImages && isV2Model) {
                 // V2 models: Use Multi-Image API for image-to-image
-                console.log(`Using Kling Multi-Image API for ${imageModel} with ${resolvedImages.length} subject image(s)`);
+                console.log(`Using Kling Multi-Image API for ${effectiveImageModel} with ${resolvedImages.length} subject image(s)`);
                 klingImageUrl = await generateKlingMultiImage({
                     prompt,
                     subjectImages: resolvedImages,
-                    modelId: imageModel,
+                    modelId: effectiveImageModel,
                     aspectRatio,
                     resolution,
                     accessKey: KLING_ACCESS_KEY,
@@ -153,7 +151,7 @@ router.post('/generate-image', async (req, res) => {
                 klingImageUrl = await generateKlingMultiImage({
                     prompt,
                     subjectImages: resolvedImages,
-                    modelId: imageModel,
+                    modelId: effectiveImageModel,
                     aspectRatio,
                     resolution,
                     accessKey: KLING_ACCESS_KEY,
@@ -164,7 +162,7 @@ router.post('/generate-image', async (req, res) => {
                 klingImageUrl = await generateKlingImage({
                     prompt,
                     imageBase64: resolvedImages,
-                    modelId: imageModel,
+                    modelId: effectiveImageModel,
                     aspectRatio,
                     resolution,
                     klingReferenceMode,
@@ -194,7 +192,7 @@ router.post('/generate-image', async (req, res) => {
                 });
             }
 
-            console.log(`Using OpenAI GPT Image model: ${imageModel}`);
+            console.log(`Using OpenAI GPT Image model: ${effectiveImageModel}`);
 
             // Resolve images if provided
             let imageBase64Array = null;
@@ -243,13 +241,13 @@ router.post('/generate-image', async (req, res) => {
             id: metadataId,  // Must match the filename for delete API to find it
             filename: saved.filename,
             prompt: prompt,
-            model: imageModel || 'gemini-pro',
+            model: effectiveImageModel,
             createdAt: new Date().toISOString(),
             type: 'images'
         };
         fs.writeFileSync(path.join(imagesDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
 
-        console.log(`Image saved: ${saved.url} (model: ${imageModel || 'gemini-pro'})`);
+        console.log(`Image saved: ${saved.url} (model: ${effectiveImageModel})`);
         return res.json({ resultUrl: saved.url });
 
     } catch (error) {
@@ -263,6 +261,8 @@ router.post('/generate-image', async (req, res) => {
 // ============================================================================
 
 router.post('/generate-video', async (req, res) => {
+    return res.status(503).json({ error: VIDEO_DISABLED_ERROR });
+
     try {
         const { nodeId, prompt, imageBase64: rawImageBase64, lastFrameBase64: rawLastFrameBase64, motionReferenceUrl: rawMotionReferenceUrl, aspectRatio, resolution, duration, videoModel, generateAudio } = req.body;
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, HAILUO_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;

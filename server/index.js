@@ -127,9 +127,11 @@ app.use('/library', requireAuth, (req, res, next) => {
 });
 
 
+const APIMART_HAS_CORE_CONFIG = Boolean(process.env.APIMART_BASE_URL && process.env.APIMART_API_KEY);
+const WARN_LEGACY_MODELS = process.env.ENABLE_LEGACY_MODEL_WARNINGS === 'true';
 const API_KEY = process.env.GEMINI_API_KEY;
 
-if (!API_KEY) {
+if (!API_KEY && !APIMART_HAS_CORE_CONFIG) {
     console.warn("SERVER WARNING: GEMINI_API_KEY is not set in environment or .env file.");
 }
 
@@ -145,7 +147,7 @@ const KLING_ACCESS_KEY = process.env.KLING_ACCESS_KEY;
 const KLING_SECRET_KEY = process.env.KLING_SECRET_KEY;
 const KLING_BASE_URL = 'https://api-singapore.klingai.com';
 
-if (!KLING_ACCESS_KEY || !KLING_SECRET_KEY) {
+if (WARN_LEGACY_MODELS && (!KLING_ACCESS_KEY || !KLING_SECRET_KEY)) {
     console.warn("SERVER WARNING: KLING_ACCESS_KEY or KLING_SECRET_KEY not set. Kling AI models will not work.");
 }
 
@@ -155,7 +157,7 @@ if (!KLING_ACCESS_KEY || !KLING_SECRET_KEY) {
 
 const HAILUO_API_KEY = process.env.HAILUO_API_KEY;
 
-if (!HAILUO_API_KEY) {
+if (WARN_LEGACY_MODELS && !HAILUO_API_KEY) {
     console.warn("SERVER WARNING: HAILUO_API_KEY not set. Hailuo AI models will not work.");
 }
 
@@ -165,7 +167,7 @@ if (!HAILUO_API_KEY) {
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-if (!OPENAI_API_KEY) {
+if (WARN_LEGACY_MODELS && !OPENAI_API_KEY) {
     console.warn("SERVER WARNING: OPENAI_API_KEY not set. OpenAI GPT Image models will not work.");
 }
 
@@ -175,7 +177,7 @@ if (!OPENAI_API_KEY) {
 
 const FAL_API_KEY = process.env.FAL_API_KEY;
 
-if (!FAL_API_KEY) {
+if (WARN_LEGACY_MODELS && !FAL_API_KEY) {
     console.warn("SERVER WARNING: FAL_API_KEY not set. Kling 2.6 Motion Control will not work.");
 }
 // ============================================================================
@@ -184,11 +186,11 @@ if (!FAL_API_KEY) {
 const CUSTOM_API_BASE_URL = process.env.CUSTOM_API_BASE_URL;
 const CUSTOM_API_KEY = process.env.CUSTOM_API_KEY;
 
-if (!CUSTOM_API_BASE_URL) {
+if (WARN_LEGACY_MODELS && !CUSTOM_API_BASE_URL) {
     console.warn("SERVER WARNING: CUSTOM_API_BASE_URL not set. Custom API models will not work.");
 }
 
-if (!CUSTOM_API_KEY) {
+if (WARN_LEGACY_MODELS && !CUSTOM_API_KEY) {
     console.warn("SERVER WARNING: CUSTOM_API_KEY not set. Custom API models will not work.");
 }
 // Set up app.locals for sharing config with route modules

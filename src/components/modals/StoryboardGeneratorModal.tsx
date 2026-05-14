@@ -17,10 +17,7 @@ import { Language, t } from '../../i18n/translations';
 
 const IMAGE_MODELS = [
     { id: 'custom-image-gpt-image-2', name: 'T8star GPT Image 2', provider: 'custom' },
-    { id: 'gpt-image-1.5', name: 'GPT Image 1.5', provider: 'openai' },
-    { id: 'gemini-pro', name: 'Nano Banana Pro', provider: 'google' },
-    { id: 'kling-v1-5', name: 'Kling V1.5', provider: 'kling' },
-    { id: 'kling-v2-1', name: 'Kling V2.1', provider: 'kling' },
+    { id: 'custom-image-nano-banana-3-1-flash', name: 'Nano Banana 3.1 Flash', provider: 'custom' },
 ];
 
 // ============================================================================
@@ -820,7 +817,7 @@ export const StoryboardGeneratorModal: React.FC<StoryboardGeneratorModalProps> =
                                     <div className={bodyTextClass}>{t(language, 'scenesSummary')}:</div>
                                     <div className={titleClass}>{state.scripts.length}</div>
                                     <div className={bodyTextClass}>{t(language, 'modelSummary')}:</div>
-                                    <div className={titleClass}>Nano Banana Pro</div>
+                                    <div className={titleClass}>Nano Banana 3.1 Flash</div>
                                     <div className={bodyTextClass}>{t(language, 'previewSummary')}:</div>
                                     <div className={titleClass}>{state.compositeImageUrl ? t(language, 'generated') : t(language, 'notAvailable')}</div>
                                 </div>
