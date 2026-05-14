@@ -15,6 +15,7 @@ import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { LocalModel, getLocalModels } from '../../services/localModelService';
 import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
+import { ActionRow, PanelSection, SegmentedControl, StatusDot } from '../ui';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -633,16 +634,16 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // Theme helper
     const isDark = canvasTheme === 'dark';
     const selectorButtonClass = isDark
-        ? 'flex h-8 items-center gap-1.5 text-xs font-medium bg-[#151815] border border-neutral-800 text-neutral-200 hover:bg-[#1A1D1A] hover:border-[#D8FF00]/35 hover:text-neutral-100 px-2.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
+        ? 'flex h-[var(--myml-density-control)] items-center gap-1.5 text-xs font-medium bg-[var(--myml-surface-raised)] border border-[var(--myml-border-default)] text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:border-[var(--myml-border-active)] hover:text-[var(--myml-text-primary)] px-2.5 rounded-[var(--myml-radius-control)] transition-[background-color,border-color,color,transform] duration-[var(--myml-motion-base)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35'
         : 'flex items-center gap-1.5 text-xs font-medium bg-white border border-neutral-200 text-neutral-700 hover:border-lime-500 hover:text-lime-600 px-2.5 py-1.5 rounded-lg transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
     const dropdownClass = isDark
-        ? 'bg-[#151815] border-neutral-800 rounded-lg shadow-[0_14px_32px_rgba(0,0,0,0.36)] overflow-hidden z-50 motion-menu-in'
+        ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)] rounded-[var(--myml-radius-card)] shadow-[var(--myml-shadow-floating)] overflow-hidden z-50 motion-menu-in'
         : 'bg-white border-neutral-200 rounded-lg shadow-[0_14px_32px_rgba(15,23,42,0.12)] overflow-hidden z-50 motion-menu-in';
     const dropdownHeaderClass = isDark
-        ? 'bg-[#101210] text-neutral-400 border-neutral-800'
+        ? 'bg-[var(--myml-surface-base)] text-[var(--myml-text-muted)] border-[var(--myml-border-subtle)]'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
     const dropdownSectionHeaderClass = isDark
-        ? 'bg-[#101210] text-neutral-500 border-neutral-800'
+        ? 'bg-[var(--myml-surface-base)] text-[var(--myml-text-faint)] border-[var(--myml-border-subtle)]'
         : 'bg-neutral-50 text-neutral-500 border-neutral-200';
     const dropdownItemClass = (active: boolean) => {
         if (active) {
@@ -652,7 +653,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         }
 
         return isDark
-            ? 'text-neutral-300 hover:bg-[#1A1D1A]'
+            ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-item-hover)] hover:text-[var(--myml-text-primary)]'
             : 'text-neutral-700 hover:bg-neutral-100';
     };
     const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
@@ -665,7 +666,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         return dropdownItemClass(active);
     };
     const disabledModelBadgeClass = isDark
-        ? 'bg-neutral-800 text-neutral-500 border border-neutral-700'
+        ? 'bg-[var(--myml-surface-base)] text-[var(--myml-text-faint)] border border-[var(--myml-border-subtle)]'
         : 'bg-neutral-100 text-neutral-500 border border-neutral-200';
     const renderDisabledModelBadge = (model: any) =>
         isModelDisabled(model) ? (
@@ -679,9 +680,16 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         }
 
         return isDark
-            ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-black shadow-[0_0_8px_rgba(216,255,0,0.12)] active:scale-[0.98]'
+            ? 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-[var(--myml-accent-contrast)] shadow-[var(--myml-shadow-accent)] active:scale-[0.98]'
             : 'bg-lime-600 hover:bg-lime-500 text-white active:scale-[0.98]';
     };
+    const controlPanelTitle = isVideoNode
+        ? language === 'zh' ? '视频生成控制' : 'Video Controls'
+        : language === 'zh' ? '图像生成控制' : 'Image Controls';
+    const promptSectionTitle = language === 'zh' ? '提示词' : 'Prompt';
+    const modelSectionTitle = language === 'zh' ? '模型与输出' : 'Model & Output';
+    const referenceSectionTitle = language === 'zh' ? '参考设置' : 'Reference Settings';
+    const advancedSectionTitle = language === 'zh' ? '高级设置' : 'Advanced';
 
     const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
         rotation: settings?.rotation ?? 0,
@@ -724,7 +732,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
     return (
         <div
-            className={`p-4 rounded-xl shadow-[0_12px_28px_rgba(0,0,0,0.32)] cursor-default w-full transition-colors duration-200 ${isDark ? 'bg-[#151815] border border-neutral-800' : 'bg-white border border-neutral-200'}`}
+            className={`rounded-[var(--myml-radius-panel)] p-3 shadow-[var(--myml-shadow-panel)] cursor-default w-full transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${isDark ? 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)]' : 'bg-white border border-neutral-200'}`}
             style={{
                 transform: `scale(${localScale})`,
                 transformOrigin: 'top center',
@@ -733,13 +741,24 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             onPointerDown={(e) => e.stopPropagation()} // Allow selecting text/interacting without dragging
             onClick={() => onSelect(data.id)} // Ensure clicking here selects the node
         >
+            <div className="mb-2 flex items-center justify-between gap-3 border-b border-[var(--myml-border-subtle)] pb-2">
+                <div className="flex min-w-0 items-center gap-2">
+                    <StatusDot tone={isLoading ? 'running' : data.errorMessage ? 'danger' : isSuccess ? 'success' : 'idle'} />
+                    <span className="truncate text-[11px] font-semibold leading-none text-[var(--myml-text-secondary)]">
+                        {controlPanelTitle}
+                    </span>
+                </div>
+                <span className="shrink-0 rounded-md border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] px-1.5 py-0.5 text-[10px] leading-none text-[var(--myml-text-faint)]">
+                    {isVideoNode ? 'Video' : 'Image'}
+                </span>
+            </div>
             {/* Prompt Textarea with Expand Button - Hidden for storyboard-generated scenes */}
             {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
-                <div className="mb-3">
+                <PanelSection title={promptSectionTitle} className="mb-2">
                     {orderedImageReferences.length > 0 && (
                         <div
-                            className={`mb-3 rounded-lg border px-2 pb-1 pt-2 ${isDark
-                                ? 'border-neutral-800 bg-[#101210]'
+                            className={`mb-3 rounded-[var(--myml-radius-control)] border px-2 pb-1 pt-2 ${isDark
+                                ? 'border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)]'
                                 : 'border-neutral-200 bg-neutral-50/80'
                                 }`}
                         >
@@ -787,9 +806,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             </div>
                         </div>
                     )}
-                    <div className="relative">
+                    <div className="relative rounded-[var(--myml-radius-control)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-input)] px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[var(--myml-border-active)] focus-within:shadow-[0_0_0_1px_rgba(216,255,0,0.14)]">
                         <textarea
-                            className={`w-full bg-transparent text-sm outline-none resize-none font-normal leading-5 ${isDark ? 'text-neutral-100 placeholder-neutral-600' : 'text-neutral-900 placeholder-neutral-400'}`}
+                            className={`w-full bg-transparent text-sm outline-none resize-none font-normal leading-5 ${isDark ? 'text-[var(--myml-text-primary)] placeholder:text-[var(--myml-text-faint)]' : 'text-neutral-900 placeholder-neutral-400'}`}
                             placeholder={
                                 data.type === NodeType.VIDEO && isFrameToFrame && currentVideoModel.provider === 'kling'
                                     ? t(language, 'promptOptionalKlingFrame')
@@ -815,7 +834,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         <div className="flex justify-end mt-1">
                             <button
                                 onClick={() => onUpdate(data.id, { isPromptExpanded: !data.isPromptExpanded })}
-                                className={`flex h-6 items-center gap-1 px-2 text-[10px] rounded-md transition-colors ${isDark ? 'text-neutral-500 hover:text-white hover:bg-[#1A1D1A]' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
+                                className={`flex h-6 items-center gap-1 px-2 text-[10px] rounded-[var(--myml-radius-control)] transition-colors ${isDark ? 'text-[var(--myml-text-faint)] hover:text-[var(--myml-text-primary)] hover:bg-[var(--myml-surface-hover)]' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
                                 title={data.isPromptExpanded ? t(language, 'shrinkPrompt') : t(language, 'expandPrompt')}
                                 aria-label={data.isPromptExpanded ? t(language, 'shrinkPrompt') : t(language, 'expandPrompt')}
                             >
@@ -824,7 +843,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             </button>
                         </div>
                     </div>
-                </div>
+                </PanelSection>
             )}
 
             {data.errorMessage && (
@@ -847,7 +866,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
             {/* Controls - Hidden for storyboard-generated scenes */}
             {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
-                <div className="flex items-center justify-between relative">
+                <PanelSection title={modelSectionTitle} className="mb-2">
+                <ActionRow className="relative">
                     <div className="flex items-center gap-2">
                         {/* Model Selector - Local, Video, and Image nodes get different dropdowns */}
                         {isLocalModelNode ? (
@@ -1369,21 +1389,22 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             );
                         })()}
                     </div>
-                </div>
+                </ActionRow>
+                </PanelSection>
             )}
 
             {/* Kling V1.5 Reference Settings - For Image nodes with connected input */}
             {!isVideoNode && data.imageModel === 'kling-v1-5' && connectedImageNodes.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-neutral-800">
-                    <div className="mb-2 text-[10px] font-semibold text-neutral-500">{t(language, 'referenceSettings')}</div>
+                <div className="myml-section mt-2 p-3">
+                    <div className="mb-2 text-[11px] font-semibold leading-none text-[var(--myml-text-muted)]">{referenceSectionTitle}</div>
 
                     {/* Mode Tabs */}
-                    <div className="flex gap-1 mb-3 p-1 bg-neutral-800/50 rounded-lg">
+                    <SegmentedControl className="mb-3 flex w-full">
                         <button
                             onClick={() => onUpdate(data.id, { klingReferenceMode: 'subject', detectedFaces: undefined, faceDetectionStatus: undefined })}
-                            className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${(data.klingReferenceMode || 'subject') === 'subject'
-                                ? 'bg-neutral-700 text-white font-medium'
-                                : 'text-neutral-400 hover:text-white hover:bg-neutral-700/50'
+                            className={`flex-1 rounded-[var(--myml-radius-control)] px-3 py-1.5 text-xs transition-colors ${(data.klingReferenceMode || 'subject') === 'subject'
+                                ? 'bg-[var(--myml-surface-selected)] text-[var(--myml-accent)] font-medium'
+                                : 'text-[var(--myml-text-muted)] hover:text-[var(--myml-text-primary)] hover:bg-[var(--myml-surface-hover)]'
                                 }`}
                         >
                             {t(language, 'subject')}
@@ -1393,14 +1414,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 // Just switch mode, face detection will be triggered by effect
                                 onUpdate(data.id, { klingReferenceMode: 'face', faceDetectionStatus: 'loading', detectedFaces: undefined });
                             }}
-                            className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${data.klingReferenceMode === 'face'
-                                ? 'bg-neutral-700 text-white font-medium'
-                                : 'text-neutral-400 hover:text-white hover:bg-neutral-700/50'
+                            className={`flex-1 rounded-[var(--myml-radius-control)] px-3 py-1.5 text-xs transition-colors ${data.klingReferenceMode === 'face'
+                                ? 'bg-[var(--myml-surface-selected)] text-[var(--myml-accent)] font-medium'
+                                : 'text-[var(--myml-text-muted)] hover:text-[var(--myml-text-primary)] hover:bg-[var(--myml-surface-hover)]'
                                 }`}
                         >
                             {t(language, 'face')}
                         </button>
-                    </div>
+                    </SegmentedControl>
 
                     {/* Reference Image Preview with Face Detection Overlay */}
                     {connectedImageNodes[0]?.url && (
@@ -1481,8 +1502,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         <>
                             <div className="space-y-1 mb-3">
                                 <div className="flex justify-between text-[10px]">
-                                    <span className="text-neutral-400">{t(language, 'faceReference')}</span>
-                                    <span className="text-white font-medium">{data.klingFaceIntensity ?? 65}</span>
+                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'faceReference')}</span>
+                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 65}</span>
                                 </div>
                                 <input
                                     type="range"
@@ -1495,8 +1516,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             </div>
                             <div className="space-y-1">
                                 <div className="flex justify-between text-[10px]">
-                                    <span className="text-neutral-400">{t(language, 'subjectReference')}</span>
-                                    <span className="text-white font-medium">{data.klingSubjectIntensity ?? 50}</span>
+                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'subjectReference')}</span>
+                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingSubjectIntensity ?? 50}</span>
                                 </div>
                                 <input
                                     type="range"
@@ -1514,8 +1535,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                     {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && (
                         <div className="space-y-1">
                             <div className="flex justify-between text-[10px]">
-                                <span className="text-neutral-400">{t(language, 'referenceStrength')}</span>
-                                <span className="text-white font-medium">{data.klingFaceIntensity ?? 42}</span>
+                                <span className="text-[var(--myml-text-muted)]">{t(language, 'referenceStrength')}</span>
+                                <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 42}</span>
                             </div>
                             <input
                                 type="range"
@@ -1533,15 +1554,15 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {/* Advanced Settings Drawer - Only for Video nodes */}
             {
                 isVideoNode && (
-                    <div className="mt-2 pt-2 border-t border-neutral-800">
+                    <div className="myml-section mt-2 p-2">
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
                             aria-expanded={showAdvanced}
                             aria-controls="node-controls-advanced-settings"
-                            className="w-full flex items-center justify-center gap-1 cursor-pointer rounded-lg py-1.5 transition-[background-color,color] duration-150 hover:bg-[#1A1D1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                            className="w-full flex items-center justify-center gap-1 cursor-pointer rounded-[var(--myml-radius-control)] py-1.5 transition-[background-color,color] duration-[var(--myml-motion-base)] hover:bg-[var(--myml-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                         >
-                            <span className="text-[10px] text-neutral-500 uppercase tracking-[0.08em]">
-                                {t(language, 'advancedSettings')}
+                            <span className="text-[11px] font-semibold text-[var(--myml-text-muted)]">
+                                {advancedSectionTitle}
                             </span>
                             {showAdvanced ? (
                                 <ChevronUp size={12} className="text-neutral-600" />
@@ -1552,14 +1573,14 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
 
                         {/* Advanced Settings Content - Only for Video nodes */}
                         {showAdvanced && isVideoNode && (
-                            <div id="node-controls-advanced-settings" className="mt-3 space-y-3 rounded-lg border border-neutral-800 bg-[#101210] p-3">
+                            <div id="node-controls-advanced-settings" className="mt-3 space-y-3 rounded-[var(--myml-radius-card)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] p-3">
                                 {/* Audio Toggle - Only for Kling 2.6 (Veo 3.1 SDK doesn't support generateAudio yet) */}
                                 {data.videoModel === 'kling-v2-6' && (
-                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[#151815] rounded-lg border border-neutral-800 w-fit">
+                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[var(--myml-surface-raised)] rounded-lg border border-[var(--myml-border-subtle)] w-fit">
                                         <svg className={`w-3.5 h-3.5 ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                                         </svg>
-                                        <span className="text-[11px] text-neutral-300">{t(language, 'audio')}</span>
+                                        <span className="text-[11px] text-[var(--myml-text-secondary)]">{t(language, 'audio')}</span>
                                         <button
                                             onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
                                             aria-label={data.generateAudio !== false ? t(language, 'disableAudioGeneration') : t(language, 'enableAudioGeneration')}

@@ -119,29 +119,29 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const angleActiveButtonClass = isDark
     ? 'bg-[#D8FF00] text-black'
     : 'bg-lime-600 text-white';
-  const dragHandleClass = `flex h-7 w-7 items-center justify-center rounded-md border cursor-grab active:cursor-grabbing transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const dragHandleClass = `flex h-7 w-7 items-center justify-center rounded-[var(--myml-radius-control)] border cursor-grab active:cursor-grabbing transition-[background-color,border-color,color,transform] duration-[var(--myml-motion-base)] ease-[var(--myml-ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
-      ? 'bg-[#151815] text-neutral-300 border-neutral-700 hover:bg-[#1A1D1A] hover:text-[#D8FF00] hover:border-[#D8FF00]/35'
+      ? 'bg-[var(--myml-surface-raised)] text-[var(--myml-text-secondary)] border-[var(--myml-border-default)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-accent)] hover:border-[var(--myml-border-active)]'
       : 'bg-lime-50 text-lime-600 border-lime-200 hover:bg-lime-600 hover:text-white'
   }`;
-  const mediaToolbarClass = `inline-flex max-w-max flex-nowrap items-center gap-1 whitespace-nowrap rounded-lg border px-1.5 py-1 shadow-[0_10px_22px_rgba(0,0,0,0.20)] backdrop-blur-md ${
+  const mediaToolbarClass = `inline-flex max-w-max flex-nowrap items-center gap-1 whitespace-nowrap rounded-[var(--myml-radius-card)] border px-1.5 py-1 shadow-[var(--myml-shadow-floating)] backdrop-blur-md ${
     isDark
-      ? 'bg-[#151815]/95 border-neutral-700'
+      ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)]'
       : 'bg-white/95 border-neutral-200 shadow-[0_10px_22px_rgba(15,23,42,0.12)]'
   }`;
-  const mediaIconButtonClass = `flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaIconButtonClass = `flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--myml-radius-control)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
-      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
-  const mediaTextButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaTextButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--myml-radius-control)] px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
-      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
-  const mediaUploadButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
+  const mediaUploadButtonClass = `flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--myml-radius-control)] px-2.5 text-xs font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
     isDark
-      ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-white'
+      ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]'
       : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700'
   }`;
   const mediaAccentIconButtonClass = `flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${
@@ -149,7 +149,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       ? 'border-[#D8FF00]/25 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15 hover:border-[#D8FF00]/45'
       : 'border-lime-500/35 bg-lime-50 text-lime-700 hover:bg-lime-100 hover:border-lime-500/60'
   }`;
-  const mediaSeparatorClass = `h-4 w-px shrink-0 ${isDark ? 'bg-neutral-600' : 'bg-neutral-200'}`;
+  const mediaSeparatorClass = `h-4 w-px shrink-0 ${isDark ? 'bg-[var(--myml-border-default)]' : 'bg-neutral-200'}`;
   const mediaToolbarOverlayClass = 'pointer-events-auto absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 translate-y-2 justify-center opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100';
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
@@ -1028,11 +1028,11 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-xl border transition-[background-color,border-color,box-shadow] duration-150 flex flex-col shadow-[0_8px_18px_rgba(0,0,0,0.22)] ${
+          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-[var(--myml-radius-panel)] border transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-base)] flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark
-                ? 'bg-[#151815]'
+                ? 'bg-[var(--myml-node-body)]'
                 : 'bg-white'
           } ${
             isError
@@ -1041,10 +1041,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                 : 'border-red-500/50 bg-red-50 ring-1 ring-red-500/20'
               : selected
               ? isDark
-                ? 'border-[#D8FF00]/60 ring-1 ring-[#D8FF00]/35 shadow-[0_0_10px_rgba(216,255,0,0.08)]'
+                ? 'border-[var(--myml-border-active)] ring-1 ring-[var(--myml-border-active)] shadow-[var(--myml-shadow-accent)]'
                 : 'border-lime-500/65 ring-1 ring-lime-500/30 shadow-[0_0_10px_rgba(132,204,22,0.10)]'
               : isDark
-                ? 'border-neutral-800 group-hover/nodecard:border-neutral-700'
+                ? 'border-[var(--myml-border-default)] group-hover/nodecard:border-[var(--myml-border-active)]'
                 : 'border-neutral-200'
           }`}
         >
@@ -1068,7 +1068,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               onPointerDown={(e) => e.stopPropagation()}
               className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium outline-none whitespace-nowrap ${
                 isDark
-                  ? 'bg-[#151815] text-neutral-100 border border-[#D8FF00]/45'
+                  ? 'bg-[var(--myml-node-header)] text-[var(--myml-text-primary)] border border-[var(--myml-border-active)]'
                   : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
               }`}
               style={{ right: 'calc(100% + 8px)', minWidth: '60px' }}
@@ -1078,7 +1078,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
               className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium transition-colors cursor-text whitespace-nowrap ${
                 selected
                   ? isDark
-                    ? 'bg-[#151815] text-[#D8FF00] border border-[#D8FF00]/35'
+                    ? 'bg-[var(--myml-node-header)] text-[var(--myml-accent)] border border-[var(--myml-border-active)]'
                     : 'bg-lime-50 text-lime-700 border border-lime-300 shadow-sm'
                   : isDark
                     ? 'text-neutral-600'

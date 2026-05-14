@@ -213,13 +213,13 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
         <>
             {/* Main Panel */}
             <div
-                className={`fixed backdrop-blur-md border rounded-xl shadow-[0_16px_36px_rgba(0,0,0,0.34)] z-40 flex flex-col overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
+                className={`fixed backdrop-blur-md border rounded-[var(--myml-radius-panel)] shadow-[var(--myml-shadow-panel)] z-40 flex flex-col overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${
                     isExpanded
                         ? 'left-24 right-24 top-20 bottom-20 max-h-none'
                         : 'left-20 w-[700px] max-h-[500px]'
                 } ${
                     isDark
-                        ? 'bg-[#101210]/96 border-neutral-800'
+                        ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)]'
                         : 'bg-white/95 border-neutral-200'
                 }`}
                 style={isExpanded ? undefined : { top: panelY }}
@@ -381,7 +381,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 motion-modal-overlay-in">
-                    <div className={`border rounded-xl p-6 w-[340px] shadow-[0_18px_44px_rgba(0,0,0,0.42)] motion-modal-dialog-in ${isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'}`}>
+                    <div className={`border rounded-[var(--myml-radius-modal)] p-6 w-[340px] shadow-[var(--myml-shadow-panel)] motion-modal-dialog-in ${isDark ? 'bg-[var(--myml-surface-panel)] border-[var(--myml-border-default)]' : 'bg-white border-neutral-200'}`}>
                         <h3 className={`text-base font-semibold leading-5 mb-2 ${isDark ? 'text-white' : 'text-neutral-900'}`}>
                             {t(language, 'deleteAsset')}
                         </h3>

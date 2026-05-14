@@ -25,6 +25,7 @@ import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
 import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
 import { NodeStatus } from '../../types';
+import { EditorShell, EditorStatusBar, EditorTopBar, ToolButton } from '../ui';
 
 // Sub-components
 import { DrawingToolbar } from './imageEditor/DrawingToolbar';
@@ -36,6 +37,36 @@ import { PromptBar } from './imageEditor/PromptBar';
 // COMPONENT
 // ============================================================================
 
+const isFiniteNumber = (value: number) => Number.isFinite(value);
+
+const isRenderableElement = (element: EditorElement) => {
+    if (element.type === 'arrow') {
+        return [
+            element.startX,
+            element.startY,
+            element.endX,
+            element.endY,
+            element.lineWidth
+        ].every(isFiniteNumber);
+    }
+
+    if (element.type === 'text') {
+        return [
+            element.x,
+            element.y,
+            element.fontSize
+        ].every(isFiniteNumber);
+    }
+
+    return [
+        element.x,
+        element.y,
+        element.width,
+        element.height,
+        element.strokeWidth
+    ].every(isFiniteNumber);
+};
+
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     isOpen,
     nodeId,
@@ -46,6 +77,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     initialResolution,
     initialElements,
     initialCanvasData,
+    initialCanvasSize,
     initialBackgroundUrl,
     canvasTheme = 'dark',
     language = 'zh',
@@ -72,6 +104,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Image State (for crop undo/redo) ---
     const [localImageUrl, setLocalImageUrl] = useState<string | undefined>(imageUrl);
+    const [displaySize, setDisplaySize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
     // --- Theme / Language ---
     const isDark = canvasTheme === 'dark';
@@ -85,34 +118,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         editingImageAlt: t(language, 'editingImageAlt'),
     };
 
-    const accentClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
-
-    const accentBgClass = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-neutral-950'
-        : 'bg-lime-600 hover:bg-lime-500 text-neutral-50';
-
-    const panelClass = isDark
-        ? 'bg-[#101210] text-neutral-100'
-        : 'bg-neutral-50 text-neutral-900';
-
-    const topBarClass = isDark
-        ? 'bg-[#151815]/95 border-b border-neutral-800'
-        : 'bg-white/95 border-b border-neutral-200';
-
-    const iconButtonClass = isDark
-        ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
-
-    const canvasAreaClass = isDark
-        ? 'bg-[#080A07]'
-        : 'bg-neutral-100';
-
-    const emptyCanvasClass = isDark
-        ? 'bg-[#151815] border border-neutral-800 text-neutral-500'
-        : 'bg-white border border-neutral-200 text-neutral-500';
+    const accentBgClass = 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-[var(--myml-accent-contrast)]';
+    const canvasAreaClass = 'bg-[var(--myml-editor-canvas)]';
+    const emptyCanvasClass = 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)] text-[var(--myml-text-muted)]';
 
     const selectionColor = isDark ? '#D8FF00' : '#65a30d';
     const selectionHandleStroke = isDark ? '#050505' : '#ffffff';
+    const editorTargetKey = `${nodeId}:${initialBackgroundUrl || imageUrl || ''}`;
+    const historyResetKey = `${isOpen ? 'open' : 'closed'}:${nodeId || 'no-node'}`;
 
     // --- Refs ---
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -122,8 +135,44 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const textCanvasRef = useRef<HTMLCanvasElement>(null);
     const elementsCanvasRef = useRef<HTMLCanvasElement>(null);
     const imageContainerRef = useRef<HTMLDivElement>(null);
+    const imageViewportRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
+    const isMountedRef = useRef(false);
+    const isOpenRef = useRef(isOpen);
+    const isGeneratingRef = useRef(false);
+    const editorTargetKeyRef = useRef(editorTargetKey);
+    const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autosaveRequestSeqRef = useRef(0);
+    const lastSavedElementsRef = useRef<string>('');
+    const scaledElementsKeyRef = useRef<string | null>(null);
+    const displaySizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const targetChanged = editorTargetKeyRef.current !== editorTargetKey;
+        isOpenRef.current = isOpen;
+        editorTargetKeyRef.current = editorTargetKey;
+        if (!isOpen) {
+            isGeneratingRef.current = false;
+            setIsGenerating(false);
+        }
+        if (!isOpen || targetChanged) {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+            autosaveRequestSeqRef.current += 1;
+            displaySizeRef.current = { width: 0, height: 0 };
+            setDisplaySize({ width: 0, height: 0 });
+        }
+    }, [editorTargetKey, isOpen]);
 
     // --- Custom Hooks ---
 
@@ -139,6 +188,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setElements,
         setSelectedElementId: (id) => selection.setSelectedElementId(id),
         isOpen,
+        resetKey: historyResetKey,
         imageUrl: localImageUrl,
         setImageUrl: setLocalImageUrl,
         onImageUrlChange: (url) => onUpdate(nodeId, { resultUrl: url, status: NodeStatus.SUCCESS })
@@ -179,6 +229,116 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         strokeWidth: drawing.brushWidth
     });
 
+    const syncCanvasToDisplaySize = useCallback((
+        canvas: HTMLCanvasElement | null,
+        width: number,
+        height: number,
+        preserveContent = false
+    ) => {
+        if (!canvas || width <= 0 || height <= 0) return;
+        if (canvas.width === width && canvas.height === height) return;
+
+        if (preserveContent && canvas.width > 0 && canvas.height > 0) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (tempCtx) {
+                tempCtx.drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(tempCanvas, 0, 0, width, height);
+            }
+            return;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+    }, []);
+
+    const syncOverlayCanvases = useCallback((width: number, height: number) => {
+        syncCanvasToDisplaySize(canvasRef.current, width, height, true);
+        syncCanvasToDisplaySize(arrowCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(shapeCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(elementsCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(textCanvasRef.current, width, height);
+        syncCanvasToDisplaySize(selectCanvasRef.current, width, height);
+    }, [syncCanvasToDisplaySize]);
+
+    const scaleElementsToDisplaySize = useCallback((sourceElements: EditorElement[], sourceSize: { width: number; height: number }, targetSize: { width: number; height: number }): EditorElement[] => {
+        if (sourceSize.width <= 0 || sourceSize.height <= 0 || targetSize.width <= 0 || targetSize.height <= 0) {
+            return sourceElements;
+        }
+
+        if (sourceSize.width === targetSize.width && sourceSize.height === targetSize.height) {
+            return sourceElements;
+        }
+
+        const scaleX = targetSize.width / sourceSize.width;
+        const scaleY = targetSize.height / sourceSize.height;
+        const fontScale = (scaleX + scaleY) / 2;
+
+        return sourceElements.map(element => {
+            if (element.type === 'arrow') {
+                return {
+                    ...element,
+                    startX: element.startX * scaleX,
+                    startY: element.startY * scaleY,
+                    endX: element.endX * scaleX,
+                    endY: element.endY * scaleY,
+                    lineWidth: element.lineWidth * fontScale
+                };
+            }
+
+            if (element.type === 'text') {
+                return {
+                    ...element,
+                    x: element.x * scaleX,
+                    y: element.y * scaleY,
+                    fontSize: element.fontSize * fontScale
+                };
+            }
+
+            return {
+                ...element,
+                x: element.x * scaleX,
+                y: element.y * scaleY,
+                width: element.width * scaleX,
+                height: element.height * scaleY,
+                strokeWidth: element.strokeWidth * fontScale
+            };
+        });
+    }, []);
+
+    const updateDisplaySizeFromImage = useCallback(() => {
+        const img = imageRef.current;
+        if (!img) return;
+
+        const width = Math.round(img.clientWidth);
+        const height = Math.round(img.clientHeight);
+        if (width <= 0 || height <= 0) return;
+
+        const previousSize = displaySizeRef.current;
+        const hasPreviousSize = previousSize.width > 0 && previousSize.height > 0;
+        const sizeChanged = previousSize.width !== width || previousSize.height !== height;
+
+        syncOverlayCanvases(width, height);
+
+        if (hasPreviousSize && sizeChanged) {
+            setElements(prev => scaleElementsToDisplaySize(prev, previousSize, { width, height }));
+        }
+
+        if (sizeChanged) {
+            displaySizeRef.current = { width, height };
+            setDisplaySize({ width, height });
+        }
+    }, [scaleElementsToDisplaySize, syncOverlayCanvases]);
+
     // Helper to generate composite image (Background + Brush + Elements)
     const generateCompositeImage = useCallback(async () => {
         if (!imageRef.current) return null;
@@ -213,24 +373,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }
 
         // 3. Draw Elements (Arrows/Text)
-        elements.forEach(element => {
-            if (element.type === 'arrow') {
-                drawArrowWithStyle(
-                    ctx,
-                    element.startX,
-                    element.startY,
-                    element.endX,
-                    element.endY,
-                    element.color,
-                    element.lineWidth
-                );
-            } else if (element.type === 'text') {
-                ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                ctx.fillStyle = element.color;
-                ctx.textBaseline = 'top';
-                ctx.fillText(element.text, element.x, element.y);
-            } else if (element.type === 'shape') {
-                drawShapeElement(ctx, element);
+        elements.filter(isRenderableElement).forEach(element => {
+            try {
+                if (element.type === 'arrow') {
+                    drawArrowWithStyle(
+                        ctx,
+                        element.startX,
+                        element.startY,
+                        element.endX,
+                        element.endY,
+                        element.color,
+                        element.lineWidth
+                    );
+                } else if (element.type === 'text') {
+                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
+                    ctx.fillStyle = element.color;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(element.text, element.x, element.y);
+                } else if (element.type === 'shape') {
+                    drawShapeElement(ctx, element);
+                }
+            } catch (error) {
+                console.error('Failed to render image editor element into composite:', error);
             }
         });
 
@@ -259,6 +423,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const persistCompositeToNode = useCallback(async (force = false) => {
         const canvas = canvasRef.current;
         if (!nodeId) return;
+        if (!force && !isOpenRef.current) return;
+
+        const requestTargetKey = editorTargetKeyRef.current;
 
         const hasBrushContent = hasCanvasContent(canvas);
         const hasElementContent = elements.length > 0;
@@ -287,7 +454,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             if (localImageUrl && localImageUrl.startsWith('data:')) {
                 savedBackgroundUrl = await uploadAsset(localImageUrl, 'image', 'clean-background');
                 // Update local state to use the new URL locally too
-                setLocalImageUrl(savedBackgroundUrl);
+                if (isMountedRef.current && editorTargetKeyRef.current === requestTargetKey) {
+                    setLocalImageUrl(savedBackgroundUrl);
+                }
             }
         } catch (error) {
             console.error("Failed to upload assets during save:", error);
@@ -323,6 +492,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             }
         }
 
+        if (!isMountedRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+            return;
+        }
+
+        if (!force && !isOpenRef.current) {
+            return;
+        }
+
         onUpdate(nodeId, updates);
 
         if (updates.resultUrl) {
@@ -341,18 +518,47 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         await persistCompositeToNode();
     }, [persistCompositeToNode]);
 
+    const cancelPendingAutosave = useCallback(() => {
+        if (autosaveTimeoutRef.current) {
+            clearTimeout(autosaveTimeoutRef.current);
+            autosaveTimeoutRef.current = null;
+        }
+        autosaveRequestSeqRef.current += 1;
+    }, []);
+
     const handleCloseClick = useCallback(async () => {
-        await persistCompositeToNode();
+        cancelPendingAutosave();
+        await persistCompositeToNode(true);
         onClose();
-    }, [persistCompositeToNode, onClose]);
+    }, [cancelPendingAutosave, persistCompositeToNode, onClose]);
 
     const handleCropApply = async (croppedImageDataUrl: string) => {
+        cancelPendingAutosave();
+        const requestTargetKey = editorTargetKeyRef.current;
+
         // Update local preview immediately
         setLocalImageUrl(croppedImageDataUrl);
+        lastSavedElementsRef.current = JSON.stringify([]);
+
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (canvas && ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        setElements([]);
+        selection.setSelectedElementId(null);
+        text.setEditingTextId(null);
+        text.setIsTextMode(false);
+        text.setShowTextSettings(false);
 
         try {
             // Upload the cropped image
             const savedCropUrl = await uploadAsset(croppedImageDataUrl, 'image', 'crop-result');
+
+            if (!isMountedRef.current || !isOpenRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+                return;
+            }
 
             // Update local state with server URL
             setLocalImageUrl(savedCropUrl);
@@ -361,15 +567,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             onUpdate(nodeId, {
                 resultUrl: savedCropUrl,
                 status: NodeStatus.SUCCESS,
-                editorBackgroundUrl: savedCropUrl
+                editorBackgroundUrl: savedCropUrl,
+                editorElements: [],
+                editorCanvasData: undefined,
+                editorCanvasSize: displaySizeRef.current.width > 0 && displaySizeRef.current.height > 0
+                    ? displaySizeRef.current
+                    : undefined
             });
         } catch (error) {
             console.error("Failed to upload crop:", error);
+            if (!isMountedRef.current || !isOpenRef.current || editorTargetKeyRef.current !== requestTargetKey) {
+                return;
+            }
             // Fallback
             onUpdate(nodeId, {
                 resultUrl: croppedImageDataUrl,
                 status: NodeStatus.SUCCESS,
-                editorBackgroundUrl: croppedImageDataUrl
+                editorBackgroundUrl: croppedImageDataUrl,
+                editorElements: [],
+                editorCanvasData: undefined,
+                editorCanvasSize: displaySizeRef.current.width > 0 && displaySizeRef.current.height > 0
+                    ? displaySizeRef.current
+                    : undefined
             });
         }
     };
@@ -377,7 +596,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const crop = useImageEditorCrop({
         imageRef,
         saveState,
-        onCropApply: handleCropApply
+        onCropApply: handleCropApply,
+        getCropSourceDataUrl: generateCompositeImage
     });
 
     const clearPrimaryModes = useCallback(() => {
@@ -437,10 +657,41 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
         setLocalImageUrl(initialBackgroundUrl || imageUrl);
         setElements(initialElements || []);
+        lastSavedElementsRef.current = JSON.stringify(initialElements || []);
+        scaledElementsKeyRef.current = null;
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
     }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl]);
+
+    useEffect(() => {
+        if (!isOpen || !imageRef.current) return;
+
+        updateDisplaySizeFromImage();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateDisplaySizeFromImage);
+            return () => window.removeEventListener('resize', updateDisplaySizeFromImage);
+        }
+
+        const observer = new ResizeObserver(updateDisplaySizeFromImage);
+        observer.observe(imageRef.current);
+
+        return () => observer.disconnect();
+    }, [isOpen, localImageUrl, updateDisplaySizeFromImage]);
+
+    useEffect(() => {
+        if (!isOpen || !initialElements || initialElements.length === 0 || !initialCanvasSize) return;
+        if (displaySize.width <= 0 || displaySize.height <= 0) return;
+
+        const scaleKey = `${nodeId}:${initialBackgroundUrl || imageUrl || ''}:${initialCanvasSize.width}x${initialCanvasSize.height}`;
+        if (scaledElementsKeyRef.current === scaleKey) return;
+
+        const scaledElements = scaleElementsToDisplaySize(initialElements, initialCanvasSize, displaySize);
+        scaledElementsKeyRef.current = scaleKey;
+        setElements(scaledElements);
+        lastSavedElementsRef.current = JSON.stringify(scaledElements);
+    }, [displaySize, imageUrl, initialBackgroundUrl, initialCanvasSize, initialElements, isOpen, nodeId, scaleElementsToDisplaySize]);
 
     // Restore brush canvas data from node when modal opens
     useEffect(() => {
@@ -471,20 +722,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }
     }, [isOpen, initialCanvasData]);
 
-    // Persist elements to node when they change (with debounce to avoid excessive updates)
-    const lastSavedElementsRef = useRef<string>('');
+    // Persist elements to node when committed edits change.
     useEffect(() => {
         if (!isOpen || !nodeId || !hasInitializedRef.current) return;
+        if (selection.isMovingElement || text.editingTextId) return;
 
         const elementsJson = JSON.stringify(elements);
-        // Only save if elements actually changed since last save
-        if (elementsJson !== lastSavedElementsRef.current) {
-            lastSavedElementsRef.current = elementsJson;
+        if (elementsJson === lastSavedElementsRef.current) {
+            return;
+        }
 
+        if (autosaveTimeoutRef.current) {
+            clearTimeout(autosaveTimeoutRef.current);
+        }
+
+        const requestTargetKey = editorTargetKeyRef.current;
+        const requestSeq = ++autosaveRequestSeqRef.current;
+
+        autosaveTimeoutRef.current = setTimeout(() => {
+            autosaveTimeoutRef.current = null;
             const saveUpdate = async () => {
                 const updates: any = { editorElements: elements };
 
-                // Also update composite image
                 const compositeUrl = await generateCompositeImage();
                 if (compositeUrl) {
                     try {
@@ -493,11 +752,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                         updates.status = NodeStatus.SUCCESS;
                     } catch (e) {
                         console.error("Failed to upload composite update:", e);
-                        updates.resultUrl = compositeUrl; // Fallback
+                        updates.resultUrl = compositeUrl;
                         updates.status = NodeStatus.SUCCESS;
                     }
 
-                    // Capture canvas size for accurate scaling in overlay
                     if (imageRef.current) {
                         updates.editorCanvasSize = {
                             width: imageRef.current.clientWidth,
@@ -506,12 +764,29 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     }
                 }
 
+                if (
+                    !isMountedRef.current ||
+                    !isOpenRef.current ||
+                    editorTargetKeyRef.current !== requestTargetKey ||
+                    autosaveRequestSeqRef.current !== requestSeq
+                ) {
+                    return;
+                }
+
+                lastSavedElementsRef.current = elementsJson;
                 onUpdate(nodeId, updates);
             };
 
-            saveUpdate();
-        }
-    }, [elements, isOpen, nodeId, onUpdate, generateCompositeImage]);
+            void saveUpdate();
+        }, 700);
+
+        return () => {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+        };
+    }, [elements, isOpen, nodeId, onUpdate, generateCompositeImage, selection.isMovingElement, text.editingTextId, editorTargetKey]);
 
     // Redraw elements canvas when elements change (for undo/redo support)
     useEffect(() => {
@@ -528,24 +803,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Clear and redraw all elements
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        elements.forEach(element => {
-            if (element.type === 'arrow') {
-                drawArrowWithStyle(
-                    ctx,
-                    element.startX,
-                    element.startY,
-                    element.endX,
-                    element.endY,
-                    element.color,
-                    element.lineWidth
-                );
-            } else if (element.type === 'text' && element.id !== text.editingTextId) {
-                ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                ctx.fillStyle = element.color;
-                ctx.textBaseline = 'top';
-                ctx.fillText(element.text, element.x, element.y);
-            } else if (element.type === 'shape') {
-                drawShapeElement(ctx, element);
+        elements.filter(isRenderableElement).forEach(element => {
+            try {
+                if (element.type === 'arrow') {
+                    drawArrowWithStyle(
+                        ctx,
+                        element.startX,
+                        element.startY,
+                        element.endX,
+                        element.endY,
+                        element.color,
+                        element.lineWidth
+                    );
+                } else if (element.type === 'text' && element.id !== text.editingTextId) {
+                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
+                    ctx.fillStyle = element.color;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(element.text, element.x, element.y);
+                } else if (element.type === 'shape') {
+                    drawShapeElement(ctx, element);
+                }
+            } catch (error) {
+                console.error('Failed to redraw image editor element:', error);
             }
         });
     }, [elements, text.editingTextId]);
@@ -553,6 +832,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // --- Handlers ---
 
     const handleGenerateClick = async () => {
+        if (isGeneratingRef.current || !isOpenRef.current) return;
+
         const finalPrompt = prompt.trim();
 
         if (!finalPrompt) {
@@ -560,6 +841,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             return;
         }
 
+        isGeneratingRef.current = true;
         setPromptError('');
         setIsGenerating(true);
 
@@ -579,7 +861,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 compositeImageDataUrl: compositeImageDataUrl || undefined
             });
         } finally {
-            setIsGenerating(false);
+            isGeneratingRef.current = false;
+            if (isMountedRef.current && isOpenRef.current) {
+                setIsGenerating(false);
+            }
         }
     };
 
@@ -632,27 +917,35 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     // --- Render ---
     return (
-        <div className={`fixed inset-0 z-[9999] flex flex-col ${panelClass}`}>
+        <EditorShell>
             {/* Top Bar */}
-            <div className={`h-14 flex items-center justify-between px-4 ${topBarClass}`}>
+            <EditorTopBar>
                 <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded flex items-center justify-center ${accentClass}`}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-[var(--myml-radius-control)] border border-[var(--myml-accent-muted)] bg-[var(--myml-accent-soft)] text-[var(--myml-accent)]">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <polyline points="21 15 16 10 5 21" />
                         </svg>
                     </div>
-                    <span className={`text-sm font-medium ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
-                        {t(language, 'imageEditor')}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold leading-none text-[var(--myml-text-primary)]">
+                            {t(language, 'imageEditor')}
+                        </span>
+                        <span className="text-[10px] font-medium leading-none text-[var(--myml-text-faint)]">
+                            {currentModel.name} / {selectedAspectRatio} / {selectedResolution}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <EditorStatusBar>
+                        {elements.length} marks
+                    </EditorStatusBar>
                     {/* Download Button */}
-                    <button
+                    <ToolButton
                         onClick={handleDownloadClick}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
+                        size="lg"
                         title={editorText.download}
                         aria-label={editorText.download}
                     >
@@ -661,21 +954,21 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
-                    </button>
+                    </ToolButton>
 
                     {/* Exit Button */}
-                    <button
+                    <ToolButton
                         onClick={handleCloseClick}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40 ${iconButtonClass}`}
+                        size="lg"
                         title={editorText.exit}
                         aria-label={editorText.exit}
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </ToolButton>
                 </div>
-            </div>
+            </EditorTopBar>
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -701,11 +994,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 <div className="w-0"></div>
 
                 {/* Canvas Area - constrained to fit within available space */}
-                <div className={`flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0 ${canvasAreaClass}`}>
+                <div
+                    className={`flex-1 flex items-center justify-center p-4 overflow-hidden min-h-0 ${canvasAreaClass}`}
+                    style={{
+                        backgroundImage: 'linear-gradient(var(--myml-editor-grid) 1px, transparent 1px), linear-gradient(90deg, var(--myml-editor-grid) 1px, transparent 1px)',
+                        backgroundSize: '28px 28px'
+                    }}
+                >
                     {localImageUrl ? (
                         <div
                             ref={imageContainerRef}
-                            className="relative max-w-full max-h-full flex items-center justify-center"
+                            className="relative max-w-full max-h-full flex items-center justify-center rounded-[var(--myml-radius-panel)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] shadow-[var(--myml-shadow-panel)]"
                             style={{ maxHeight: 'calc(100vh - 350px)' }}
                         >
                             <MarkupToolbar
@@ -719,61 +1018,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                 onToggleFilled={() => shapes.setFilled(!shapes.filled)}
                             />
 
+                            <div
+                                ref={imageViewportRef}
+                                className="relative inline-flex max-h-full max-w-full items-center justify-center rounded-[calc(var(--myml-radius-panel)-4px)]"
+                            >
                             <img
                                 ref={imageRef}
                                 src={localImageUrl}
                                 alt={editorText.editingImageAlt}
-                                className="max-w-full max-h-full object-contain"
+                                className="block max-w-full max-h-full rounded-[calc(var(--myml-radius-panel)-4px)] object-contain"
                                 style={{ maxHeight: 'calc(100vh - 350px)' }}
-                                onLoad={(e) => {
-                                    const img = e.currentTarget;
-                                    const canvas = canvasRef.current;
-                                    const arrowCanvas = arrowCanvasRef.current;
-                                    const shapeCanvas = shapeCanvasRef.current;
-                                    const elementsCanvas = elementsCanvasRef.current;
-
-                                    if (canvas) {
-                                        canvas.width = img.clientWidth;
-                                        canvas.height = img.clientHeight;
-                                    }
-                                    if (arrowCanvas) {
-                                        arrowCanvas.width = img.clientWidth;
-                                        arrowCanvas.height = img.clientHeight;
-                                    }
-                                    if (shapeCanvas) {
-                                        shapeCanvas.width = img.clientWidth;
-                                        shapeCanvas.height = img.clientHeight;
-                                    }
-                                    if (elementsCanvas) {
-                                        elementsCanvas.width = img.clientWidth;
-                                        elementsCanvas.height = img.clientHeight;
-                                        // Redraw elements immediately after resize
-                                        const ctx = elementsCanvas.getContext('2d');
-                                        if (ctx) {
-                                            ctx.clearRect(0, 0, elementsCanvas.width, elementsCanvas.height);
-                                            elements.forEach(element => {
-                                                if (element.type === 'arrow') {
-                                                    drawArrowWithStyle(
-                                                        ctx,
-                                                        element.startX,
-                                                        element.startY,
-                                                        element.endX,
-                                                        element.endY,
-                                                        element.color,
-                                                        element.lineWidth
-                                                    );
-                                                } else if (element.type === 'text' && element.id !== text.editingTextId) {
-                                                    ctx.font = `${element.fontSize}px ${element.fontFamily}`;
-                                                    ctx.fillStyle = element.color;
-                                                    ctx.textBaseline = 'top';
-                                                    ctx.fillText(element.text, element.x, element.y);
-                                                } else if (element.type === 'shape') {
-                                                    drawShapeElement(ctx, element);
-                                                }
-                                            });
-                                        }
-                                    }
-                                }}
+                                onLoad={updateDisplaySizeFromImage}
                             />
 
                             {/* Main Canvas - For persistent brush drawings */}
@@ -848,6 +1103,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                         onChange={(e) => text.handleTextChange(el.id, e.target.value)}
                                         onBlur={text.handleTextBlur}
                                         onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.nativeEvent.isComposing) return;
                                             if (e.key === 'Enter' || e.key === 'Escape') {
                                                 text.handleTextBlur();
                                             }
@@ -893,7 +1149,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                             {/* Selection UI - Shows handles for selected element */}
                             {selection.isSelectMode && selection.selectedElementId && (
                                 <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }}>
-                                    {elements.filter(el => el.id === selection.selectedElementId).map(el => {
+                                    {elements.filter(el => el.id === selection.selectedElementId && isRenderableElement(el)).map(el => {
                                         if (el.type === 'arrow') {
                                             return (
                                                 <g key={el.id}>
@@ -926,6 +1182,40 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                                         style={{ pointerEvents: 'auto', cursor: 'grab' }}
                                                     />
                                                 </g>
+                                            );
+                                        }
+                                        if (el.type === 'shape') {
+                                            const minX = Math.min(el.x, el.x + el.width);
+                                            const minY = Math.min(el.y, el.y + el.height);
+                                            const width = Math.abs(el.width);
+                                            const height = Math.abs(el.height);
+
+                                            return el.shape === 'rectangle' ? (
+                                                <rect
+                                                    key={el.id}
+                                                    x={minX}
+                                                    y={minY}
+                                                    width={width}
+                                                    height={height}
+                                                    fill="none"
+                                                    stroke={selectionColor}
+                                                    strokeWidth="2"
+                                                    strokeDasharray="5,5"
+                                                    opacity="0.8"
+                                                />
+                                            ) : (
+                                                <ellipse
+                                                    key={el.id}
+                                                    cx={minX + width / 2}
+                                                    cy={minY + height / 2}
+                                                    rx={width / 2}
+                                                    ry={height / 2}
+                                                    fill="none"
+                                                    stroke={selectionColor}
+                                                    strokeWidth="2"
+                                                    strokeDasharray="5,5"
+                                                    opacity="0.8"
+                                                />
                                             );
                                         }
                                         // Text selection box (future enhancement)
@@ -1045,6 +1335,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                                     </div>
                                 </div>
                             )}
+                            </div>
                         </div>
                     ) : (
                         <div className={`w-[600px] h-[400px] rounded-lg flex items-center justify-center ${emptyCanvasClass}`}>
@@ -1107,6 +1398,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     promptError={promptError}
                 />
             </div>
-        </div>
+        </EditorShell>
     );
 };

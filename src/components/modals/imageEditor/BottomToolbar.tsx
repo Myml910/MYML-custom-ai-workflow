@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { t, type Language } from '../../../i18n/translations';
+import { ToolButton, ToolDivider, ToolGroup } from '../../ui';
 
 // ============================================================================
 // TYPES
@@ -47,7 +48,7 @@ interface BottomToolbarProps {
 // ============================================================================
 
 export const BottomToolbar: React.FC<BottomToolbarProps> = ({
-    canvasTheme = 'dark',
+    canvasTheme: _canvasTheme = 'dark',
     language = 'zh',
     isSelectMode,
     setIsSelectMode,
@@ -69,8 +70,6 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     handleUndo,
     handleRedo
 }) => {
-    const isDark = canvasTheme === 'dark';
-
     const text = {
         select: t(language, 'selectTool'),
         drawingMode: t(language, 'drawingMode'),
@@ -79,32 +78,6 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
         undo: t(language, 'undo'),
         redo: t(language, 'redo'),
     };
-
-    const toolbarClass = isDark
-        ? 'bg-[#151815]/95 border-neutral-800 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
-        : 'bg-white/95 border-neutral-200 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
-
-    const dividerClass = isDark ? 'bg-neutral-800' : 'bg-neutral-200';
-
-    const getButtonClass = (active: boolean, disabled = false) => {
-        if (disabled) {
-            return isDark
-                ? 'cursor-not-allowed text-neutral-600 opacity-70'
-                : 'cursor-not-allowed text-neutral-400 opacity-70';
-        }
-
-        if (active) {
-            return isDark
-                ? 'bg-[#D8FF00]/12 text-[#D8FF00] ring-1 ring-[#D8FF00]/35'
-                : 'bg-lime-50 text-lime-700 ring-1 ring-lime-500/35';
-        }
-
-        return isDark
-            ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00]'
-            : 'hover:bg-neutral-100 text-neutral-500 hover:text-lime-600';
-    };
-
-    const buttonBaseClass = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45';
 
     // --- Handler Functions ---
 
@@ -166,13 +139,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     };
 
     return (
-        <div
-            className={`pointer-events-auto inline-flex flex-nowrap items-center gap-1 whitespace-nowrap rounded-xl border px-2 py-1.5 backdrop-blur-sm transition-colors duration-150 ${toolbarClass}`}
-        >
+        <ToolGroup>
             {/* Select Mode */}
-            <button
+            <ToolButton
                 onClick={handleSelectModeClick}
-                className={`${buttonBaseClass} ${getButtonClass(isSelectMode)}`}
+                active={isSelectMode}
                 title={text.select}
                 aria-label={text.select}
             >
@@ -180,24 +151,24 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                     <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
                     <path d="M13 13l6 6" />
                 </svg>
-            </button>
+            </ToolButton>
 
             {/* Drawing Mode (Pen) */}
-            <button
+            <ToolButton
                 onClick={handleDrawingModeClick}
-                className={`${buttonBaseClass} ${getButtonClass(isDrawingMode)}`}
+                active={isDrawingMode}
                 title={text.drawingMode}
                 aria-label={text.drawingMode}
             >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                 </svg>
-            </button>
+            </ToolButton>
 
             {/* Text Tool */}
-            <button
+            <ToolButton
                 onClick={handleTextModeClick}
-                className={`${buttonBaseClass} ${getButtonClass(isTextMode)}`}
+                active={isTextMode}
                 title={text.addText}
                 aria-label={text.addText}
             >
@@ -206,12 +177,12 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                     <path d="M9 20h6" />
                     <path d="M12 4v16" />
                 </svg>
-            </button>
+            </ToolButton>
 
             {/* Crop Tool */}
-            <button
+            <ToolButton
                 onClick={handleCropModeClick}
-                className={`${buttonBaseClass} ${getButtonClass(isCropMode)}`}
+                active={isCropMode}
                 title={text.crop}
                 aria-label={text.crop}
             >
@@ -222,15 +193,14 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                     <path d="M22 18h-4" />
                     <rect x="6" y="6" width="12" height="12" />
                 </svg>
-            </button>
+            </ToolButton>
 
-            <div className={`mx-1 h-6 w-px shrink-0 ${dividerClass}`}></div>
+            <ToolDivider />
 
             {/* Undo */}
-            <button
+            <ToolButton
                 onClick={handleUndo}
                 disabled={historyStackLength === 0}
-                className={`${buttonBaseClass} ${getButtonClass(false, historyStackLength === 0)}`}
                 title={`${text.undo} (Ctrl+Z)`}
                 aria-label={`${text.undo} (Ctrl+Z)`}
             >
@@ -238,13 +208,12 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                     <path d="M3 7v6h6" />
                     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
                 </svg>
-            </button>
+            </ToolButton>
 
             {/* Redo */}
-            <button
+            <ToolButton
                 onClick={handleRedo}
                 disabled={redoStackLength === 0}
-                className={`${buttonBaseClass} ${getButtonClass(false, redoStackLength === 0)}`}
                 title={`${text.redo} (Ctrl+Shift+Z)`}
                 aria-label={`${text.redo} (Ctrl+Shift+Z)`}
             >
@@ -252,7 +221,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
                     <path d="M21 7v6h-6" />
                     <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
                 </svg>
-            </button>
-        </div>
+            </ToolButton>
+        </ToolGroup>
     );
 };

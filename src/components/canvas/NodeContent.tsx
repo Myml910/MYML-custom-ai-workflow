@@ -112,7 +112,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     };
 
     return (
-        <div className={`transition-[background-color,border-color,opacity] duration-150 ${!selected ? 'p-0 rounded-xl overflow-hidden' : 'p-1'}`}>
+        <div className={`transition-[background-color,border-color,opacity] duration-[var(--myml-motion-base)] ${!selected ? 'p-0 rounded-[var(--myml-radius-panel)] overflow-hidden' : 'p-1'}`}>
             {/* Hidden File Input - Always rendered for upload functionality (image types only) */}
             {isImageType && onUpload && (
                 <input
@@ -127,7 +127,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
             {/* Result View - Show when successful OR when regenerating (loading with existing content) */}
             {(isSuccess || isLoading) && data.resultUrl ? (
                 <div
-                    className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-xl overflow-hidden'}`}
+                    className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-[var(--myml-radius-panel)] overflow-hidden'}`}
                     style={getAspectRatioStyle()}
                 >
                     {isVideoType ? (
@@ -146,7 +146,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 </div>
             ) : data.type === NodeType.TEXT ? (
                 /* Text Node - Menu or Editing Mode */
-                <div className={`relative w-full overflow-hidden rounded-xl bg-[#151815] ${selected ? 'ring-1 ring-[#D8FF00]/30' : ''}`}>
+                <div className={`relative w-full overflow-hidden rounded-[var(--myml-radius-panel)] bg-[var(--myml-surface-raised)] ${selected ? 'ring-1 ring-[var(--myml-border-active)]' : ''}`}>
                     {data.textMode === 'editing' ? (
                         /* Editing Mode - Text Area */
                         <div className="p-4">
@@ -165,7 +165,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                     }
                                 }}
                                 placeholder={t(language, 'writeTextContentPlaceholder')}
-                                className="w-full bg-transparent text-white text-sm resize-none outline-none placeholder:text-neutral-600"
+                                className="w-full bg-transparent text-sm text-[var(--myml-text-primary)] resize-none outline-none placeholder:text-[var(--myml-text-faint)]"
                                 style={{ minHeight: data.isPromptExpanded ? '300px' : '150px' }}
                                 autoFocus
                             />
@@ -174,7 +174,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 <button
                                     onClick={() => onUpdate?.(data.id, { isPromptExpanded: !data.isPromptExpanded })}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-neutral-500 transition-colors hover:bg-neutral-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     title={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                     aria-label={data.isPromptExpanded ? t(language, 'shrinkTextArea') : t(language, 'expandTextArea')}
                                 >
@@ -187,7 +187,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         /* Menu Mode - Show Options */
                         <div className="p-5 flex flex-col gap-4">
                             {/* Header */}
-                            <div className="text-neutral-500 text-sm font-medium">
+                            <div className="text-[var(--myml-text-muted)] text-sm font-medium">
                                 {t(language, 'tryTo')}
                             </div>
 
@@ -214,9 +214,9 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 </div>
             ) : (
                 /* Placeholder / Empty State for Image/Video */
-                <div className={`relative w-full aspect-[4/3] bg-[#141414] flex flex-col items-center justify-center gap-3 overflow-hidden
+                <div className={`relative w-full aspect-[4/3] bg-[var(--myml-surface-base)] flex flex-col items-center justify-center gap-3 overflow-hidden
             ${isLoading ? 'animate-pulse' : ''} 
-            ${!selected ? 'rounded-xl' : 'rounded-xl border border-dashed border-neutral-800'}`
+            ${!selected ? 'rounded-[var(--myml-radius-panel)]' : 'rounded-[var(--myml-radius-panel)] border border-dashed border-[var(--myml-border-default)]'}`
                 }>
                     {/* Input Image Preview for Video Nodes */}
                     {isVideoType && inputUrl && (
@@ -233,7 +233,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {isLoading ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
                             <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
-                            <span className="text-xs text-neutral-500 font-medium">{t(language, 'generating')}</span>
+                            <span className="text-xs text-[var(--myml-text-muted)] font-medium">{t(language, 'generating')}</span>
                         </div>
                     ) : (
                         <div className="relative z-10 flex flex-col items-center gap-3">
@@ -250,7 +250,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
                                         onPointerDown={(e) => e.stopPropagation()}
-                                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-neutral-800/80 px-3.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-surface-raised)] px-3.5 text-sm font-medium text-[var(--myml-text-primary)] transition-colors hover:bg-[var(--myml-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
                                     >
                                         <Upload size={16} />
                                         {t(language, 'upload')}
@@ -258,7 +258,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 </>
                             )}
 
-                            <div className="text-neutral-700">
+                            <div className="text-[var(--myml-text-faint)]">
                                 {isVideoType ? (
                                     isLocalModel ? <><Film size={40} /><HardDrive size={16} className="absolute -bottom-1 -right-1 text-[#D8FF00]" /></> : <Film size={40} />
                                 ) : (
@@ -267,7 +267,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                             </div>
                             {selected && (
                                 <>
-                                    <div className="text-neutral-500 text-sm font-medium">
+                                    <div className="text-[var(--myml-text-muted)] text-sm font-medium">
                                         {isVideoType && inputUrl
                                             ? t(language, 'readyToAnimate')
                                             : isVideoType
@@ -316,11 +316,11 @@ interface TextNodeMenuItemProps {
  */
 const TextNodeMenuItem: React.FC<TextNodeMenuItemProps> = ({ icon, label, onClick }) => (
     <button
-        className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-left text-neutral-400 transition-colors hover:bg-[#1A1D1A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                    className="flex h-9 w-full items-center gap-3 rounded-[var(--myml-radius-control)] px-2.5 text-left text-[var(--myml-text-muted)] transition-colors duration-[var(--myml-motion-base)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onClick}
     >
-        <span className="text-neutral-500">{icon}</span>
+        <span className="text-[var(--myml-text-muted)]">{icon}</span>
         <span className="truncate text-sm font-medium">{label}</span>
     </button>
 );

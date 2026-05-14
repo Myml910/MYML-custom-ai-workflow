@@ -5,7 +5,7 @@
  * Handles select mode interactions with arrows and other elements.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { EditorElement } from '../components/modals/imageEditor/imageEditor.types';
 
 // ============================================================================
@@ -27,6 +27,7 @@ interface UseImageEditorSelectionReturn {
     setSelectedElementId: React.Dispatch<React.SetStateAction<string | null>>;
     isDraggingElement: boolean;
     isResizing: boolean;
+    isMovingElement: boolean;
     resizeHandle: 'start' | 'end' | null;
     // Handlers
     handleSelectMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
@@ -90,7 +91,13 @@ export const useImageEditorSelection = ({
         elementStartY: number;
         elementEndX: number;
         elementEndY: number;
+        elementType: EditorElement['type'];
+        mode: 'move' | 'resize';
     } | null>(null);
+    const hasSavedDragStateRef = useRef(false);
+    const pendingDragRef = useRef<{ dx: number; dy: number } | null>(null);
+    const dragFrameRef = useRef<number | null>(null);
+    const activeDragElementIdRef = useRef<string | null>(null);
 
     // --- Helper Functions ---
 
@@ -116,6 +123,28 @@ export const useImageEditorSelection = ({
                 if (x >= el.x && x <= el.x + approxWidth && y >= el.y && y <= el.y + approxHeight) {
                     return el;
                 }
+            } else if (el.type === 'shape') {
+                const minX = Math.min(el.x, el.x + el.width);
+                const maxX = Math.max(el.x, el.x + el.width);
+                const minY = Math.min(el.y, el.y + el.height);
+                const maxY = Math.max(el.y, el.y + el.height);
+
+                if (el.shape === 'rectangle') {
+                    if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                        return el;
+                    }
+                } else {
+                    const rx = Math.abs(el.width) / 2;
+                    const ry = Math.abs(el.height) / 2;
+                    if (rx > 0 && ry > 0) {
+                        const cx = minX + rx;
+                        const cy = minY + ry;
+                        const normalized = ((x - cx) * (x - cx)) / (rx * rx) + ((y - cy) * (y - cy)) / (ry * ry);
+                        if (normalized <= 1) {
+                            return el;
+                        }
+                    }
+                }
             }
         }
         return null;
@@ -135,6 +164,65 @@ export const useImageEditorSelection = ({
         return null;
     }, []);
 
+    const isFiniteNumber = (value: number) => Number.isFinite(value);
+
+    const applyDragUpdate = useCallback((dx: number, dy: number) => {
+        const dragStart = dragStartRef.current;
+        const activeElementId = activeDragElementIdRef.current || selectedElementId;
+        if (!dragStart || !activeElementId || !isFiniteNumber(dx) || !isFiniteNumber(dy)) return;
+
+        setElements(prev => prev.map(el => {
+            if (el.id !== activeElementId) return el;
+
+            if (dragStart.mode === 'resize' && resizeHandle && el.type === 'arrow') {
+                if (resizeHandle === 'start') {
+                    const startX = dragStart.elementStartX + dx;
+                    const startY = dragStart.elementStartY + dy;
+                    if (!isFiniteNumber(startX) || !isFiniteNumber(startY)) return el;
+                    return { ...el, startX, startY };
+                }
+
+                const endX = dragStart.elementEndX + dx;
+                const endY = dragStart.elementEndY + dy;
+                if (!isFiniteNumber(endX) || !isFiniteNumber(endY)) return el;
+                return { ...el, endX, endY };
+            }
+
+            if (dragStart.mode !== 'move') return el;
+
+            if (el.type === 'arrow') {
+                const startX = dragStart.elementStartX + dx;
+                const startY = dragStart.elementStartY + dy;
+                const endX = dragStart.elementEndX + dx;
+                const endY = dragStart.elementEndY + dy;
+                if (![startX, startY, endX, endY].every(isFiniteNumber)) return el;
+                return { ...el, startX, startY, endX, endY };
+            }
+
+            if (el.type === 'text' || el.type === 'shape') {
+                const x = dragStart.elementStartX + dx;
+                const y = dragStart.elementStartY + dy;
+                if (!isFiniteNumber(x) || !isFiniteNumber(y)) return el;
+                return { ...el, x, y };
+            }
+
+            return el;
+        }));
+    }, [resizeHandle, selectedElementId, setElements]);
+
+    const flushPendingDrag = useCallback(() => {
+        if (dragFrameRef.current !== null) {
+            cancelAnimationFrame(dragFrameRef.current);
+            dragFrameRef.current = null;
+        }
+
+        const pendingDrag = pendingDragRef.current;
+        pendingDragRef.current = null;
+        if (pendingDrag) {
+            applyDragUpdate(pendingDrag.dx, pendingDrag.dy);
+        }
+    }, [applyDragUpdate]);
+
     // --- Mouse Handlers ---
 
     const handleSelectMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -151,15 +239,18 @@ export const useImageEditorSelection = ({
             if (selectedEl && selectedEl.type === 'arrow') {
                 const handle = getResizeHandleAtPosition(x, y, selectedEl);
                 if (handle) {
-                    saveState();
                     setIsResizing(true);
                     setResizeHandle(handle);
+                    hasSavedDragStateRef.current = false;
+                    activeDragElementIdRef.current = selectedEl.id;
                     dragStartRef.current = {
                         x, y,
                         elementStartX: selectedEl.startX,
                         elementStartY: selectedEl.startY,
                         elementEndX: selectedEl.endX,
-                        elementEndY: selectedEl.endY
+                        elementEndY: selectedEl.endY,
+                        elementType: selectedEl.type,
+                        mode: 'resize'
                     };
                     return;
                 }
@@ -169,16 +260,19 @@ export const useImageEditorSelection = ({
         // Check if clicking on an element
         const element = getElementAtPosition(x, y);
         if (element) {
-            saveState();
             setSelectedElementId(element.id);
             setIsDraggingElement(true);
+            hasSavedDragStateRef.current = false;
+            activeDragElementIdRef.current = element.id;
             if (element.type === 'arrow') {
                 dragStartRef.current = {
                     x, y,
                     elementStartX: element.startX,
                     elementStartY: element.startY,
                     elementEndX: element.endX,
-                    elementEndY: element.endY
+                    elementEndY: element.endY,
+                    elementType: element.type,
+                    mode: 'move'
                 };
             } else if (element.type === 'text') {
                 dragStartRef.current = {
@@ -186,7 +280,19 @@ export const useImageEditorSelection = ({
                     elementStartX: element.x,
                     elementStartY: element.y,
                     elementEndX: element.x, // Not used for text
-                    elementEndY: element.y  // Not used for text
+                    elementEndY: element.y, // Not used for text
+                    elementType: element.type,
+                    mode: 'move'
+                };
+            } else if (element.type === 'shape') {
+                dragStartRef.current = {
+                    x, y,
+                    elementStartX: element.x,
+                    elementStartY: element.y,
+                    elementEndX: element.x + element.width,
+                    elementEndY: element.y + element.height,
+                    elementType: element.type,
+                    mode: 'move'
                 };
             }
         } else {
@@ -197,56 +303,63 @@ export const useImageEditorSelection = ({
     const handleSelectMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         if (!isSelectMode) return;
         const canvas = selectCanvasRef.current;
-        if (!canvas || !dragStartRef.current || !selectedElementId) return;
+        if (!canvas || !dragStartRef.current || !activeDragElementIdRef.current) return;
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const dx = x - dragStartRef.current.x;
         const dy = y - dragStartRef.current.y;
+        if (!isFiniteNumber(dx) || !isFiniteNumber(dy)) return;
 
-        const selectedEl = elements.find(el => el.id === selectedElementId);
-        if (!selectedEl) return;
+        const hasMeaningfulMovement = Math.abs(dx) >= 1 || Math.abs(dy) >= 1;
 
-        if (isResizing && resizeHandle && selectedEl.type === 'arrow') {
-            // Resize the arrow element
-            setElements(prev => prev.map(el => {
-                if (el.id !== selectedElementId || el.type !== 'arrow') return el;
-                if (resizeHandle === 'start') {
-                    return { ...el, startX: dragStartRef.current!.elementStartX + dx, startY: dragStartRef.current!.elementStartY + dy };
-                } else {
-                    return { ...el, endX: dragStartRef.current!.elementEndX + dx, endY: dragStartRef.current!.elementEndY + dy };
-                }
-            }));
-        } else if (isDraggingElement) {
-            // Move the element
-            setElements(prev => prev.map(el => {
-                if (el.id !== selectedElementId) return el;
-                if (el.type === 'arrow') {
-                    return {
-                        ...el,
-                        startX: dragStartRef.current!.elementStartX + dx,
-                        startY: dragStartRef.current!.elementStartY + dy,
-                        endX: dragStartRef.current!.elementEndX + dx,
-                        endY: dragStartRef.current!.elementEndY + dy
-                    };
-                } else if (el.type === 'text') {
-                    return {
-                        ...el,
-                        x: dragStartRef.current!.elementStartX + dx,
-                        y: dragStartRef.current!.elementStartY + dy
-                    };
-                }
-                return el;
-            }));
+        if (hasMeaningfulMovement && !hasSavedDragStateRef.current) {
+            saveState();
+            hasSavedDragStateRef.current = true;
         }
-    }, [isSelectMode, selectCanvasRef, selectedElementId, elements, isResizing, resizeHandle, isDraggingElement, setElements]);
+
+        if (!hasMeaningfulMovement) return;
+
+        pendingDragRef.current = { dx, dy };
+        if (dragFrameRef.current === null) {
+            dragFrameRef.current = requestAnimationFrame(() => {
+                dragFrameRef.current = null;
+                const pendingDrag = pendingDragRef.current;
+                pendingDragRef.current = null;
+                if (pendingDrag) {
+                    applyDragUpdate(pendingDrag.dx, pendingDrag.dy);
+                }
+            });
+        }
+    }, [isSelectMode, selectCanvasRef, selectedElementId, saveState, applyDragUpdate]);
 
     const handleSelectMouseUp = useCallback(() => {
+        flushPendingDrag();
         setIsDraggingElement(false);
         setIsResizing(false);
         setResizeHandle(null);
         dragStartRef.current = null;
-    }, []);
+        activeDragElementIdRef.current = null;
+        hasSavedDragStateRef.current = false;
+    }, [flushPendingDrag]);
+
+    useEffect(() => {
+        const handleEndDrag = () => handleSelectMouseUp();
+
+        window.addEventListener('mouseup', handleEndDrag);
+        window.addEventListener('pointerup', handleEndDrag);
+        window.addEventListener('blur', handleEndDrag);
+
+        return () => {
+            window.removeEventListener('mouseup', handleEndDrag);
+            window.removeEventListener('pointerup', handleEndDrag);
+            window.removeEventListener('blur', handleEndDrag);
+            if (dragFrameRef.current !== null) {
+                cancelAnimationFrame(dragFrameRef.current);
+                dragFrameRef.current = null;
+            }
+        };
+    }, [handleSelectMouseUp]);
 
     return {
         isSelectMode,
@@ -255,6 +368,7 @@ export const useImageEditorSelection = ({
         setSelectedElementId,
         isDraggingElement,
         isResizing,
+        isMovingElement: isDraggingElement || isResizing,
         resizeHandle,
         handleSelectMouseDown,
         handleSelectMouseMove,
