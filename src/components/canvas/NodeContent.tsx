@@ -129,6 +129,13 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 <div
                     className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-[var(--myml-radius-panel)] overflow-hidden'}`}
                     style={getAspectRatioStyle()}
+                    onDoubleClick={(e) => {
+                        if (isVideoType || !data.resultUrl) return;
+
+                        e.stopPropagation();
+                        onExpand?.(data.resultUrl);
+                    }}
+                    title={!isVideoType ? t(language, 'viewFullSize') : undefined}
                 >
                     {isVideoType ? (
                         <video src={data.resultUrl} controls loop className="w-full h-full object-cover" />
