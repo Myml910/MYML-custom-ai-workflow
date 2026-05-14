@@ -369,7 +369,10 @@ function CanvasApp({
 
   const { handleGenerate } = useGeneration({
     nodes,
-    updateNode
+    updateNode,
+    setNodes,
+    setSelectedNodeIds,
+    language
   });
 
   // Keep a ref to handleGenerate so setTimeout callbacks can access the latest version

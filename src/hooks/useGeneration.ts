@@ -5,20 +5,29 @@
  * Manages generation state, API calls, and error handling.
  */
 
+import type { Dispatch, SetStateAction } from 'react';
 import { NodeData, NodeType, NodeStatus } from '../types';
+import type { Language } from '../i18n/translations';
 import { generateImage, generateVideo } from '../services/generationService';
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 import { getEffectiveImageReference } from '../utils/imageReferences';
 
 const MAX_IMAGE_REFERENCES = 6;
+const MIN_IMAGE_GENERATION_COUNT = 1;
+const MAX_IMAGE_GENERATION_COUNT = 4;
+const CANDIDATE_X_OFFSET = 500;
+const CANDIDATE_Y_STEP = 460;
 
 interface UseGenerationProps {
     nodes: NodeData[];
     updateNode: (id: string, updates: Partial<NodeData>) => void;
+    setNodes?: Dispatch<SetStateAction<NodeData[]>>;
+    setSelectedNodeIds?: Dispatch<SetStateAction<string[]>>;
+    language?: Language;
 }
 
-export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
+export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds, language = 'en' }: UseGenerationProps) => {
     // ============================================================================
     // HELPERS
     // ============================================================================
@@ -75,6 +84,139 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
         });
     };
 
+    const getCombinedPrompt = (node: NodeData, allNodes: NodeData[]): string => {
+        const textNodePrompts = (node.parentIds || [])
+            .map(pid => allNodes.find(n => n.id === pid))
+            .filter(n => n?.type === NodeType.TEXT && n.prompt)
+            .map(n => n!.prompt);
+
+        return [...textNodePrompts, node.prompt].filter(Boolean).join('\n\n');
+    };
+
+    const isPromptOptional = (node: NodeData): boolean => (
+        node.type === NodeType.VIDEO &&
+        Boolean(node.videoModel?.startsWith('kling-')) &&
+        Boolean(node.parentIds && node.parentIds.length >= 2)
+    );
+
+    const clampImageGenerationCount = (count?: number): number => {
+        const numericCount = Number.isFinite(count) ? Number(count) : MIN_IMAGE_GENERATION_COUNT;
+        return Math.max(MIN_IMAGE_GENERATION_COUNT, Math.min(MAX_IMAGE_GENERATION_COUNT, Math.floor(numericCount)));
+    };
+
+    const collectImageReferences = (
+        node: NodeData,
+        nodesById: Map<string, NodeData>
+    ): string[] => {
+        const imageBase64s: string[] = [];
+
+        if (node.parentIds && node.parentIds.length > 0) {
+            for (const parentId of node.parentIds) {
+                if (imageBase64s.length >= MAX_IMAGE_REFERENCES) {
+                    break;
+                }
+
+                const parent = nodesById.get(parentId);
+                const reference = getEffectiveImageReference(parent, nodesById);
+                if (reference) {
+                    imageBase64s.push(reference.url);
+                }
+            }
+        }
+
+        // Storyboard-generated nodes can carry internal references without connected parent images.
+        if (imageBase64s.length === 0 && node.characterReferenceUrls && node.characterReferenceUrls.length > 0) {
+            for (const charUrl of node.characterReferenceUrls) {
+                if (imageBase64s.length < MAX_IMAGE_REFERENCES) {
+                    imageBase64s.push(charUrl);
+                }
+            }
+        }
+
+        return imageBase64s;
+    };
+
+    const generateSingleImageNode = async (
+        targetNode: NodeData,
+        allNodes: NodeData[],
+        nodesById: Map<string, NodeData>
+    ) => {
+        const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
+        const imageBase64s = collectImageReferences(targetNode, nodesById);
+
+        const rawResultUrl = await generateImage({
+            prompt: combinedPrompt,
+            aspectRatio: targetNode.aspectRatio,
+            resolution: targetNode.resolution,
+            imageBase64: imageBase64s.length > 0 ? imageBase64s : undefined,
+            imageModel: targetNode.imageModel,
+            nodeId: targetNode.id,
+            // Kling V1.5 reference settings
+            klingReferenceMode: targetNode.klingReferenceMode,
+            klingFaceIntensity: targetNode.klingFaceIntensity,
+            klingSubjectIntensity: targetNode.klingSubjectIntensity
+        });
+
+        // Add cache-busting parameter to force browser to fetch new image.
+        // Backend metadata is keyed by nodeId for recovery.
+        const resultUrl = `${rawResultUrl}?t=${Date.now()}`;
+        const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
+
+        updateNode(targetNode.id, {
+            status: NodeStatus.SUCCESS,
+            resultUrl,
+            resultAspectRatio,
+            // Note: aspectRatio is intentionally NOT updated to preserve user's selection.
+            errorMessage: undefined
+        });
+    };
+
+    const createImageCandidateNodes = (sourceNode: NodeData, count: number, generationStartTime: number): NodeData[] => {
+        const inheritedParentIds = sourceNode.parentIds ? [...sourceNode.parentIds] : [];
+        const candidateNodes: NodeData[] = [];
+        const extraCount = count - 1;
+        const startY = sourceNode.y - ((extraCount - 1) * CANDIDATE_Y_STEP) / 2;
+
+        for (let index = 1; index < count; index++) {
+            const candidateIndex = index - 1;
+            candidateNodes.push({
+                id: crypto.randomUUID(),
+                type: NodeType.IMAGE,
+                x: sourceNode.x + CANDIDATE_X_OFFSET,
+                y: startY + (candidateIndex * CANDIDATE_Y_STEP),
+                prompt: sourceNode.prompt,
+                status: NodeStatus.LOADING,
+                model: sourceNode.model,
+                imageModel: sourceNode.imageModel,
+                aspectRatio: sourceNode.aspectRatio,
+                resolution: sourceNode.resolution,
+                parentIds: inheritedParentIds,
+                title: language === 'zh' ? `\u5019\u9009 ${index + 1}` : `Candidate ${index + 1}`,
+                generationCount: 1,
+                generationStartTime,
+                klingReferenceMode: sourceNode.klingReferenceMode,
+                klingFaceIntensity: sourceNode.klingFaceIntensity,
+                klingSubjectIntensity: sourceNode.klingSubjectIntensity,
+                characterReferenceUrls: sourceNode.characterReferenceUrls ? [...sourceNode.characterReferenceUrls] : undefined
+            });
+        }
+
+        return candidateNodes;
+    };
+
+    const getGenerationErrorMessage = (error: any): string => {
+        const msg = error.toString().toLowerCase();
+        let errorMessage = error.message || 'Generation failed';
+
+        if (msg.includes('permission_denied') || msg.includes('403')) {
+            errorMessage = 'Permission denied. Check API Key configuration.';
+        } else if (msg.includes('unable to process input image') || msg.includes('invalid_argument')) {
+            errorMessage = 'Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
+        }
+
+        return errorMessage;
+    };
+
     // ============================================================================
     // GENERATION HANDLER
     // ============================================================================
@@ -90,87 +232,42 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
         if (!node) return;
         const nodesById = new Map(nodes.map(n => [n.id, n]));
 
-        // Get prompts from connected TEXT nodes (if any)
-        const getTextNodePrompts = (): string[] => {
-            if (!node.parentIds) return [];
-            return node.parentIds
-                .map(pid => nodes.find(n => n.id === pid))
-                .filter(n => n?.type === NodeType.TEXT && n.prompt)
-                .map(n => n!.prompt);
-        };
+        const combinedPrompt = getCombinedPrompt(node, nodes);
+        if (!combinedPrompt && !isPromptOptional(node)) return;
 
-        // Combine prompts: TEXT node prompts + node's own prompt
-        const textNodePrompts = getTextNodePrompts();
-        const combinedPrompt = [...textNodePrompts, node.prompt].filter(Boolean).join('\n\n');
+        const generationStartTime = Date.now();
+        const imageGenerationCount = node.type === NodeType.IMAGE
+            ? clampImageGenerationCount(node.generationCount)
+            : MIN_IMAGE_GENERATION_COUNT;
 
-        // Check if prompt is required
-        // For Kling frame-to-frame with both start and end frames, prompt is optional
-        const isKlingFrameToFrame =
-            node.type === NodeType.VIDEO &&
-            node.videoModel?.startsWith('kling-') &&
-            (node.parentIds && node.parentIds.length >= 2);
+        if (node.type === NodeType.IMAGE && imageGenerationCount > 1 && setNodes) {
+            const candidateNodes = createImageCandidateNodes(node, imageGenerationCount, generationStartTime);
+            const generationNodes = [
+                { ...node, status: NodeStatus.LOADING, generationStartTime },
+                ...candidateNodes
+            ];
 
-        if (!combinedPrompt && !isKlingFrameToFrame) return;
+            updateNode(id, { status: NodeStatus.LOADING, generationStartTime });
+            setNodes(prev => [...prev, ...candidateNodes]);
+            setSelectedNodeIds?.([id, ...candidateNodes.map(candidate => candidate.id)]);
 
-        updateNode(id, { status: NodeStatus.LOADING, generationStartTime: Date.now() });
+            for (const generationNode of generationNodes) {
+                try {
+                    await generateSingleImageNode(generationNode, [...nodes, ...candidateNodes], nodesById);
+                } catch (error: any) {
+                    const errorMessage = getGenerationErrorMessage(error);
+                    updateNode(generationNode.id, { status: NodeStatus.ERROR, errorMessage });
+                    console.error('Generation failed:', error);
+                }
+            }
+            return;
+        }
+
+        updateNode(id, { status: NodeStatus.LOADING, generationStartTime });
 
         try {
             if (node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR) {
-                // Collect direct image reference parents only; keep this aligned with the reference strip UI.
-                const imageBase64s: string[] = [];
-
-                if (node.parentIds && node.parentIds.length > 0) {
-                    for (const parentId of node.parentIds) {
-                        if (imageBase64s.length >= MAX_IMAGE_REFERENCES) {
-                            break;
-                        }
-
-                        const parent = nodes.find(n => n.id === parentId);
-                        const reference = getEffectiveImageReference(parent, nodesById);
-                        if (reference) {
-                            imageBase64s.push(reference.url);
-                        }
-                    }
-                }
-
-                // Storyboard-generated nodes can carry internal references without connected parent images.
-                if (imageBase64s.length === 0 && node.characterReferenceUrls && node.characterReferenceUrls.length > 0) {
-                    for (const charUrl of node.characterReferenceUrls) {
-                        if (imageBase64s.length < MAX_IMAGE_REFERENCES) {
-                            imageBase64s.push(charUrl);
-                        }
-                    }
-                }
-
-                // Generate image with all parent images and character references
-                const rawResultUrl = await generateImage({
-                    prompt: combinedPrompt,
-                    aspectRatio: node.aspectRatio,
-                    resolution: node.resolution,
-                    imageBase64: imageBase64s.length > 0 ? imageBase64s : undefined,
-                    imageModel: node.imageModel,
-                    nodeId: id,
-                    // Kling V1.5 reference settings
-                    klingReferenceMode: node.klingReferenceMode,
-                    klingFaceIntensity: node.klingFaceIntensity,
-                    klingSubjectIntensity: node.klingSubjectIntensity
-                });
-
-                // Add cache-busting parameter to force browser to fetch new image
-                // (Backend uses nodeId as filename, so URL is the same for regenerated images)
-                const resultUrl = `${rawResultUrl}?t=${Date.now()}`;
-
-                // Detect actual image dimensions (for display purposes only)
-                const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
-
-                // Keep user's selected aspectRatio - don't overwrite it with detected ratio
-                updateNode(id, {
-                    status: NodeStatus.SUCCESS,
-                    resultUrl,
-                    resultAspectRatio,
-                    // Note: aspectRatio is intentionally NOT updated to preserve user's selection
-                    errorMessage: undefined
-                });
+                await generateSingleImageNode(node, nodes, nodesById);
 
 
             } else if (node.type === NodeType.LOCAL_IMAGE_MODEL) {
@@ -366,7 +463,7 @@ export const useGeneration = ({ nodes, updateNode }: UseGenerationProps) => {
             if (msg.includes('permission_denied') || msg.includes('403')) {
                 errorMessage = 'Permission denied. Check API Key configuration.';
             } else if (msg.includes('unable to process input image') || msg.includes('invalid_argument')) {
-                errorMessage = '⚠️ Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
+                errorMessage = 'Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
             }
 
             updateNode(id, { status: NodeStatus.ERROR, errorMessage });

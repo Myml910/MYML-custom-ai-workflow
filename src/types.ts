@@ -59,6 +59,7 @@ export interface NodeData {
   isPromptExpanded?: boolean; // Whether the prompt editing area is expanded
   resultAspectRatio?: string; // Actual aspect ratio of the generated image (e.g., '16/9')
   generationStartTime?: number; // Timestamp when generation started (for recovery race condition prevention)
+  generationCount?: number; // Number of image variants to generate for Image nodes
 
   // Kling V1.5 Image Reference Settings
   klingReferenceMode?: 'subject' | 'face'; // Reference type for image-to-image

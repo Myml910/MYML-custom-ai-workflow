@@ -46,6 +46,7 @@ const IMAGE_RATIOS = [
 ];
 
 const MAX_IMAGE_REFERENCES = 6;
+const IMAGE_GENERATION_COUNTS = [1, 2, 3, 4] as const;
 
 const VIDEO_RESOLUTIONS = [
     "Auto", "1080p", "768p", "720p", "512p"
@@ -605,6 +606,16 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         setShowResolutionDropdown(false);
     };
 
+    const shouldShowVariantCount = data.type === NodeType.IMAGE;
+    const generationCount = IMAGE_GENERATION_COUNTS.includes(data.generationCount as typeof IMAGE_GENERATION_COUNTS[number])
+        ? data.generationCount as typeof IMAGE_GENERATION_COUNTS[number]
+        : 1;
+
+    const handleGenerationCountChange = (count: typeof IMAGE_GENERATION_COUNTS[number]) => {
+        if (isLoading) return;
+        onUpdate(data.id, { generationCount: count });
+    };
+
     // Get frame inputs with their image URLs
     // Auto-assign order: first connected = start, second = end
     // If user has explicitly set frameInputs, use those orders, otherwise auto-assign
@@ -682,6 +693,46 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         return isDark
             ? 'bg-[var(--myml-accent)] hover:bg-[var(--myml-accent-hover)] text-[var(--myml-accent-contrast)] shadow-[var(--myml-shadow-accent)] active:scale-[0.98]'
             : 'bg-lime-600 hover:bg-lime-500 text-white active:scale-[0.98]';
+    };
+    const renderGenerateButton = () => {
+        if (isLoading) return null;
+
+        const isFaceModeBlocked = !isVideoNode &&
+            data.imageModel === 'kling-v1-5' &&
+            data.klingReferenceMode === 'face' &&
+            (data.faceDetectionStatus === 'error' || data.faceDetectionStatus === 'loading');
+        const selectedModel = isVideoNode ? currentVideoModel : currentImageModel;
+        const isSelectedModelDisabled = isModelDisabled(selectedModel);
+        const isGenerateBlocked = isFaceModeBlocked || isSelectedModelDisabled;
+        const generateTitle = isSelectedModelDisabled
+            ? getModelDisabledReason(selectedModel, language)
+            : isFaceModeBlocked
+                ? t(language, 'cannotGenerateNoFace')
+                : t(language, 'generate');
+
+        return (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (isGenerateBlocked) {
+                        return;
+                    }
+                    onGenerate(data.id);
+                }}
+                disabled={isGenerateBlocked}
+                className={`group h-9 w-9 shrink-0 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
+                aria-label={generateTitle}
+                title={generateTitle}
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    className="w-4 h-4 transition-transform duration-200"
+                    fill="currentColor"
+                >
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+            </button>
+        );
     };
     const controlPanelTitle = isVideoNode
         ? language === 'zh' ? '视频生成控制' : 'Video Controls'
@@ -867,8 +918,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {/* Controls - Hidden for storyboard-generated scenes */}
             {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <PanelSection title={modelSectionTitle} className="mb-2">
-                <ActionRow className="relative">
-                    <div className="flex items-center gap-2">
+                <ActionRow className={data.type === NodeType.IMAGE ? 'relative flex-col items-stretch gap-2' : 'relative'}>
+                    <div className={data.type === NodeType.IMAGE ? 'flex min-w-0 items-center justify-between gap-2' : 'flex items-center gap-2'}>
                         {/* Model Selector - Local, Video, and Image nodes get different dropdowns */}
                         {isLocalModelNode ? (
                             <div className="relative" ref={modelDropdownRef}>
@@ -1209,9 +1260,52 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                 )}
                             </div>
                         )}
+                        {data.type === NodeType.IMAGE && renderGenerateButton()}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className={data.type === NodeType.IMAGE ? 'flex w-full flex-wrap items-center justify-end gap-2' : 'flex items-center gap-2'}>
+                        {shouldShowVariantCount && (
+                            <div
+                                className={`flex h-[var(--myml-density-control)] items-center gap-1 rounded-[var(--myml-radius-control)] border px-1 ${isDark
+                                    ? 'border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] text-[var(--myml-text-secondary)]'
+                                    : 'border-neutral-200 bg-white text-neutral-700'
+                                    }`}
+                                role="group"
+                                aria-label={t(language, 'variants')}
+                                title={t(language, 'variantsTooltip')}
+                            >
+                                <span className="px-1 text-[10px] font-semibold leading-none text-[var(--myml-text-faint)]">
+                                    {t(language, 'variants')}
+                                </span>
+                                {IMAGE_GENERATION_COUNTS.map(count => {
+                                    const active = generationCount === count;
+                                    return (
+                                        <button
+                                            key={count}
+                                            type="button"
+                                            disabled={isLoading}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleGenerationCountChange(count);
+                                            }}
+                                            className={`flex h-6 min-w-6 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold transition-[background-color,border-color,color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${active
+                                                ? isDark
+                                                    ? 'bg-[var(--myml-accent)] text-[var(--myml-accent-contrast)]'
+                                                    : 'bg-lime-600 text-white'
+                                                : isDark
+                                                    ? 'text-[var(--myml-text-muted)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:ring-[#D8FF00]/35'
+                                                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-lime-700 focus-visible:ring-lime-500/35'
+                                                }`}
+                                            aria-label={`${t(language, 'setVariants')}: ${count}`}
+                                            title={`${t(language, 'setVariants')}: ${count}`}
+                                        >
+                                            {count}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {/* Unified Size/Ratio Dropdown (hidden for video nodes in motion-control mode) */}
                         {!(isVideoNode && videoGenerationMode === 'motion-control') && (
                             <div className="relative" ref={dropdownRef}>
@@ -1347,47 +1441,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                             </div>
                         )}
 
-                        {/* Generate Button - Active even after success to allow re-generation */}
-                        {!isLoading && (() => {
-                            // Check if generation is blocked due to no face detected in Face mode
-                            const isFaceModeBlocked = !isVideoNode &&
-                                data.imageModel === 'kling-v1-5' &&
-                                data.klingReferenceMode === 'face' &&
-                                (data.faceDetectionStatus === 'error' || data.faceDetectionStatus === 'loading');
-                            const selectedModel = isVideoNode ? currentVideoModel : currentImageModel;
-                            const isSelectedModelDisabled = isModelDisabled(selectedModel);
-                            const isGenerateBlocked = isFaceModeBlocked || isSelectedModelDisabled;
-                            const generateTitle = isSelectedModelDisabled
-                                ? getModelDisabledReason(selectedModel, language)
-                                : isFaceModeBlocked
-                                    ? t(language, 'cannotGenerateNoFace')
-                                    : t(language, 'generate');
-
-                            return (
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (isGenerateBlocked) {
-                                            // Show a warning - this is handled by the warning component
-                                            return;
-                                        }
-                                        onGenerate(data.id);
-                                    }}
-                                    disabled={isGenerateBlocked}
-                                    className={`group w-9 h-9 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
-                                    aria-label={generateTitle}
-                                    title={generateTitle}
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        className="w-4 h-4 transition-transform duration-200"
-                                        fill="currentColor"
-                                    >
-                                        <polygon points="5 3 19 12 5 21 5 3" />
-                                    </svg>
-                                </button>
-                            );
-                        })()}
+                        {data.type !== NodeType.IMAGE && renderGenerateButton()}
                     </div>
                 </ActionRow>
                 </PanelSection>
