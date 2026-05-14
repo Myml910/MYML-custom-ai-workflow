@@ -22,4 +22,3 @@ export const PromptInput = React.forwardRef<HTMLInputElement, PromptInputProps>(
 );
 
 PromptInput.displayName = 'PromptInput';
-

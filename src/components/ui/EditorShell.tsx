@@ -27,4 +27,3 @@ export const EditorTopBar = React.forwardRef<HTMLDivElement, EditorTopBarProps>(
 );
 
 EditorTopBar.displayName = 'EditorTopBar';
-

@@ -28,4 +28,3 @@ export const ToolDivider: React.FC<{ className?: string; orientation?: 'horizont
     } ${className}`}
   />
 );
-

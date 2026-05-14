@@ -13,4 +13,3 @@ export const EditorStatusBar = React.forwardRef<HTMLDivElement, EditorStatusBarP
 );
 
 EditorStatusBar.displayName = 'EditorStatusBar';
-
