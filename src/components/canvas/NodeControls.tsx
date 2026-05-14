@@ -97,6 +97,15 @@ const IMAGE_MODELS = [
     aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
     },
     {
+        id: 'custom-image-grok-4.2-image',
+        name: 'Grok 4.2 Image',
+        provider: 'custom',
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        resolutions: ['Auto', '2k', '4k'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
+    },
+    {
         id: 'gpt-image-1.5',
         name: 'GPT Image 1.5',
         provider: 'openai',
