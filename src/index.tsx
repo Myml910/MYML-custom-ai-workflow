@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
+import './styles/ui-tokens.css';
 import './styles/motion.css';
 
 const rootElement = document.getElementById('root');

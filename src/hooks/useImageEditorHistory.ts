@@ -8,6 +8,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { HistoryState, EditorElement } from '../components/modals/imageEditor/imageEditor.types';
 
+const MAX_HISTORY_ENTRIES = 50;
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -18,6 +20,7 @@ interface UseImageEditorHistoryProps {
     setElements: React.Dispatch<React.SetStateAction<EditorElement[]>>;
     setSelectedElementId: React.Dispatch<React.SetStateAction<string | null>>;
     isOpen: boolean;
+    resetKey?: string;
     imageUrl?: string;
     setImageUrl?: React.Dispatch<React.SetStateAction<string | undefined>>;
     onImageUrlChange?: (url: string) => void; // Callback when image URL changes (for syncing to node)
@@ -44,6 +47,7 @@ export const useImageEditorHistory = ({
     setElements,
     setSelectedElementId,
     isOpen,
+    resetKey,
     imageUrl,
     setImageUrl,
     onImageUrlChange
@@ -59,12 +63,22 @@ export const useImageEditorHistory = ({
     const historyStackRef = useRef<HistoryState[]>([]);
     const redoStackRef = useRef<HistoryState[]>([]);
     const imageUrlRef = useRef<string | undefined>(undefined);
+    const setSelectedElementIdRef = useRef(setSelectedElementId);
 
     // Keep refs in sync with state
     elementsRef.current = elements;
     historyStackRef.current = historyStack;
     redoStackRef.current = redoStack;
     imageUrlRef.current = imageUrl;
+    setSelectedElementIdRef.current = setSelectedElementId;
+
+    useEffect(() => {
+        setHistoryStack([]);
+        setRedoStack([]);
+        pendingStateRef.current = null;
+        isUndoRedoRef.current = false;
+        setSelectedElementIdRef.current(null);
+    }, [isOpen, resetKey]);
 
     // --- Capture/Save Functions ---
 
@@ -90,7 +104,7 @@ export const useImageEditorHistory = ({
     const commitPendingState = useCallback(() => {
         if (isUndoRedoRef.current || !pendingStateRef.current) return;
 
-        setHistoryStack(prev => [...prev, pendingStateRef.current!]);
+        setHistoryStack(prev => [...prev, pendingStateRef.current!].slice(-MAX_HISTORY_ENTRIES));
         setRedoStack([]);
         pendingStateRef.current = null;
     }, []);
@@ -110,7 +124,7 @@ export const useImageEditorHistory = ({
             imageUrl: imageUrlRef.current
         };
 
-        setHistoryStack(prev => [...prev, newState]);
+        setHistoryStack(prev => [...prev, newState].slice(-MAX_HISTORY_ENTRIES));
         setRedoStack([]);
     }, [canvasRef]);
 
@@ -138,7 +152,7 @@ export const useImageEditorHistory = ({
             elements: [...elementsRef.current],
             imageUrl: imageUrlRef.current
         };
-        setRedoStack(prev => [...prev, currentState]);
+        setRedoStack(prev => [...prev, currentState].slice(-MAX_HISTORY_ENTRIES));
 
         // Update history stack
         setHistoryStack(newHistory);
@@ -197,7 +211,7 @@ export const useImageEditorHistory = ({
             elements: [...elementsRef.current],
             imageUrl: imageUrlRef.current
         };
-        setHistoryStack(prev => [...prev, currentState]);
+        setHistoryStack(prev => [...prev, currentState].slice(-MAX_HISTORY_ENTRIES));
 
         // Update redo stack
         setRedoStack(newRedoStack);

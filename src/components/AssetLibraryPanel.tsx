@@ -102,8 +102,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm motion-modal-overlay-in">
                 <div
-                    className={`flex flex-col w-[800px] h-[600px] border rounded-xl shadow-[0_18px_44px_rgba(0,0,0,0.42)] overflow-hidden transition-colors duration-200 motion-modal-dialog-in ${
-                        isDark ? 'bg-[#101210] border-neutral-800' : 'bg-white border-neutral-200'
+                    className={`flex flex-col w-[800px] h-[600px] border rounded-[var(--myml-radius-modal)] shadow-[var(--myml-shadow-panel)] overflow-hidden transition-colors duration-[var(--myml-motion-panel)] motion-modal-dialog-in ${
+                        isDark ? 'bg-[var(--myml-surface-panel)] border-[var(--myml-border-default)]' : 'bg-white border-neutral-200'
                     }`}
                     onClick={(e) => e.stopPropagation()}
                 >
@@ -145,8 +145,8 @@ export const AssetLibraryPanel: React.FC<AssetLibraryPanelProps> = ({
 
     return (
         <div
-            className={`fixed left-20 z-40 w-[700px] backdrop-blur-md border rounded-xl shadow-[0_16px_36px_rgba(0,0,0,0.34)] flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-200 ${
-                isDark ? 'bg-[#101210]/96 border-neutral-800' : 'bg-white/95 border-neutral-200'
+            className={`fixed left-20 z-40 w-[700px] backdrop-blur-md border rounded-[var(--myml-radius-panel)] shadow-[var(--myml-shadow-panel)] flex flex-col max-h-[500px] overflow-hidden motion-panel-in transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${
+                isDark ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)]' : 'bg-white/95 border-neutral-200'
             }`}
             style={{ top: Math.min(window.innerHeight - 510, Math.max(20, panelY)) }}
         >

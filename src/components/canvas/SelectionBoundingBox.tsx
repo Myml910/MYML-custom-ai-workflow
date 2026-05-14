@@ -164,17 +164,17 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
     const accentColor = '#D8FF00';
     const isDark = canvasTheme === 'dark';
     const menuButtonClass = isDark
-        ? 'bg-[#151815] border border-neutral-800 hover:bg-[#1A1D1A] hover:border-neutral-700 text-neutral-100'
+        ? 'bg-[var(--myml-surface-floating)] border border-[var(--myml-border-default)] hover:bg-[var(--myml-surface-hover)] hover:border-[var(--myml-border-active)] text-[var(--myml-text-primary)] shadow-[var(--myml-shadow-floating)]'
         : 'bg-white border border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300 text-neutral-800';
     const menuSurfaceClass = isDark
-        ? 'bg-[#151815] border-neutral-800 shadow-[0_14px_32px_rgba(0,0,0,0.36)]'
+        ? 'bg-[var(--myml-surface-floating)] border-[var(--myml-border-default)] shadow-[var(--myml-shadow-floating)]'
         : 'bg-white border-neutral-200 shadow-[0_14px_32px_rgba(15,23,42,0.12)]';
     const menuItemClass = isDark
-        ? 'text-neutral-300 hover:bg-[#1A1D1A] hover:text-neutral-100'
+        ? 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)]'
         : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900';
     const toolbarShellClass = 'absolute inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap pointer-events-auto';
-    const toolbarButtonClass = 'flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-semibold leading-none transition-[background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35';
-    const dropdownItemClass = `flex h-8 w-full items-center gap-2 whitespace-nowrap px-3 text-left text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`;
+    const toolbarButtonClass = 'flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] px-3 text-xs font-semibold leading-none transition-[background-color,border-color,color] duration-[var(--myml-motion-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35';
+    const dropdownItemClass = `flex h-8 w-full items-center gap-2 whitespace-nowrap px-3 text-left text-xs transition-colors duration-[var(--myml-motion-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${menuItemClass}`;
     // ============================================================================
     // CALCULATIONS
     // ============================================================================
@@ -445,7 +445,7 @@ export const SelectionBoundingBox: React.FC<SelectionBoundingBoxProps> = ({
                             e.stopPropagation();
                             if (onCreateVideo) onCreateVideo();
                         }}
-                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#D8FF00] px-3.5 text-xs font-semibold leading-none text-black transition-colors duration-150 hover:bg-[#e4ff3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
+                        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-[var(--myml-radius-control)] bg-[var(--myml-accent)] px-3.5 text-xs font-semibold leading-none text-[var(--myml-accent-contrast)] transition-colors duration-[var(--myml-motion-base)] hover:bg-[var(--myml-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/40"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 10l5 5-5 5" />

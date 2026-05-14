@@ -346,6 +346,109 @@ app.use('/api/matting', mattingRoutes);
 
 // --- Library Assets API ---
 
+const WINDOWS_RESERVED_FILENAMES = new Set([
+    'con', 'prn', 'aux', 'nul',
+    'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+    'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'
+]);
+
+const MIME_EXTENSION_MAP = {
+    'image/png': '.png',
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov'
+};
+
+function normalizeAssetBaseName(name) {
+    let safeName = String(name || '')
+        .trim()
+        .replace(/[^a-z0-9_-]+/gi, '_')
+        .replace(/^[_\-.]+|[_\-.]+$/g, '')
+        .toLowerCase();
+
+    if (!safeName) {
+        safeName = 'asset';
+    }
+
+    if (WINDOWS_RESERVED_FILENAMES.has(safeName)) {
+        safeName = `asset_${safeName}`;
+    }
+
+    return safeName.slice(0, 80).replace(/^[_\-.]+|[_\-.]+$/g, '') || 'asset';
+}
+
+function normalizeAssetExtension(ext, fallback = '.png') {
+    const normalized = String(ext || fallback || '.png').toLowerCase();
+    const withDot = normalized.startsWith('.') ? normalized : `.${normalized}`;
+    const safeExt = withDot.replace(/[^a-z0-9.]/g, '');
+
+    return /^\.[a-z0-9]{1,12}$/.test(safeExt) ? safeExt : fallback;
+}
+
+function getExtensionFromMime(mimeType) {
+    return MIME_EXTENSION_MAP[String(mimeType || '').toLowerCase()] || '.png';
+}
+
+function createUniqueAssetFilename(destDir, baseName, ext) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+        const filename = `${baseName}_${shortId}${ext}`;
+        const filePath = path.join(destDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            return { filename, filePath };
+        }
+    }
+
+    throw new Error('Unable to allocate unique asset filename');
+}
+
+function readAssetLibraryData(libraryJsonPath) {
+    if (!fs.existsSync(libraryJsonPath)) {
+        return [];
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
+    } catch (error) {
+        throw new Error(`Failed to read asset library metadata: ${error.message}`);
+    }
+
+    if (!Array.isArray(parsed)) {
+        throw new Error('Asset library metadata must be an array');
+    }
+
+    return parsed;
+}
+
+function writeAssetLibraryData(libraryJsonPath, libraryData) {
+    if (!Array.isArray(libraryData)) {
+        throw new Error('Asset library metadata must be an array');
+    }
+
+    const tmpPath = `${libraryJsonPath}.${process.pid}.${Date.now()}.${crypto.randomUUID().slice(0, 8)}.tmp`;
+
+    try {
+        fs.mkdirSync(path.dirname(libraryJsonPath), { recursive: true });
+        fs.writeFileSync(tmpPath, JSON.stringify(libraryData, null, 2));
+        fs.renameSync(tmpPath, libraryJsonPath);
+    } catch (error) {
+        if (fs.existsSync(tmpPath)) {
+            fs.unlinkSync(tmpPath);
+        }
+        throw error;
+    }
+}
+
+function normalizeAssetUrlForCompare(url) {
+    return typeof url === 'string' ? url.split('?')[0] : '';
+}
+
 // Save curated asset to library
 app.post('/api/library', async (req, res) => {
     try {
@@ -362,8 +465,9 @@ app.post('/api/library', async (req, res) => {
             fs.mkdirSync(destDir, { recursive: true });
         }
 
-        // Sanitize name for filesystem
-        const safeName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        // Sanitize display name into a filesystem-safe base only.
+        // The user-facing name is preserved in assets.json.
+        const safeName = normalizeAssetBaseName(name);
 
         let destFilename;
         let destPath;
@@ -379,14 +483,10 @@ app.post('/api/library', async (req, res) => {
             const base64Data = matches[2];
             const buffer = Buffer.from(base64Data, 'base64');
 
-            // Determine extension from mime
-            let ext = '.png';
-            if (mimeType === 'image/jpeg') ext = '.jpg';
-            else if (mimeType === 'video/mp4') ext = '.mp4';
-            // Add more as needed
-
-            destFilename = `${safeName}${ext}`;
-            destPath = path.join(destDir, destFilename);
+            const ext = normalizeAssetExtension(getExtensionFromMime(mimeType));
+            const uniqueTarget = createUniqueAssetFilename(destDir, safeName, ext);
+            destFilename = uniqueTarget.filename;
+            destPath = uniqueTarget.filePath;
 
             fs.writeFileSync(destPath, buffer);
         }
@@ -429,20 +529,18 @@ app.post('/api/library', async (req, res) => {
                 return res.status(404).json({ error: "Source file not found", debug: { sourceUrl, sourcePath, cleanUrl } });
             }
 
-            // Copy file
-            const ext = path.extname(sourcePath);
-            destFilename = `${safeName}${ext}`;
-            destPath = path.join(destDir, destFilename);
+            const fallbackExt = sourceUrl.includes('video') ? '.mp4' : '.png';
+            const ext = normalizeAssetExtension(path.extname(sourcePath), fallbackExt);
+            const uniqueTarget = createUniqueAssetFilename(destDir, safeName, ext);
+            destFilename = uniqueTarget.filename;
+            destPath = uniqueTarget.filePath;
 
             fs.copyFileSync(sourcePath, destPath);
         }
 
         // Update assets.json
         const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
-        let libraryData = [];
-        if (fs.existsSync(libraryJsonPath)) {
-            libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
-        }
+        const libraryData = readAssetLibraryData(libraryJsonPath);
 
         const newEntry = {
             id: crypto.randomUUID(),
@@ -455,7 +553,7 @@ app.post('/api/library', async (req, res) => {
         };
 
         libraryData.push(newEntry);
-        fs.writeFileSync(libraryJsonPath, JSON.stringify(libraryData, null, 2));
+        writeAssetLibraryData(libraryJsonPath, libraryData);
 
         res.json({ success: true, asset: newEntry });
     } catch (error) {
@@ -469,17 +567,14 @@ app.get('/api/library', async (req, res) => {
     try {
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
         const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
-        let libraryData = [];
-        if (fs.existsSync(libraryJsonPath)) {
-            libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
-        }
+        let libraryData = readAssetLibraryData(libraryJsonPath);
 
         if (canUseLegacyRootLibrary(req.user)) {
             const legacyJsonPath = path.join(ASSETS_DIR, 'assets.json');
             if (fs.existsSync(legacyJsonPath)) {
                 libraryData = [
                     ...libraryData,
-                    ...JSON.parse(fs.readFileSync(legacyJsonPath, 'utf8'))
+                    ...readAssetLibraryData(legacyJsonPath)
                 ];
             }
         }
@@ -510,7 +605,7 @@ app.delete('/api/library/:id', async (req, res) => {
             return res.status(404).json({ error: "Library not found" });
         }
 
-        let libraryData = JSON.parse(fs.readFileSync(libraryJsonPath, 'utf8'));
+        let libraryData = readAssetLibraryData(libraryJsonPath);
         const assetIndex = libraryData.findIndex(a => a.id === id);
 
         if (assetIndex === -1) {
@@ -518,8 +613,13 @@ app.delete('/api/library/:id', async (req, res) => {
         }
 
         const asset = libraryData[assetIndex];
+        const assetUrl = normalizeAssetUrlForCompare(asset.url);
+        const otherEntriesUseSameUrl = libraryData.some((entry, index) =>
+            index !== assetIndex &&
+            normalizeAssetUrlForCompare(entry.url) === assetUrl
+        );
 
-        if (asset.url && asset.url.startsWith('/library/')) {
+        if (!otherEntriesUseSameUrl && asset.url && asset.url.startsWith('/library/')) {
             const filePath = resolveLibraryUrlToPath(asset.url, req.user);
             if (filePath && fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
@@ -528,7 +628,7 @@ app.delete('/api/library/:id', async (req, res) => {
 
         // Remove from array
         libraryData.splice(assetIndex, 1);
-        fs.writeFileSync(libraryJsonPath, JSON.stringify(libraryData, null, 2));
+        writeAssetLibraryData(libraryJsonPath, libraryData);
 
         res.json({ success: true });
     } catch (error) {

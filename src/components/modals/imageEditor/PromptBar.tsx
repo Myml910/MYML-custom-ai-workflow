@@ -10,6 +10,7 @@ import { ChevronDown, Check, Banana, Image as ImageIcon, Crop, Monitor } from 'l
 import { ImageModel, IMAGE_MODELS } from './imageEditor.types';
 import { OpenAIIcon, KlingIcon } from '../../icons/BrandIcons';
 import { t, type Language } from '../../../i18n/translations';
+import { PromptInput, ToolGroup } from '../../ui';
 
 // ============================================================================
 // TYPES
@@ -59,7 +60,7 @@ interface PromptBarProps {
 // ============================================================================
 
 export const PromptBar: React.FC<PromptBarProps> = ({
-    canvasTheme = 'dark',
+    canvasTheme: _canvasTheme = 'dark',
     language = 'zh',
     prompt,
     setPrompt,
@@ -93,8 +94,6 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         ? IMAGE_MODELS.filter(m => m.supportsImageToImage)
         : IMAGE_MODELS;
 
-    const isDark = canvasTheme === 'dark';
-
     const text = {
         imageToImage: t(language, 'imageToImage'),
         textToImage: t(language, 'textToImage'),
@@ -116,32 +115,16 @@ export const PromptBar: React.FC<PromptBarProps> = ({
         increaseBatch: t(language, 'increaseBatch'),
     };
 
-    const barClass = isDark
-        ? 'bg-[#151815]/95 border-neutral-800 shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
-        : 'bg-white/95 border-neutral-200 shadow-[0_12px_32px_rgba(15,23,42,0.10)]';
-
-    const dropdownClass = isDark
-        ? 'bg-[#1A1D1A] border-neutral-800 shadow-[0_14px_34px_rgba(0,0,0,0.32)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in'
-        : 'bg-white border-neutral-200 shadow-[0_14px_34px_rgba(15,23,42,0.12)] rounded-lg transition-[opacity,transform] duration-150 motion-menu-in';
-
-    const dropdownHeaderClass = isDark
-        ? 'bg-[#151815] border-neutral-800 text-neutral-400'
-        : 'bg-neutral-50 border-neutral-200 text-neutral-500';
-
-    const dropdownSectionClass = isDark
-        ? 'bg-[#151815] text-neutral-500 border-neutral-800'
-        : 'bg-neutral-50 text-neutral-500 border-neutral-200';
+    const dropdownClass = 'rounded-[var(--myml-radius-card)] border border-[var(--myml-editor-toolbar-border)] bg-[var(--myml-editor-toolbar)] shadow-[var(--myml-shadow-floating)] transition-[opacity,transform] duration-[var(--myml-motion-base)] motion-menu-in';
+    const dropdownHeaderClass = 'bg-[var(--myml-surface-section)] border-[var(--myml-border-subtle)] text-[var(--myml-text-muted)]';
+    const dropdownSectionClass = 'bg-[var(--myml-surface-section)] text-[var(--myml-text-faint)] border-[var(--myml-border-subtle)]';
 
     const dropdownItemClass = (active: boolean) => {
         if (active) {
-            return isDark
-                ? 'text-[#D8FF00] bg-[#D8FF00]/10'
-                : 'text-lime-700 bg-lime-50';
+            return 'text-[var(--myml-accent)] bg-[var(--myml-editor-control-active)]';
         }
 
-        return isDark
-            ? 'text-neutral-300 hover:bg-neutral-800 hover:text-[#D8FF00]'
-            : 'text-neutral-700 hover:bg-neutral-100 hover:text-lime-600';
+        return 'text-[var(--myml-text-secondary)] hover:bg-[var(--myml-editor-control-hover)] hover:text-[var(--myml-text-primary)]';
     };
 
     const isModelDisabled = (model?: ImageModel) =>
@@ -157,50 +140,21 @@ export const PromptBar: React.FC<PromptBarProps> = ({
 
     const modelDropdownItemClass = (active: boolean, disabled: boolean) => {
         if (disabled) {
-            return isDark
-                ? 'text-neutral-600 bg-transparent opacity-70 cursor-not-allowed'
-                : 'text-neutral-400 bg-transparent opacity-70 cursor-not-allowed';
+            return 'text-[var(--myml-text-faint)] bg-transparent opacity-70 cursor-not-allowed';
         }
 
         return dropdownItemClass(active);
     };
 
-    const disabledModelBadgeClass = isDark
-        ? 'bg-neutral-800 text-neutral-500 border border-neutral-700'
-        : 'bg-neutral-100 text-neutral-500 border border-neutral-200';
-
-    const recommendedBadgeClass = isDark
-        ? 'bg-[#D8FF00]/12 text-[#D8FF00] border border-[#D8FF00]/20'
-        : 'bg-lime-50 text-lime-700 border border-lime-200';
-
-    const compactButtonClass = isDark
-        ? 'bg-[#1A1D1A] hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
-        : 'bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 hover:text-lime-700';
-
-    const modelButtonClass = isDark
-        ? 'text-neutral-400 hover:bg-neutral-800 hover:text-[#D8FF00] border border-neutral-800'
-        : 'text-neutral-600 hover:bg-neutral-100 hover:text-lime-700 border border-neutral-200';
-
-    const batchClass = isDark
-        ? 'bg-[#1A1D1A] border-neutral-800 text-neutral-300'
-        : 'bg-neutral-50 border-neutral-200 text-neutral-700';
-
-    const batchButtonClass = isDark
-        ? 'text-neutral-400 hover:text-[#D8FF00] disabled:text-neutral-600 disabled:hover:text-neutral-600'
-        : 'text-neutral-500 hover:text-lime-700 disabled:text-neutral-300 disabled:hover:text-neutral-300';
-
-    const generateButtonClass = isDark
-        ? 'bg-[#D8FF00] hover:bg-[#e4ff3a] text-neutral-950'
-        : 'bg-lime-600 hover:bg-lime-700 text-neutral-50';
-    const disabledGenerateClass = isDark
-        ? 'disabled:bg-neutral-800 disabled:text-neutral-500'
-        : 'disabled:bg-neutral-200 disabled:text-neutral-500';
-
-    const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-700';
-    const errorTextClass = isDark ? 'text-red-400' : 'text-red-600';
-    const inputTextClass = isDark
-        ? 'text-neutral-200 placeholder-neutral-600'
-        : 'text-neutral-900 placeholder-neutral-400';
+    const disabledModelBadgeClass = 'border border-[var(--myml-border-subtle)] bg-[var(--myml-editor-control)] text-[var(--myml-text-faint)]';
+    const recommendedBadgeClass = 'border border-[var(--myml-accent-muted)] bg-[var(--myml-accent-soft)] text-[var(--myml-accent)]';
+    const compactButtonClass = 'border border-[var(--myml-border-default)] bg-[var(--myml-editor-control)] text-[var(--myml-text-secondary)] hover:bg-[var(--myml-editor-control-hover)] hover:text-[var(--myml-accent)]';
+    const modelButtonClass = 'border border-[var(--myml-border-default)] text-[var(--myml-text-secondary)] hover:bg-[var(--myml-editor-control-hover)] hover:text-[var(--myml-accent)]';
+    const batchClass = 'border-[var(--myml-border-default)] bg-[var(--myml-editor-control)] text-[var(--myml-text-secondary)]';
+    const batchButtonClass = 'text-[var(--myml-text-muted)] hover:text-[var(--myml-accent)] disabled:text-[var(--myml-text-faint)] disabled:hover:text-[var(--myml-text-faint)]';
+    const generateButtonClass = 'bg-[var(--myml-accent)] text-[var(--myml-accent-contrast)] hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)]';
+    const disabledGenerateClass = 'disabled:bg-[var(--myml-editor-control)] disabled:text-[var(--myml-text-faint)]';
+    const accentTextClass = 'text-[var(--myml-accent)]';
     const isGenerateDisabled = isGenerating || prompt.trim().length === 0 || isModelDisabled(currentModel);
     const displayedPromptError = promptError || (prompt.trim().length === 0 ? text.emptyPrompt : '');
 
@@ -289,9 +243,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     };
 
     return (
-        <div
-            className={`pointer-events-auto flex w-full min-w-0 flex-nowrap items-center gap-2.5 rounded-xl border px-3 py-2.5 backdrop-blur-sm transition-colors duration-150 ${barClass}`}
-        >
+        <ToolGroup className="w-full min-w-0 gap-2.5 px-3 py-2.5">
             {/* Left - Model Dropdown */}
             <div className="relative shrink-0" ref={modelDropdownRef}>
                 <button
@@ -320,21 +272,14 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             </div>
 
             {/* Prompt Input - Takes remaining space */}
-            <div className="relative flex-1 min-w-0">
-                {displayedPromptError && (
-                    <div className={`absolute left-0 bottom-full mb-2 text-xs font-medium ${errorTextClass}`}>
-                        {displayedPromptError}
-                    </div>
-                )}
-                <input
+            <PromptInput
                     type="text"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder={text.promptPlaceholder}
                     aria-label={text.promptPlaceholder}
-                    className={`w-full bg-transparent text-sm outline-none focus-visible:ring-0 ${inputTextClass}`}
+                    error={displayedPromptError}
                 />
-            </div>
 
             {/* Right - Compact Controls Group */}
             <div className="flex shrink-0 items-center gap-1.5">
@@ -440,6 +385,6 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                     {isGenerating ? text.generating : text.generate}
                 </button>
             </div>
-        </div>
+        </ToolGroup>
     );
 };
