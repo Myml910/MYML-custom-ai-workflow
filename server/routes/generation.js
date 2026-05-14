@@ -14,6 +14,8 @@ import { generateHailuoVideo } from '../services/hailuo.js';
 import { generateOpenAIImage } from '../services/openai.js';
 import { generateCustomImage, generateCustomVideo } from '../services/customApi.js';
 import { generateSeedanceVideo } from '../services/seedance.js';
+import { getAiProviderConfig, isApimartImageConfigured } from '../services/ai/aiProviderConfig.js';
+import { generateImage as generateApimartImage, imageResultToBuffer, normalizeResolution, resolveApimartImageModel } from '../services/ai/providers/apimartProvider.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
@@ -29,6 +31,7 @@ router.post('/generate-image', async (req, res) => {
     try {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;
+        const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
 
         // Determine provider
@@ -41,32 +44,71 @@ router.post('/generate-image', async (req, res) => {
 
         if (isCustomImageModel) {
             // --- CUSTOM IMAGE GENERATION ---
-            if (!CUSTOM_API_BASE_URL || !CUSTOM_API_KEY) {
-                return res.status(500).json({
-                    error: "Custom API not configured. Add CUSTOM_API_BASE_URL and CUSTOM_API_KEY to .env"
-                });
-            }
-
-            console.log(`Using Custom API image model: ${imageModel}`);
-
             let resolvedImages = null;
             if (rawImageBase64) {
-                const rawImages = (Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64]).slice(0, MAX_IMAGE_REFERENCES);
+                const rawImages = Array.isArray(rawImageBase64) ? rawImageBase64 : [rawImageBase64];
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
-            console.log(`Custom image references: ${resolvedImages ? resolvedImages.length : 0}`);
+            if (isApimartImageConfigured(aiProviderConfig)) {
+                let resolvedApimartModel;
+                try {
+                    resolvedApimartModel = resolveApimartImageModel(imageModel, aiProviderConfig.apimart.imageModel);
+                } catch (error) {
+                    return res.status(400).json({ error: error.message });
+                }
 
+                const apimartSize = aspectRatio || aiProviderConfig.apimart.imageSize;
+                const apimartResolution = normalizeResolution(resolvedApimartModel, resolution || aiProviderConfig.apimart.imageResolution);
+                const referenceCount = resolvedImages ? resolvedImages.length : 0;
 
-            imageBuffer = await generateCustomImage({
-                prompt,
-                imageBase64: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
-                aspectRatio,
-                resolution,
-                modelId: imageModel,
-                apiBaseUrl: CUSTOM_API_BASE_URL,
-                apiKey: CUSTOM_API_KEY
-            });
+                console.log('[APIMart][image route]', {
+                    projectModelId: imageModel,
+                    resolvedApimartModel,
+                    referenceCount,
+                    size: apimartSize,
+                    resolution: apimartResolution
+                });
+
+                const apimartResult = await generateApimartImage({
+                    prompt,
+                    imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
+                    size: apimartSize,
+                    resolution: apimartResolution,
+                    model: resolvedApimartModel
+                }, { config: aiProviderConfig });
+
+                if (apimartResult.status !== 'completed') {
+                    throw new Error(apimartResult.error || 'APIMart image generation failed.');
+                }
+
+                imageBuffer = await imageResultToBuffer(apimartResult);
+                const mimeType = apimartResult.images?.[0]?.mimeType || '';
+                if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+                    imageFormat = 'jpg';
+                } else if (mimeType.includes('webp')) {
+                    imageFormat = 'webp';
+                }
+            } else {
+                if (!CUSTOM_API_BASE_URL || !CUSTOM_API_KEY) {
+                    return res.status(500).json({
+                        error: "Image provider not configured. Add APIMART_BASE_URL and APIMART_API_KEY, or fallback CUSTOM_API_BASE_URL and CUSTOM_API_KEY to .env"
+                    });
+                }
+
+                console.log(`Using legacy Custom API image model: ${imageModel}`);
+                console.log(`Custom image references: ${resolvedImages ? resolvedImages.length : 0}`);
+
+                imageBuffer = await generateCustomImage({
+                    prompt,
+                    imageBase64: resolvedImages && resolvedImages.length > 0 ? resolvedImages.slice(0, MAX_IMAGE_REFERENCES) : undefined,
+                    aspectRatio,
+                    resolution,
+                    modelId: imageModel,
+                    apiBaseUrl: CUSTOM_API_BASE_URL,
+                    apiKey: CUSTOM_API_KEY
+                });
+            }
 
         } else if (isKlingModel) {
             // --- KLING AI IMAGE GENERATION ---
