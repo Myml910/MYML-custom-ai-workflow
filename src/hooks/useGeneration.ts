@@ -151,7 +151,6 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             imageBase64: imageBase64s.length > 0 ? imageBase64s : undefined,
             imageModel: targetNode.imageModel,
             nodeId: targetNode.id,
-            // Kling V1.5 reference settings
             klingReferenceMode: targetNode.klingReferenceMode,
             klingFaceIntensity: targetNode.klingFaceIntensity,
             klingSubjectIntensity: targetNode.klingSubjectIntensity
@@ -319,6 +318,12 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 }
 
             } else if (node.type === NodeType.VIDEO) {
+                updateNode(id, {
+                    status: NodeStatus.ERROR,
+                    errorMessage: 'Video generation is currently disabled.'
+                });
+                return;
+
                 // Get first parent image for video generation (start frame)
                 let imageBase64: string | undefined;
                 let lastFrameBase64: string | undefined;

@@ -7,15 +7,13 @@
  */
 
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { Sparkles, Banana, Settings2, Check, ChevronDown, ChevronUp, GripVertical, Image as ImageIcon, Film, Clock, Expand, Shrink, Monitor, Crop, HardDrive, X } from 'lucide-react';
+import { Sparkles, Settings2, Check, ChevronDown, ChevronUp, GripVertical, Image as ImageIcon, Film, Clock, Expand, Shrink, Monitor, Crop, HardDrive, X } from 'lucide-react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
-import { OpenAIIcon, GoogleIcon, KlingIcon, HailuoIcon } from '../icons/BrandIcons';
-import { useFaceDetection } from '../../hooks/useFaceDetection';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { LocalModel, getLocalModels } from '../../services/localModelService';
 import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
-import { ActionRow, PanelSection, SegmentedControl, StatusDot } from '../ui';
+import { ActionRow, PanelSection, StatusDot } from '../ui';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -48,12 +46,10 @@ const IMAGE_RATIOS = [
 const MAX_IMAGE_REFERENCES = 6;
 const IMAGE_GENERATION_COUNTS = [1, 2, 3, 4] as const;
 
-const VIDEO_RESOLUTIONS = [
-    "Auto", "1080p", "768p", "720p", "512p"
-];
+const VIDEO_RESOLUTIONS = ["Auto"];
 
 // Video durations in seconds
-const VIDEO_DURATIONS = [5, 6, 8, 10];
+const VIDEO_DURATIONS = [5];
 
 // Video model versions with metadata
 // supportsTextToVideo: Can generate video from text prompt only
@@ -65,26 +61,10 @@ const VIDEO_DURATIONS = [5, 6, 8, 10];
 const VIDEO_ASPECT_RATIOS = ["16:9", "9:16"];
 
 const VIDEO_MODELS = [
-    { id: 'veo-3.1', name: 'Veo 3.1', provider: 'google', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [4, 6, 8], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'custom-video-seedance-2-0', name: 'Seedance 2.0', provider: 'custom', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '480p', '720p', '1080p'], aspectRatios: ['Auto', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21', 'keep_ratio', 'adaptive'], disabled: true, disabledReason: 'notConnected' },
-    // Kling AI models - Consolidated: removed legacy v1, v1-5, v1-6, v2-master
-    { id: 'kling-v2-1', name: 'Kling V2.1', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, recommended: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'kling-v2-1-master', name: 'Kling V2.1 Master', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'kling-v2-5-turbo', name: 'Kling V2.5 Turbo', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'kling-v2-6', name: 'Kling 2.6 (Motion)', provider: 'kling', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5, 10], resolutions: ['Auto', '720p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    // Hailuo AI (MiniMax) models - Note: API appears to only output 5s videos regardless of duration param
-    { id: 'hailuo-2.3', name: 'Hailuo 2.3', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'hailuo-2.3-fast', name: 'Hailuo 2.3 Fast', provider: 'hailuo', supportsTextToVideo: false, supportsImageToVideo: true, supportsMultiImage: false, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
-    { id: 'hailuo-02', name: 'Hailuo 02', provider: 'hailuo', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['768p', '1080p'], aspectRatios: ['16:9', '9:16'], disabled: true, disabledReason: 'notConfigured' },
+    { id: 'video-disabled', name: 'Video generation disabled', provider: 'custom', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['Auto'], aspectRatios: VIDEO_ASPECT_RATIOS, disabled: true, disabledReason: 'videoDisabled' },
 ];
 
-// Image model versions with metadata
-// supportsImageToImage: Can use a single reference image (for image-to-image transformation)
-// supportsMultiImage: Can use multiple reference images (2-4) via Multi-Image API
-// Note: Kling V1 and V2-new don't support reference images in standard API
-// Note: Kling V1.5 is the only Kling model supporting single-image reference via image_reference
-// Note: Kling V2/V2.1 only support references via Multi-Image API
-// aspectRatios: Supported aspect ratios for the model
+// Image model versions with metadata.
 const IMAGE_MODELS = [
     {
     id: 'custom-image-gpt-image-2',
@@ -97,39 +77,6 @@ const IMAGE_MODELS = [
     aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
     },
     {
-        id: 'custom-image-grok-4.2-image',
-        name: 'Grok 4.2 Image',
-        provider: 'custom',
-        supportsImageToImage: false,
-        supportsMultiImage: false,
-        resolutions: ['Auto', '2k', '4k'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
-    },
-    {
-        id: 'gpt-image-1.5',
-        name: 'GPT Image 1.5',
-        provider: 'openai',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        recommended: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ["Auto", "1K", "2K", "4K"],
-        // OpenAI uses exact pixel sizes, not aspect ratios
-        aspectRatios: ["Auto", "1024x1024", "1536x1024", "1024x1536"]
-    },
-    {
-        id: 'gemini-pro',
-        name: 'Nano Banana Pro',
-        provider: 'google',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ["1K", "2K", "4K"],
-        aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "5:4", "4:5", "21:9"]
-    },
-    {
         id: 'custom-image-nano-banana-3-1-flash',
         name: 'Nano Banana 3.1 Flash',
         provider: 'custom',
@@ -137,30 +84,6 @@ const IMAGE_MODELS = [
         supportsMultiImage: true,
         resolutions: ['Auto', '1K', '2K', '4K'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
-    },
-    // Kling AI models - Consolidated: removed legacy v1, v2, v2-new
-    {
-        id: 'kling-v1-5',
-        name: 'Kling V1.5',
-        provider: 'kling',
-        supportsImageToImage: true, // V1.5 supports image_reference for subject/face
-        supportsMultiImage: false,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ["1K", "2K"],
-        aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "21:9"]
-    },
-    {
-        id: 'kling-v2-1',
-        name: 'Kling V2.1',
-        provider: 'kling',
-        supportsImageToImage: false, // V2.1 requires Multi-Image API
-        supportsMultiImage: true,    // Use Multi-Image API with subject_image_list
-        recommended: true,
-        disabled: true,
-        disabledReason: 'notConfigured',
-        resolutions: ["1K", "2K"],
-        aspectRatios: ["Auto", "1:1", "9:16", "16:9", "3:4", "4:3", "3:2", "2:3", "21:9"]
     },
 ];
 
@@ -171,6 +94,7 @@ const getModelDisabledReason = (model?: any, language: Language = 'en') => {
     const reason = model?.disabledReason;
     if (reason === 'notConfigured') return language === 'zh' ? '\u672a\u914d\u7f6e' : 'Not configured';
     if (reason === 'notConnected') return language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected';
+    if (reason === 'videoDisabled') return 'Video generation is currently disabled.';
     if (model?.status === 'comingSoon') return language === 'zh' ? '\u5373\u5c06\u63a8\u51fa' : 'Coming soon';
     return reason || (language === 'zh' ? '\u672a\u63a5\u5165' : 'Not connected');
 };
@@ -283,33 +207,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         fetchModels();
     }, [isLocalModelNode, data.type]);
 
-    // Face detection hook for Kling V1.5 Face mode
-    const { detectFaces, isModelLoaded: isFaceModelLoaded } = useFaceDetection();
-
-    // Trigger face detection when Face mode is selected
-    useEffect(() => {
-        const runFaceDetection = async () => {
-            if (
-                data.klingReferenceMode === 'face' &&
-                data.faceDetectionStatus === 'loading' &&
-                connectedImageNodes?.[0]?.url &&
-                isFaceModelLoaded
-            ) {
-                try {
-                    const faces = await detectFaces(connectedImageNodes[0].url);
-                    onUpdate(data.id, {
-                        detectedFaces: faces,
-                        faceDetectionStatus: faces.length > 0 ? 'success' : 'error'
-                    });
-                } catch (err) {
-                    console.error('Face detection failed:', err);
-                    onUpdate(data.id, { detectedFaces: [], faceDetectionStatus: 'error' });
-                }
-            }
-        };
-        runFaceDetection();
-    }, [data.klingReferenceMode, data.faceDetectionStatus, connectedImageNodes, isFaceModelLoaded, detectFaces, onUpdate, data.id]);
-
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -349,13 +246,10 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         };
     }, []);
 
-    // Auto-open Advanced Settings when:
-    // 1. 2+ images are connected to a video node (frame-to-frame)
-    // 2. Kling 2.6 with an input image (has audio toggle)
+    // Auto-open Advanced Settings when 2+ images are connected to a video node.
     useEffect(() => {
         if (data.type === NodeType.VIDEO) {
-            const shouldAutoExpand = connectedImageNodes.length >= 2 ||
-                (data.videoModel === 'kling-v2-6' && connectedImageNodes.length > 0);
+            const shouldAutoExpand = connectedImageNodes.length >= 2;
             if (shouldAutoExpand) {
                 setShowAdvanced(true);
             }
@@ -468,13 +362,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             : (inputUrl || imageInputCount > 0) ? 'image-to-video'
                 : 'text-to-video';
 
-    // Filter video models based on mode
-    const availableVideoModels = VIDEO_MODELS.filter(model => {
-        if (videoGenerationMode === 'motion-control') return model.id === 'kling-v2-6'; // Only Kling 2.6 for now
-        if (videoGenerationMode === 'text-to-video') return model.supportsTextToVideo;
-        if (videoGenerationMode === 'image-to-video') return model.supportsImageToVideo;
-        return model.supportsMultiImage; // frame-to-frame
-    });
+    const availableVideoModels = VIDEO_MODELS;
 
     // Auto-select first available video model when current is no longer valid
     useEffect(() => {
@@ -706,18 +594,12 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const renderGenerateButton = () => {
         if (isLoading) return null;
 
-        const isFaceModeBlocked = !isVideoNode &&
-            data.imageModel === 'kling-v1-5' &&
-            data.klingReferenceMode === 'face' &&
-            (data.faceDetectionStatus === 'error' || data.faceDetectionStatus === 'loading');
         const selectedModel = isVideoNode ? currentVideoModel : currentImageModel;
         const isSelectedModelDisabled = isModelDisabled(selectedModel);
-        const isGenerateBlocked = isFaceModeBlocked || isSelectedModelDisabled;
+        const isGenerateBlocked = isSelectedModelDisabled;
         const generateTitle = isSelectedModelDisabled
             ? getModelDisabledReason(selectedModel, language)
-            : isFaceModeBlocked
-                ? t(language, 'cannotGenerateNoFace')
-                : t(language, 'generate');
+            : t(language, 'generate');
 
         return (
             <button
@@ -748,7 +630,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         : language === 'zh' ? '图像生成控制' : 'Image Controls';
     const promptSectionTitle = language === 'zh' ? '提示词' : 'Prompt';
     const modelSectionTitle = language === 'zh' ? '模型与输出' : 'Model & Output';
-    const referenceSectionTitle = language === 'zh' ? '参考设置' : 'Reference Settings';
     const advancedSectionTitle = language === 'zh' ? '高级设置' : 'Advanced';
 
     const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
@@ -870,11 +751,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         <textarea
                             className={`w-full bg-transparent text-sm outline-none resize-none font-normal leading-5 ${isDark ? 'text-[var(--myml-text-primary)] placeholder:text-[var(--myml-text-faint)]' : 'text-neutral-900 placeholder-neutral-400'}`}
                             placeholder={
-                                data.type === NodeType.VIDEO && isFrameToFrame && currentVideoModel.provider === 'kling'
-                                    ? t(language, 'promptOptionalKlingFrame')
-                                    : data.type === NodeType.VIDEO && inputUrl
-                                        ? t(language, 'describeAnimateFrame')
-                                        : t(language, 'describeGeneratePrompt')
+                                data.type === NodeType.VIDEO && inputUrl
+                                    ? t(language, 'describeAnimateFrame')
+                                    : t(language, 'describeGeneratePrompt')
                             }
                             rows={data.isPromptExpanded ? 12 : 4}
                             value={localPrompt}
@@ -987,13 +866,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     onClick={() => setShowModelDropdown(!showModelDropdown)}
                                     className={selectorButtonClass}
                                 >
-                                    {currentVideoModel.id === 'veo-3.1' ? (
-                                        <GoogleIcon size={12} className="text-white" />
-                                    ) : currentVideoModel.provider === 'kling' ? (
-                                        <KlingIcon size={14} />
-                                    ) : (
-                                        <Film size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
-                                    )}
+                                    <Film size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                                     <span className="font-medium">{currentVideoModel.name}</span>
                                     <ChevronDown size={12} className="ml-0.5 opacity-50" />
                                 </button>
@@ -1037,87 +910,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             </>
                                         )}
 
-                                        {/* Google Models */}
-                                        {availableVideoModels.filter(m => m.provider === 'google').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
-                                                    Google
-                                                </div>
-                                                {availableVideoModels.filter(m => m.provider === 'google').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            {model.id === 'veo-3.1' ? (
-                                                                <GoogleIcon size={12} className="text-white" />
-                                                            ) : (
-                                                                <Film size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
-                                                            )}
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                        </span>
-                                                        {currentVideoModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        {/* Kling Models */}
-                                        {availableVideoModels.filter(m => m.provider === 'kling').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
-                                                    Kling AI
-                                                </div>
-                                                {availableVideoModels.filter(m => m.provider === 'kling').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            <KlingIcon size={14} />
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                            {model.recommended && (
-                                                                <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
-                                                            )}
-                                                        </span>
-                                                        {currentVideoModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        {/* Hailuo Models */}
-                                        {availableVideoModels.filter(m => m.provider === 'hailuo').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
-                                                    Hailuo AI
-                                                </div>
-                                                {availableVideoModels.filter(m => m.provider === 'hailuo').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleVideoModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentVideoModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            <HailuoIcon size={14} />
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                        </span>
-                                                        {currentVideoModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1127,17 +919,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                     onClick={() => setShowModelDropdown(!showModelDropdown)}
                                     className={selectorButtonClass}
                                 >
-                                    {currentImageModel.id === 'google-veo' ? ( // Keeping consistency if there was one, but mainly checking provider
-                                        <GoogleIcon size={12} className="text-white" />
-                                    ) : currentImageModel.id === 'gemini-pro' ? (
-                                        <Banana size={12} className="text-yellow-400" />
-                                    ) : currentImageModel.provider === 'openai' ? (
-                                        <OpenAIIcon size={12} className="text-green-400" />
-                                    ) : currentImageModel.provider === 'kling' ? (
-                                        <KlingIcon size={14} />
-                                    ) : (
-                                        <ImageIcon size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
-                                    )}
+                                    <ImageIcon size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
                                     <span className="font-medium">{currentImageModel.name}</span>
                                     <ChevronDown size={12} className="ml-0.5 opacity-50" />
                                 </button>
@@ -1170,90 +952,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                     >
                                                         <span className="flex items-center gap-2 min-w-0">
                                                             <ImageIcon size={12} className="text-[#D8FF00]" />
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                            {model.recommended && (
-                                                                <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
-                                                            )}
-                                                        </span>
-                                                        {currentImageModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        {/* OpenAI Models */}
-                                        {availableImageModels.filter(m => m.provider === 'openai').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
-                                                    OpenAI
-                                                </div>
-                                                {availableImageModels.filter(m => m.provider === 'openai').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            <OpenAIIcon size={12} className="text-green-400" />
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                            {model.recommended && (
-                                                                <span className="text-[9px] px-1 py-0.5 bg-green-600/30 text-green-400 rounded">REC</span>
-                                                            )}
-                                                        </span>
-                                                        {currentImageModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-                                        {/* Google Models */}
-                                        {availableImageModels.filter(m => m.provider === 'google').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
-                                                    Google
-                                                </div>
-                                                {availableImageModels.filter(m => m.provider === 'google').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            {model.id === 'gemini-pro' ? (
-                                                                <Banana size={12} className="text-yellow-400" />
-                                                            ) : (
-                                                                <GoogleIcon size={12} className="text-white" />
-                                                            )}
-                                                            <span className="truncate">{model.name}</span>
-                                                            {renderDisabledModelBadge(model)}
-                                                        </span>
-                                                        {currentImageModel.id === model.id && <Check size={12} />}
-                                                    </button>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        {/* Kling Models */}
-                                        {availableImageModels.filter(m => m.provider === 'kling').length > 0 && (
-                                            <>
-                                                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] border-t ${dropdownSectionHeaderClass}`}>
-                                                    Kling AI
-                                                </div>
-                                                {availableImageModels.filter(m => m.provider === 'kling').map(model => (
-                                                    <button
-                                                        key={model.id}
-                                                        disabled={isModelDisabled(model)}
-                                                        title={isModelDisabled(model) ? getModelDisabledReason(model, language) : undefined}
-                                                        onClick={() => handleImageModelChange(model.id)}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${modelDropdownItemClass(currentImageModel.id === model.id, isModelDisabled(model))}`}
-                                                    >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            <KlingIcon size={14} />
                                                             <span className="truncate">{model.name}</span>
                                                             {renderDisabledModelBadge(model)}
                                                             {model.recommended && (
@@ -1456,164 +1154,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                 </PanelSection>
             )}
 
-            {/* Kling V1.5 Reference Settings - For Image nodes with connected input */}
-            {!isVideoNode && data.imageModel === 'kling-v1-5' && connectedImageNodes.length > 0 && (
-                <div className="myml-section mt-2 p-3">
-                    <div className="mb-2 text-[11px] font-semibold leading-none text-[var(--myml-text-muted)]">{referenceSectionTitle}</div>
-
-                    {/* Mode Tabs */}
-                    <SegmentedControl className="mb-3 flex w-full">
-                        <button
-                            onClick={() => onUpdate(data.id, { klingReferenceMode: 'subject', detectedFaces: undefined, faceDetectionStatus: undefined })}
-                            className={`flex-1 rounded-[var(--myml-radius-control)] px-3 py-1.5 text-xs transition-colors ${(data.klingReferenceMode || 'subject') === 'subject'
-                                ? 'bg-[var(--myml-surface-selected)] text-[var(--myml-accent)] font-medium'
-                                : 'text-[var(--myml-text-muted)] hover:text-[var(--myml-text-primary)] hover:bg-[var(--myml-surface-hover)]'
-                                }`}
-                        >
-                            {t(language, 'subject')}
-                        </button>
-                        <button
-                            onClick={() => {
-                                // Just switch mode, face detection will be triggered by effect
-                                onUpdate(data.id, { klingReferenceMode: 'face', faceDetectionStatus: 'loading', detectedFaces: undefined });
-                            }}
-                            className={`flex-1 rounded-[var(--myml-radius-control)] px-3 py-1.5 text-xs transition-colors ${data.klingReferenceMode === 'face'
-                                ? 'bg-[var(--myml-surface-selected)] text-[var(--myml-accent)] font-medium'
-                                : 'text-[var(--myml-text-muted)] hover:text-[var(--myml-text-primary)] hover:bg-[var(--myml-surface-hover)]'
-                                }`}
-                        >
-                            {t(language, 'face')}
-                        </button>
-                    </SegmentedControl>
-
-                    {/* Reference Image Preview with Face Detection Overlay */}
-                    {connectedImageNodes[0]?.url && (
-                        <div className="mb-3">
-                            {/* Main image with face highlight */}
-                            <div className="rounded-lg overflow-hidden bg-black relative flex items-center justify-center" style={{ maxHeight: '200px' }}>
-                                <div className="relative">
-                                    <img
-                                        src={connectedImageNodes[0].url}
-                                        alt={t(language, 'reference')}
-                                        className="max-h-[200px] w-auto h-auto block object-contain"
-                                    />
-                                    {/* Face detection corner brackets - Kling style */}
-                                    {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && data.detectedFaces && data.detectedFaces.length > 0 && (
-                                        <>
-                                            {data.detectedFaces.map((face, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="absolute pointer-events-none"
-                                                    style={{
-                                                        left: `${face.x}%`,
-                                                        top: `${face.y}%`,
-                                                        width: `${face.width}%`,
-                                                        height: `${face.height}%`,
-                                                    }}
-                                                >
-                                                    {/* Corner brackets - larger with glow */}
-                                                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-2 border-l-2 border-green-400/80 rounded-tl-lg" />
-                                                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-2 border-r-2 border-green-400/80 rounded-tr-lg" />
-                                                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-2 border-l-2 border-green-400/80 rounded-bl-lg" />
-                                                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-2 border-r-2 border-green-400/80 rounded-br-lg" />
-                                                </div>
-                                            ))}
-                                        </>
-                                    )}
-                                    {/* Loading indicator */}
-                                    {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'loading' && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                            <div className="text-xs text-white">{t(language, 'detectingFaces')}</div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Face thumbnail below - Kling style */}
-                            {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && data.detectedFaces && data.detectedFaces.length > 0 && (
-                                <div className="flex justify-center mt-3">
-                                <div className="w-14 h-14 rounded-lg border border-green-400/70 overflow-hidden bg-black">
-                                        <img
-                                            src={connectedImageNodes[0].url}
-                                            alt={t(language, 'detectedFace')}
-                                            className="w-full h-full object-cover"
-                                            style={{
-                                                objectPosition: `${data.detectedFaces[0].x + data.detectedFaces[0].width / 2}% ${data.detectedFaces[0].y + data.detectedFaces[0].height / 2}%`,
-                                                transform: `scale(${100 / Math.max(data.detectedFaces[0].width, data.detectedFaces[0].height) * 0.8})`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* No Face Detected Warning */}
-                    {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'error' && (
-                        <div className="mb-3 p-2 bg-amber-900/20 border border-amber-700/50 rounded-lg">
-                            <div className="flex items-start gap-2 text-amber-400 text-xs">
-                                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                <span>{t(language, 'noFaceDetectedClearer')}</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Subject Mode: Show BOTH Face Reference and Subject Reference sliders */}
-                    {(data.klingReferenceMode || 'subject') === 'subject' && (
-                        <>
-                            <div className="space-y-1 mb-3">
-                                <div className="flex justify-between text-[10px]">
-                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'faceReference')}</span>
-                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 65}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value={data.klingFaceIntensity ?? 65}
-                                    onChange={(e) => onUpdate(data.id, { klingFaceIntensity: parseInt(e.target.value) })}
-                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-[10px]">
-                                    <span className="text-[var(--myml-text-muted)]">{t(language, 'subjectReference')}</span>
-                                    <span className="text-[var(--myml-text-primary)] font-medium">{data.klingSubjectIntensity ?? 50}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value={data.klingSubjectIntensity ?? 50}
-                                    onChange={(e) => onUpdate(data.id, { klingSubjectIntensity: parseInt(e.target.value) })}
-                                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-                                />
-                            </div>
-                        </>
-                    )}
-
-                    {/* Face Mode: Show single Reference Strength slider */}
-                    {data.klingReferenceMode === 'face' && data.faceDetectionStatus === 'success' && (
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-[10px]">
-                                <span className="text-[var(--myml-text-muted)]">{t(language, 'referenceStrength')}</span>
-                                <span className="text-[var(--myml-text-primary)] font-medium">{data.klingFaceIntensity ?? 42}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={data.klingFaceIntensity ?? 42}
-                                onChange={(e) => onUpdate(data.id, { klingFaceIntensity: parseInt(e.target.value) })}
-                                className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-neutral-100 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
             {/* Advanced Settings Drawer - Only for Video nodes */}
             {
                 isVideoNode && (
@@ -1637,26 +1177,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         {/* Advanced Settings Content - Only for Video nodes */}
                         {showAdvanced && isVideoNode && (
                             <div id="node-controls-advanced-settings" className="mt-3 space-y-3 rounded-[var(--myml-radius-card)] border border-[var(--myml-border-subtle)] bg-[var(--myml-surface-base)] p-3">
-                                {/* Audio Toggle - Only for Kling 2.6 (Veo 3.1 SDK doesn't support generateAudio yet) */}
-                                {data.videoModel === 'kling-v2-6' && (
-                                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[var(--myml-surface-raised)] rounded-lg border border-[var(--myml-border-subtle)] w-fit">
-                                        <svg className={`w-3.5 h-3.5 ${isDark ? 'text-[#D8FF00]' : 'text-lime-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                                        </svg>
-                                        <span className="text-[11px] text-[var(--myml-text-secondary)]">{t(language, 'audio')}</span>
-                                        <button
-                                            onClick={() => onUpdate(data.id, { generateAudio: !(data.generateAudio !== false) })}
-                                            aria-label={data.generateAudio !== false ? t(language, 'disableAudioGeneration') : t(language, 'enableAudioGeneration')}
-                                            aria-pressed={data.generateAudio !== false}
-                                            className={`relative w-8 h-4 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 ${data.generateAudio !== false ? 'bg-[#D8FF00]' : 'bg-neutral-700'}`}
-                                        >
-                                            <span
-                                                className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform ${data.generateAudio !== false ? 'left-4 bg-black' : 'left-0.5 bg-neutral-300'}`}
-                                            />
-                                        </button>
-                                    </div>
-                                )}
-
                                 {/* Frame Inputs - Show when 2+ nodes are connected */}
                                 {connectedImageNodes.length >= 2 && (
                                     <div className="space-y-2">

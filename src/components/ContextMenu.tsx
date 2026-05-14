@@ -14,8 +14,7 @@ import {
   Copy,
   Files,
   Layers,
-  ChevronRight,
-  HardDrive
+  ChevronRight
 } from 'lucide-react';
 import { ContextMenuState, NodeType } from '../types';
 import { Language, t } from '../i18n/translations';
@@ -340,33 +339,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           />
         )}
 
-        <Divider canvasTheme={canvasTheme} className="my-2 mx-2" />
-
-        <div
-          className={`px-2 py-1 text-xs font-medium ${
-            isDark ? 'text-neutral-500' : 'text-neutral-400'
-          }`}
-        >
-          {t(language, 'localModels')}
-        </div>
-
-        <MenuItem
-          icon={<HardDrive size={18} />}
-          label={t(language, 'localImageModel')}
-          desc={t(language, 'localImageModelDesc')}
-          badge={t(language, 'newBadge')}
-          onClick={() => onSelectType(NodeType.LOCAL_IMAGE_MODEL)}
-          canvasTheme={canvasTheme}
-        />
-
-        <MenuItem
-          icon={<HardDrive size={18} />}
-          label={t(language, 'localVideoModel')}
-          desc={t(language, 'localVideoModelDesc')}
-          badge={t(language, 'newBadge')}
-          onClick={() => onSelectType(NodeType.LOCAL_VIDEO_MODEL)}
-          canvasTheme={canvasTheme}
-        />
       </div>
     </div>
   );

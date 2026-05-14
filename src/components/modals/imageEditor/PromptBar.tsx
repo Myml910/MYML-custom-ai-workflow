@@ -6,9 +6,8 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ChevronDown, Check, Banana, Image as ImageIcon, Crop, Monitor } from 'lucide-react';
+import { ChevronDown, Check, Image as ImageIcon, Crop, Monitor } from 'lucide-react';
 import { ImageModel, IMAGE_MODELS } from './imageEditor.types';
-import { OpenAIIcon, KlingIcon } from '../../icons/BrandIcons';
 import { t, type Language } from '../../../i18n/translations';
 import { PromptInput, ToolGroup } from '../../ui';
 
@@ -178,18 +177,6 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     }, [setShowModelDropdown, setShowAspectDropdown, setShowResolutionDropdown]);
 
     const renderProviderIcon = (model: ImageModel, size = 11) => {
-        if (model.provider === 'google') {
-            return <Banana size={size} className="text-amber-400" />;
-        }
-
-        if (model.provider === 'openai') {
-            return <OpenAIIcon size={size} className="text-emerald-400" />;
-        }
-
-        if (model.provider === 'kling') {
-            return <KlingIcon size={size + 3} />;
-        }
-
         return <ImageIcon size={size} className="text-neutral-400" />;
     };
 
@@ -263,10 +250,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                             {hasInputImage ? text.imageToImage : text.textToImage}
                         </div>
 
-                        {renderModelGroup('custom', 'Custom')}
-                        {renderModelGroup('openai', 'OpenAI', true)}
-                        {renderModelGroup('google', 'Google', true)}
-                        {renderModelGroup('kling', 'Kling AI', true)}
+                        {renderModelGroup('custom', 'MYML')}
                     </div>
                 )}
             </div>

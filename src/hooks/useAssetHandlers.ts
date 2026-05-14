@@ -96,9 +96,9 @@ export const useAssetHandlers = ({
                 status: NodeStatus.SUCCESS,
                 resultUrl: url,
                 resultAspectRatio,
-                model: isVideo ? 'veo-3.1' : 'custom-image-gpt-image-2',
+                model: isVideo ? 'video-disabled' : 'custom-image-gpt-image-2',
                 imageModel: !isVideo ? 'custom-image-gpt-image-2' : undefined,
-                videoModel: isVideo ? 'veo-3.1' : undefined,
+                videoModel: isVideo ? 'video-disabled' : undefined,
                 aspectRatio: aspectRatio || '1:1',
                 resolution: isVideo ? 'Auto' : '2k'
             };

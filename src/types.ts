@@ -42,9 +42,9 @@ export interface NodeData {
   // Video node specific
   videoMode?: 'standard' | 'frame-to-frame' | 'motion-control'; // Video generation mode
   frameInputs?: { nodeId: string; order: 'start' | 'end' }[]; // For frame-to-frame: connected image nodes
-  videoModel?: string; // Video model version (e.g., 'veo-3.1', 'kling-v2-1')
+  videoModel?: string; // Video model id
   videoDuration?: number; // Video duration in seconds (e.g., 5, 6, 8, 10)
-  generateAudio?: boolean; // Whether to generate native audio (Kling 2.6, Veo 3.1)
+  generateAudio?: boolean; // Whether to generate native audio when supported
   inputUrl?: string; // Input URL for video generation (image-to-video)
 
   // Video Editor specific
@@ -53,7 +53,7 @@ export interface NodeData {
 
   // Settings
   model: string;
-  imageModel?: string; // Image model version (e.g., 'gemini-pro', 'kling-v2')
+  imageModel?: string; // Project image model id
   aspectRatio: string;
   resolution: string;
   isPromptExpanded?: boolean; // Whether the prompt editing area is expanded
@@ -61,7 +61,7 @@ export interface NodeData {
   generationStartTime?: number; // Timestamp when generation started (for recovery race condition prevention)
   generationCount?: number; // Number of image variants to generate for Image nodes
 
-  // Kling V1.5 Image Reference Settings
+  // Legacy image reference settings retained for historical workflow compatibility
   klingReferenceMode?: 'subject' | 'face'; // Reference type for image-to-image
   klingFaceIntensity?: number; // Face reference intensity (0-100)
   klingSubjectIntensity?: number; // Subject reference intensity (0-100)

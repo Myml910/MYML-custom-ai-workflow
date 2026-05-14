@@ -2,9 +2,9 @@
  * generationService.ts
  * 
  * Frontend service layer for AI content generation.
- * Proxies requests to backend API which handles multiple providers:
- * - Image: Gemini Pro, Kling AI
- * - Video: Veo 3.1, Kling AI
+ * Proxies requests to backend API.
+ * - Image: verified APIMart image models
+ * - Video: currently disabled
  */
 
 export interface GenerateImageParams {
@@ -12,7 +12,7 @@ export interface GenerateImageParams {
   aspectRatio?: string;
   resolution?: string;
   imageBase64?: string | string[]; // Supports single image or array of images
-  imageModel?: string; // Image model version (e.g., 'gemini-pro', 'kling-v2')
+  imageModel?: string; // Project image model id
   nodeId?: string; // ID of the node initiating generation
   // Kling V1.5 reference settings
   klingReferenceMode?: 'subject' | 'face';
@@ -27,9 +27,9 @@ export interface GenerateVideoParams {
   aspectRatio?: string;
   resolution?: string; // Add resolution to params
   duration?: number; // Video duration in seconds (e.g., 5, 6, 8, 10)
-  videoModel?: string; // Video model version (e.g., 'veo-3.1', 'kling-v2-1')
-  motionReferenceUrl?: string; // For Kling 2.6 motion control
-  generateAudio?: boolean; // For Kling 2.6 and Veo 3.1 native audio (default: true)
+  videoModel?: string; // Video model id
+  motionReferenceUrl?: string; // For motion reference workflows
+  generateAudio?: boolean;
   nodeId?: string; // ID of the node initiating generation
 }
 

@@ -515,7 +515,7 @@ function CanvasApp({
       y: data.y || 0,
       prompt: data.prompt || '',
       status: data.status || NodeStatus.IDLE,
-      model: data.model || 'gpt-image-1.5',
+      model: data.model || 'custom-image-gpt-image-2',
       imageModel: data.imageModel,
       aspectRatio: data.aspectRatio || '16:9',
       resolution: data.resolution || '1K',
@@ -969,7 +969,7 @@ function CanvasApp({
     const createNode = (resultAspectRatio?: string, aspectRatio?: string) => {
       const isVideo = type === 'videos';
       // Use the original model from asset metadata, or fall back to defaults
-      const defaultModel = isVideo ? 'veo-3.1' : 'custom-image-gpt-image-2';
+      const defaultModel = isVideo ? 'video-disabled' : 'custom-image-gpt-image-2';
       const nodeModel = model || defaultModel;
 
       const newNode: NodeData = {
