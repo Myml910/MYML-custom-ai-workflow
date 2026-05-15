@@ -13,7 +13,7 @@ import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
-import { getDatabasePath, getDb } from './db/index.js';
+import { getDatabaseLabel, getDb } from './db/index.js';
 import { runMigrations } from './db/migrations.js';
 import { seedInitialAdmin, seedInternalTestUsers } from './db/users.js';
 import {
@@ -53,10 +53,10 @@ const HOST = process.env.HOST || '127.0.0.1';
 
 try {
     const db = getDb();
-    runMigrations(db);
+    await runMigrations(db);
     await seedInitialAdmin();
     await seedInternalTestUsers();
-    console.log(`[DB] SQLite ready: ${getDatabasePath()}`);
+    console.log(`[DB] PostgreSQL ready: ${getDatabaseLabel()}`);
 } catch (error) {
     console.error('[DB] Failed to initialize database:', error.message);
     process.exit(1);

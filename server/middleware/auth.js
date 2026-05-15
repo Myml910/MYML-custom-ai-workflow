@@ -112,25 +112,29 @@ export function getAuthCookieOptions() {
     };
 }
 
-export function requireAuth(req, res, next) {
-    const tokenUser = getAuthUser(req);
+export async function requireAuth(req, res, next) {
+    try {
+        const tokenUser = getAuthUser(req);
 
-    if (!tokenUser?.id) {
-        return res.status(401).json({ error: 'Authentication required' });
+        if (!tokenUser?.id) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const userRow = await findUserById(tokenUser.id);
+        if (!userRow) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        if (userRow.status !== 'active') {
+            return res.status(403).json({ error: 'User is disabled' });
+        }
+
+        const user = getPublicUserFromRow(userRow);
+        req.user = user;
+        return next();
+    } catch (error) {
+        return next(error);
     }
-
-    const userRow = findUserById(tokenUser.id);
-    if (!userRow) {
-        return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    if (userRow.status !== 'active') {
-        return res.status(403).json({ error: 'User is disabled' });
-    }
-
-    const user = getPublicUserFromRow(userRow);
-    req.user = user;
-    return next();
 }
 
 export function requireRole(...roles) {
