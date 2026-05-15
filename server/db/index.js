@@ -11,7 +11,7 @@ function getSslConfig() {
         return undefined;
     }
 
-    return { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED === 'true' };
+    return { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false' };
 }
 
 function readEnv(...names) {

@@ -10,7 +10,7 @@ try {
     const db = getDb();
     await runMigrations(db);
 
-    const results = await seedInternalTestUsers();
+    const results = await seedInternalTestUsers({ force: true });
     for (const result of results) {
         ensureUserLibraryDirs(result.user);
         const action = result.created ? 'created' : 'exists';

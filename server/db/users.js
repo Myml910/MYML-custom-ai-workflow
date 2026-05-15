@@ -124,8 +124,10 @@ export async function seedInitialAdmin() {
     return { seeded: true, user };
 }
 
-export async function seedInternalTestUsers() {
-    if (process.env.MYML_SEED_INTERNAL_USERS !== 'true') {
+export async function seedInternalTestUsers(options = {}) {
+    const shouldSeed = options.force === true || process.env.MYML_SEED_INTERNAL_USERS === 'true';
+    if (!shouldSeed) {
+        console.log('[Auth] Skipped internal group user seeding. Set MYML_SEED_INTERNAL_USERS=true to enable it during server startup.');
         return [];
     }
 
@@ -149,7 +151,7 @@ export async function seedInternalTestUsers() {
     const results = [];
     for (const user of users) {
         if (!user.username || !user.password) {
-            throw new Error(`MYML_SEED_INTERNAL_USERS=true but ${user.label} username/password is not fully configured.`);
+            throw new Error(`Internal group user seeding requested but ${user.label} username/password is not fully configured.`);
         }
 
         results.push(await createUserIfMissing(user));
