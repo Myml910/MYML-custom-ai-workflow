@@ -150,8 +150,20 @@ export async function seedInternalTestUsers(options = {}) {
 
     const results = [];
     for (const user of users) {
-        if (!user.username || !user.password) {
-            throw new Error(`Internal group user seeding requested but ${user.label} username/password is not fully configured.`);
+        if (!user.username) {
+            throw new Error(`Internal group user seeding requested but ${user.label} username is not configured.`);
+        }
+
+        const existing = await findUserByUsername(user.username);
+        if (existing) {
+            const publicUser = toPublicUser(existing);
+            console.log(`[Auth] Internal group user exists: ${publicUser.username}`);
+            results.push({ created: false, user: publicUser });
+            continue;
+        }
+
+        if (!user.password) {
+            throw new Error(`Internal group user seeding requested but ${user.label} password is not configured.`);
         }
 
         results.push(await createUserIfMissing(user));
