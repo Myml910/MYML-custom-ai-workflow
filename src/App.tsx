@@ -220,6 +220,7 @@ function CanvasApp({
     setViewport,
     canvasRef,
     handleWheel: baseHandleWheel,
+    handleZoomWheel,
     handleSliderZoom
   } = useCanvasNavigation();
 
@@ -1036,20 +1037,25 @@ function CanvasApp({
   // EFFECTS
   // ============================================================================
 
-  // Prevent default zoom behavior
+  // Prevent browser zoom and route Ctrl/Cmd + wheel to the canvas zoom logic.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const handleNativeWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-      }
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (isModalBlockingSpacePan) return;
+      if (isEditableElement(e.target instanceof Element ? e.target : null)) return;
+
+      const hoveredNode = canvasHoveredNodeId ? nodes.find(n => n.id === canvasHoveredNodeId) : undefined;
+      handleZoomWheel(e, hoveredNode);
+      e.stopPropagation();
     };
 
-    canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => canvas.removeEventListener('wheel', handleNativeWheel);
-  }, []);
+    const listenerOptions = { passive: false, capture: true } as const;
+    canvas.addEventListener('wheel', handleNativeWheel, listenerOptions);
+    return () => canvas.removeEventListener('wheel', handleNativeWheel, listenerOptions);
+  }, [canvasRef, canvasHoveredNodeId, handleZoomWheel, isModalBlockingSpacePan, nodes]);
 
   // Keyboard shortcuts (handleCopy, handlePaste, handleDuplicate) provided by useKeyboardShortcuts hook
 
