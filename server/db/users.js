@@ -125,16 +125,22 @@ export async function seedInitialAdmin() {
 }
 
 export async function seedInternalTestUsers() {
+    if (process.env.MYML_SEED_INTERNAL_USERS !== 'true') {
+        return [];
+    }
+
     const users = [
         {
-            username: process.env.MYML_GROUP1_USERNAME || 'group1.design@yxfa.cn',
-            password: process.env.MYML_GROUP1_PASSWORD || 'MymlGroup1@2026',
+            label: 'group1',
+            username: process.env.MYML_GROUP1_USERNAME,
+            password: process.env.MYML_GROUP1_PASSWORD,
             role: 'user',
             status: 'active'
         },
         {
-            username: process.env.MYML_GROUP2_USERNAME || 'group2.design@yxfa.cn',
-            password: process.env.MYML_GROUP2_PASSWORD || 'MymlGroup2@2026',
+            label: 'group2',
+            username: process.env.MYML_GROUP2_USERNAME,
+            password: process.env.MYML_GROUP2_PASSWORD,
             role: 'user',
             status: 'active'
         }
@@ -142,6 +148,10 @@ export async function seedInternalTestUsers() {
 
     const results = [];
     for (const user of users) {
+        if (!user.username || !user.password) {
+            throw new Error(`MYML_SEED_INTERNAL_USERS=true but ${user.label} username/password is not fully configured.`);
+        }
+
         results.push(await createUserIfMissing(user));
     }
 

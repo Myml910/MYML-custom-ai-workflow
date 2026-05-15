@@ -79,17 +79,28 @@ app.use(express.json({ limit: '100mb' }));
 // Application authentication routes must stay public.
 app.use('/api/auth', authRoutes);
 
-// Protect core app APIs while leaving third-party OAuth callbacks untouched.
-app.use('/api', (req, res, next) => {
-    if (req.path.startsWith('/twitter/callback') || req.path.startsWith('/tiktok-post/callback')) {
-        return next();
+function isPublicOAuthCallback(req) {
+    return req.path.startsWith('/twitter/callback') || req.path.startsWith('/tiktok-post/callback');
+}
+
+const protectedApiAuth = express.Router();
+
+protectedApiAuth.use((req, _res, next) => {
+    if (isPublicOAuthCallback(req)) {
+        return next('router');
     }
 
-    return requireAuth(req, res, () => {
-        req.library = ensureUserLibraryDirs(req.user);
-        return next();
-    });
+    return next();
 });
+
+protectedApiAuth.use(requireAuth);
+protectedApiAuth.use((req, _res, next) => {
+    req.library = ensureUserLibraryDirs(req.user);
+    return next();
+});
+
+// Protect core app APIs while leaving third-party OAuth callbacks untouched.
+app.use('/api', protectedApiAuth);
 
 // Serve library assets only to the owning authenticated user.
 app.use('/library', requireAuth, (req, res, next) => {
