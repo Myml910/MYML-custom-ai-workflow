@@ -16,33 +16,37 @@ function toPublicUser(row) {
     };
 }
 
-export function countUsers() {
+const USER_SELECT = `
+    SELECT id, username, password_hash, role, status, created_at, updated_at
+    FROM users
+`;
+
+export async function countUsers() {
     const db = getDb();
-    return db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+    const result = await db.query('SELECT COUNT(*)::int AS count FROM users');
+    return result.rows[0]?.count || 0;
 }
 
-export function findUserById(id) {
+export async function findUserById(id) {
     const db = getDb();
-    const row = db.prepare(`
-        SELECT id, username, password_hash, role, status, created_at, updated_at
-        FROM users
-        WHERE id = ?
+    const result = await db.query(`
+        ${USER_SELECT}
+        WHERE id = $1
         LIMIT 1
-    `).get(id);
+    `, [id]);
 
-    return row || null;
+    return result.rows[0] || null;
 }
 
-export function findUserByUsername(username) {
+export async function findUserByUsername(username) {
     const db = getDb();
-    const row = db.prepare(`
-        SELECT id, username, password_hash, role, status, created_at, updated_at
-        FROM users
-        WHERE username = ?
+    const result = await db.query(`
+        ${USER_SELECT}
+        WHERE username = $1
         LIMIT 1
-    `).get(username);
+    `, [username]);
 
-    return row || null;
+    return result.rows[0] || null;
 }
 
 export async function createUser({ username, password, role = 'designer', status = 'active' }) {
@@ -50,26 +54,35 @@ export async function createUser({ username, password, role = 'designer', status
     const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
 
-    db.prepare(`
+    const result = await db.query(`
         INSERT INTO users (id, username, password_hash, role, status)
-        VALUES (?, ?, ?, ?, ?)
-    `).run(id, username, passwordHash, role, status);
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, username, password_hash, role, status, created_at, updated_at
+    `, [id, username, passwordHash, role, status]);
 
-    return getPublicUserById(id);
+    return toPublicUser(result.rows[0]);
 }
 
 export async function createUserIfMissing({ username, password, role = 'designer', status = 'active' }) {
-    const existing = findUserByUsername(username);
+    const existing = await findUserByUsername(username);
     if (existing) {
         return { created: false, user: toPublicUser(existing) };
     }
 
-    const user = await createUser({ username, password, role, status });
-    return { created: true, user };
+    try {
+        const user = await createUser({ username, password, role, status });
+        return { created: true, user };
+    } catch (error) {
+        if (error?.code === '23505') {
+            const user = await findUserByUsername(username);
+            return { created: false, user: toPublicUser(user) };
+        }
+        throw error;
+    }
 }
 
-export function getPublicUserById(id) {
-    return toPublicUser(findUserById(id));
+export async function getPublicUserById(id) {
+    return toPublicUser(await findUserById(id));
 }
 
 export function getPublicUserFromRow(row) {
@@ -89,7 +102,7 @@ export async function seedInitialAdmin() {
         console.warn('[Auth] MYML_ADMIN_USERNAME/MYML_ADMIN_PASSWORD are deprecated. Use MYML_SEED_ADMIN_USERNAME/MYML_SEED_ADMIN_PASSWORD for initial user seeding.');
     }
 
-    if (countUsers() > 0) {
+    if (await countUsers() > 0) {
         return { seeded: false, reason: 'users_exist' };
     }
 
@@ -111,17 +124,25 @@ export async function seedInitialAdmin() {
     return { seeded: true, user };
 }
 
-export async function seedInternalTestUsers() {
+export async function seedInternalTestUsers(options = {}) {
+    const shouldSeed = options.force === true || process.env.MYML_SEED_INTERNAL_USERS === 'true';
+    if (!shouldSeed) {
+        console.log('[Auth] Skipped internal group user seeding. Set MYML_SEED_INTERNAL_USERS=true to enable it during server startup.');
+        return [];
+    }
+
     const users = [
         {
-            username: process.env.MYML_GROUP1_USERNAME || 'group1.design@yxfa.cn',
-            password: process.env.MYML_GROUP1_PASSWORD || 'MymlGroup1@2026',
+            label: 'group1',
+            username: process.env.MYML_GROUP1_USERNAME,
+            password: process.env.MYML_GROUP1_PASSWORD,
             role: 'user',
             status: 'active'
         },
         {
-            username: process.env.MYML_GROUP2_USERNAME || 'group2.design@yxfa.cn',
-            password: process.env.MYML_GROUP2_PASSWORD || 'MymlGroup2@2026',
+            label: 'group2',
+            username: process.env.MYML_GROUP2_USERNAME,
+            password: process.env.MYML_GROUP2_PASSWORD,
             role: 'user',
             status: 'active'
         }
@@ -129,6 +150,22 @@ export async function seedInternalTestUsers() {
 
     const results = [];
     for (const user of users) {
+        if (!user.username) {
+            throw new Error(`Internal group user seeding requested but ${user.label} username is not configured.`);
+        }
+
+        const existing = await findUserByUsername(user.username);
+        if (existing) {
+            const publicUser = toPublicUser(existing);
+            console.log(`[Auth] Internal group user exists: ${publicUser.username}`);
+            results.push({ created: false, user: publicUser });
+            continue;
+        }
+
+        if (!user.password) {
+            throw new Error(`Internal group user seeding requested but ${user.label} password is not configured.`);
+        }
+
         results.push(await createUserIfMissing(user));
     }
 

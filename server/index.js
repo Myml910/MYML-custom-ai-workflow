@@ -13,7 +13,7 @@ import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
-import { getDatabasePath, getDb } from './db/index.js';
+import { getDatabaseLabel, getDb } from './db/index.js';
 import { runMigrations } from './db/migrations.js';
 import { seedInitialAdmin, seedInternalTestUsers } from './db/users.js';
 import {
@@ -53,10 +53,10 @@ const HOST = process.env.HOST || '127.0.0.1';
 
 try {
     const db = getDb();
-    runMigrations(db);
+    await runMigrations(db);
     await seedInitialAdmin();
     await seedInternalTestUsers();
-    console.log(`[DB] SQLite ready: ${getDatabasePath()}`);
+    console.log(`[DB] PostgreSQL ready: ${getDatabaseLabel()}`);
 } catch (error) {
     console.error('[DB] Failed to initialize database:', error.message);
     process.exit(1);
@@ -79,17 +79,28 @@ app.use(express.json({ limit: '100mb' }));
 // Application authentication routes must stay public.
 app.use('/api/auth', authRoutes);
 
-// Protect core app APIs while leaving third-party OAuth callbacks untouched.
-app.use('/api', (req, res, next) => {
-    if (req.path.startsWith('/twitter/callback') || req.path.startsWith('/tiktok-post/callback')) {
-        return next();
+function isPublicOAuthCallback(req) {
+    return req.path.startsWith('/twitter/callback') || req.path.startsWith('/tiktok-post/callback');
+}
+
+const protectedApiAuth = express.Router();
+
+protectedApiAuth.use((req, _res, next) => {
+    if (isPublicOAuthCallback(req)) {
+        return next('router');
     }
 
-    return requireAuth(req, res, () => {
-        req.library = ensureUserLibraryDirs(req.user);
-        return next();
-    });
+    return next();
 });
+
+protectedApiAuth.use(requireAuth);
+protectedApiAuth.use((req, _res, next) => {
+    req.library = ensureUserLibraryDirs(req.user);
+    return next();
+});
+
+// Protect core app APIs while leaving third-party OAuth callbacks untouched.
+app.use('/api', protectedApiAuth);
 
 // Serve library assets only to the owning authenticated user.
 app.use('/library', requireAuth, (req, res, next) => {

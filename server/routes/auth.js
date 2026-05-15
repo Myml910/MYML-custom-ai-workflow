@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        const userRow = username ? findUserByUsername(username) : null;
+        const userRow = username ? await findUserByUsername(username) : null;
         const passwordMatches = userRow
             ? await verifyUserPassword(userRow, password)
             : false;
@@ -52,14 +52,14 @@ router.post('/logout', (_req, res) => {
     return res.json({ success: true });
 });
 
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
     const tokenUser = getAuthUser(req);
 
     if (!tokenUser?.id) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const userRow = findUserById(tokenUser.id);
+    const userRow = await findUserById(tokenUser.id);
     if (!userRow || userRow.status !== 'active') {
         return res.status(401).json({ error: 'Not authenticated' });
     }
