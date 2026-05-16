@@ -25,6 +25,7 @@ import {
     resolveLibraryUrlToPath
 } from './utils/userLibrary.js';
 import generationRoutes from './routes/generation.js';
+import tasksRoutes from './routes/tasks.js';
 import { getAiProviderConfig, isApimartTextConfigured } from './services/ai/aiProviderConfig.js';
 import { createTextResponse, extractResponseText } from './services/ai/providers/apimartProvider.js';
 import { resolveImageToBase64 } from './utils/imageHelpers.js';
@@ -342,6 +343,9 @@ function getWorkflowPath(req, workflowId, { allowLegacy = true } = {}) {
 
 // Mount generation routes (image and video generation)
 app.use('/api', generationRoutes);
+
+// Mount task routes (queued generation task records; worker is not started in this step)
+app.use('/api/tasks', tasksRoutes);
 
 // Mount Twitter routes (Post to X feature)
 app.use('/api/twitter', twitterRoutes);
