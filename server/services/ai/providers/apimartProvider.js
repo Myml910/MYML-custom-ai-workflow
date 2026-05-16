@@ -1,9 +1,10 @@
 import { getAiProviderConfig } from '../aiProviderConfig.js';
-import { classifyProviderError } from '../errors.js';
+import { AI_ERROR_TYPES, AiProviderError, classifyProviderError } from '../errors.js';
 
 const GEMINI_FLASH_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GPT_IMAGE_2_MODEL = 'gpt-image-2';
 const APIMART_PROVIDER = 'apimart';
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 const PROJECT_IMAGE_MODEL_MAP = new Map([
     ['custom-image-gpt-image-2', GPT_IMAGE_2_MODEL],
     ['custom-image-nano-banana-3-1-flash', GEMINI_FLASH_IMAGE_MODEL]
@@ -20,6 +21,49 @@ function devLog(message, data = {}) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parsePositiveInteger(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getRequestTimeoutMs(options = {}) {
+    return parsePositiveInteger(
+        options.requestTimeoutMs ?? process.env.APIMART_REQUEST_TIMEOUT_MS,
+        DEFAULT_REQUEST_TIMEOUT_MS
+    );
+}
+
+function createRequestTimeoutError(context, timeoutMs, cause) {
+    return new AiProviderError({
+        type: AI_ERROR_TYPES.TIMEOUT,
+        provider: APIMART_PROVIDER,
+        model: context.model,
+        message: `APIMart ${context.action} timed out after ${timeoutMs}ms.`,
+        cause
+    });
+}
+
+async function fetchWithTimeout(url, fetchOptions, context = {}) {
+    const timeoutMs = context.timeoutMs || DEFAULT_REQUEST_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    timeout.unref?.();
+
+    try {
+        return await fetch(url, {
+            ...fetchOptions,
+            signal: controller.signal
+        });
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw createRequestTimeoutError(context, timeoutMs, error);
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 function normalizeInputArray(input) {
@@ -399,13 +443,18 @@ export async function submitImageTask(input, options = {}) {
 
     const { model, requestBody, imageUrls } = createImageGenerationRequestBody(input, config);
 
-    const submitResponse = await fetch(`${baseUrl}/images/generations`, {
+    const requestTimeoutMs = getRequestTimeoutMs(options);
+    const submitResponse = await fetchWithTimeout(`${baseUrl}/images/generations`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
+    }, {
+        action: 'image generation submit',
+        model,
+        timeoutMs: requestTimeoutMs
     });
 
     const submitData = await parseJsonResponse(submitResponse, 'image generation submit');
@@ -475,10 +524,15 @@ export async function pollImageTask(providerTaskId, options = {}) {
         throw new Error('APIMart image API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
     }
 
-    const taskResponse = await fetch(`${baseUrl}/tasks/${encodeURIComponent(providerTaskId)}`, {
+    const requestTimeoutMs = getRequestTimeoutMs(options);
+    const taskResponse = await fetchWithTimeout(`${baseUrl}/tasks/${encodeURIComponent(providerTaskId)}`, {
         headers: {
             Authorization: `Bearer ${apiKey}`
         }
+    }, {
+        action: `task ${providerTaskId} poll`,
+        model: options.model,
+        timeoutMs: requestTimeoutMs
     });
 
     const taskData = await parseJsonResponse(taskResponse, `task ${providerTaskId} poll`);

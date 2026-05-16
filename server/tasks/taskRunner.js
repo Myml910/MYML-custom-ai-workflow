@@ -1,5 +1,6 @@
 import {
     claimNextImageTask,
+    failPollingTasksMissingProviderTaskId,
     getPollingTasks,
     markTaskTimeout,
     resetStuckRunningTasks
@@ -84,6 +85,10 @@ async function runTaskLoop() {
     const config = getImageTaskRunnerConfig();
 
     try {
+        const invalidPollingTasks = await failPollingTasksMissingProviderTaskId();
+        if (invalidPollingTasks.length > 0) {
+            console.warn(`[TaskRunner] Failed ${invalidPollingTasks.length} polling image task(s) missing provider_task_id.`);
+        }
         await processPollingTasks(config);
         await processQueuedTasks(config);
     } catch (error) {
@@ -106,8 +111,12 @@ export async function startTaskRunner() {
         if (resetTasks.length > 0) {
             console.log(`[TaskRunner] Reset ${resetTasks.length} stuck running image task(s) to queued.`);
         }
+        const invalidPollingTasks = await failPollingTasksMissingProviderTaskId();
+        if (invalidPollingTasks.length > 0) {
+            console.warn(`[TaskRunner] Failed ${invalidPollingTasks.length} polling image task(s) missing provider_task_id.`);
+        }
     } catch (error) {
-        console.error('[TaskRunner] Failed to reset stuck running tasks:', error);
+        console.error('[TaskRunner] Failed to recover stuck image tasks:', error);
     }
 
     console.log('[TaskRunner] Image task runner started', {

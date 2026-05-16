@@ -123,6 +123,14 @@ export async function updateTaskProgress(taskId, progress, payload = null) {
     });
 }
 
+export async function recordProviderPolling(taskId, payload = null) {
+    return addDbTaskEvent(taskId, 'provider_polling', 'Provider task polled', payload);
+}
+
+export async function recordProviderPollError(taskId, payload = null) {
+    return addDbTaskEvent(taskId, 'provider_poll_error', 'Provider poll failed; will retry on next worker tick', payload);
+}
+
 export async function markTaskCompleted(taskId, resultUrl, output = null) {
     return updateTaskWithEvent({
         taskId,
@@ -243,6 +251,51 @@ export async function resetStuckRunningTasks() {
                 'Stuck running task without provider task id was reset to queued',
                 {
                     previousStatus: 'running'
+                }
+            ]);
+        }
+
+        await client.query('COMMIT');
+        return result.rows.map(serializeTask);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+export async function failPollingTasksMissingProviderTaskId() {
+    const db = getDb();
+    const client = await db.connect();
+
+    try {
+        await client.query('BEGIN');
+        const result = await client.query(`
+            UPDATE generation_tasks
+            SET status = 'failed',
+                error_type = 'INVALID_TASK_STATE',
+                error_message = 'Polling task is missing provider_task_id',
+                failed_at = now(),
+                updated_at = now()
+            WHERE task_type = 'image_generation'
+              AND status = 'polling'
+              AND provider_task_id IS NULL
+            RETURNING *
+        `);
+
+        for (const row of result.rows) {
+            await client.query(`
+                INSERT INTO task_events (id, task_id, event_type, message, payload)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [
+                crypto.randomUUID(),
+                row.id,
+                'task_failed',
+                'Polling task is missing provider_task_id',
+                {
+                    errorType: 'INVALID_TASK_STATE',
+                    previousStatus: 'polling'
                 }
             ]);
         }

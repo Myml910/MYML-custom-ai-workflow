@@ -12,8 +12,17 @@ import {
     markTaskCompleted,
     markTaskFailed,
     markTaskPolling,
+    recordProviderPollError,
+    recordProviderPolling,
     updateTaskProgress
 } from '../taskStore.js';
+
+const RECOVERABLE_POLL_ERROR_TYPES = new Set([
+    AI_ERROR_TYPES.NETWORK_ERROR,
+    AI_ERROR_TYPES.TIMEOUT,
+    AI_ERROR_TYPES.RATE_LIMIT,
+    AI_ERROR_TYPES.NO_CHANNEL
+]);
 
 function normalizeInputArray(input) {
     if (!input) return [];
@@ -97,6 +106,35 @@ function normalizeWorkerError(error, providerConfig = null) {
     };
 }
 
+function isTransientProviderMessage(message = '') {
+    const text = String(message).toLowerCase();
+    return (
+        text.includes('500') ||
+        text.includes('502') ||
+        text.includes('503') ||
+        text.includes('504') ||
+        text.includes('fetch failed') ||
+        text.includes('network') ||
+        text.includes('timeout') ||
+        text.includes('timed out') ||
+        text.includes('temporarily') ||
+        text.includes('temporary') ||
+        text.includes('service unavailable') ||
+        text.includes('bad gateway') ||
+        text.includes('gateway timeout') ||
+        text.includes('upstream')
+    );
+}
+
+function isRecoverablePollError(normalizedError) {
+    if (RECOVERABLE_POLL_ERROR_TYPES.has(normalizedError.type)) {
+        return true;
+    }
+
+    return normalizedError.type === AI_ERROR_TYPES.PROVIDER_ERROR &&
+        isTransientProviderMessage(normalizedError.message);
+}
+
 export async function executeImageTask(task, options = {}) {
     let providerConfig = null;
 
@@ -165,6 +203,14 @@ export async function pollImageTaskStatus(task, options = {}) {
             model: providerConfig.upstreamModel
         });
 
+        await recordProviderPolling(task.taskId, {
+            providerTaskId: task.providerTaskId,
+            provider: pollResult.provider,
+            model: providerConfig.upstreamModel,
+            providerStatus: pollResult.rawStatus || pollResult.status,
+            progress: pollResult.progress ?? null
+        });
+
         if (pollResult.status === 'completed') {
             const normalizedResult = normalizeImageResult(pollResult.raw);
             const resultUrl = getFirstImageResultUrl(normalizedResult.images);
@@ -182,7 +228,15 @@ export async function pollImageTaskStatus(task, options = {}) {
         }
 
         if (pollResult.status === 'failed') {
-            throw new Error(pollResult.error || 'APIMart image task failed.');
+            const normalized = normalizeWorkerError(
+                new Error(pollResult.error || 'APIMart image task failed.'),
+                providerConfig
+            );
+            return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
+                phase: 'poll',
+                providerTaskId: task.providerTaskId || null,
+                providerStatus: pollResult.rawStatus || pollResult.status
+            });
         }
 
         return await updateTaskProgress(task.taskId, pollResult.progress, {
@@ -193,6 +247,15 @@ export async function pollImageTaskStatus(task, options = {}) {
         });
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
+        if (task.providerTaskId && isRecoverablePollError(normalized)) {
+            await recordProviderPollError(task.taskId, {
+                providerTaskId: task.providerTaskId,
+                errorType: normalized.type,
+                errorMessage: normalized.message
+            });
+            return task;
+        }
+
         return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
             phase: 'poll',
             providerTaskId: task.providerTaskId || null
