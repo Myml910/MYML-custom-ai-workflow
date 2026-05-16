@@ -9,6 +9,7 @@ import {
     submitImageTask
 } from '../../services/ai/providers/apimartProvider.js';
 import {
+    addTaskEvent,
     markTaskCompleted,
     markTaskFailed,
     markTaskPolling,
@@ -16,6 +17,7 @@ import {
     recordProviderPolling,
     updateTaskProgress
 } from '../taskStore.js';
+import { saveGeneratedImage } from '../../utils/saveGeneratedImage.js';
 
 const RECOVERABLE_POLL_ERROR_TYPES = new Set([
     AI_ERROR_TYPES.NETWORK_ERROR,
@@ -42,6 +44,69 @@ function getFirstImageResultUrl(images) {
         return `data:${mimeType};base64,${image.base64}`;
     }
     return null;
+}
+
+function getTaskUser(task) {
+    return {
+        id: task.userId,
+        username: task.username
+    };
+}
+
+async function completeImageTaskWithResult(task, imageResult, details) {
+    const providerResultUrl = getFirstImageResultUrl(imageResult.images);
+    if (!providerResultUrl) {
+        throw new Error('APIMart image task completed without a usable image URL.');
+    }
+
+    const providerTaskId = details.providerTaskId || task.providerTaskId || null;
+    const providerRemoteUrl = providerResultUrl.startsWith('data:') ? null : providerResultUrl;
+    const output = {
+        provider: details.provider,
+        model: details.model,
+        images: sanitizeImagesForOutput(imageResult.images),
+        rawStatus: details.rawStatus,
+        progress: details.progress,
+        providerTaskId,
+        providerRemoteUrl
+    };
+
+    try {
+        const saved = await saveGeneratedImage({
+            user: getTaskUser(task),
+            imageResult,
+            prompt: task.prompt,
+            model: task.model,
+            provider: details.provider,
+            providerTaskId,
+            taskId: task.taskId,
+            nodeId: task.nodeId,
+            workflowId: task.workflowId,
+            metadataId: task.nodeId || task.taskId,
+            remoteUrl: providerRemoteUrl || undefined
+        });
+
+        return await markTaskCompleted(task.taskId, saved.resultUrl, {
+            ...output,
+            localResultUrl: saved.resultUrl,
+            localFilename: saved.filename
+        });
+    } catch (error) {
+        await addTaskEvent(
+            task.taskId,
+            'local_save_failed',
+            'Local save failed; using provider remote URL fallback',
+            {
+                errorMessage: error?.message || 'Local save failed',
+                providerRemoteUrl
+            }
+        );
+
+        return await markTaskCompleted(task.taskId, providerResultUrl, {
+            ...output,
+            localSaveError: error?.message || 'Local save failed'
+        });
+    }
 }
 
 function sanitizeImagesForOutput(images = []) {
@@ -151,16 +216,12 @@ export async function executeImageTask(task, options = {}) {
         const submitResult = await submitImageTask(providerInput, { config });
 
         if (submitResult.status === 'completed') {
-            const resultUrl = getFirstImageResultUrl(submitResult.images);
-            if (!resultUrl) {
-                throw new Error('APIMart image task completed without a usable image URL.');
-            }
-
-            return await markTaskCompleted(task.taskId, resultUrl, {
+            return await completeImageTaskWithResult(task, { images: submitResult.images }, {
                 provider: submitResult.provider,
                 model: submitResult.model,
-                images: sanitizeImagesForOutput(submitResult.images),
-                rawStatus: submitResult.rawStatus || submitResult.status
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? 100,
+                providerTaskId: submitResult.taskId || null
             });
         }
 
@@ -213,17 +274,12 @@ export async function pollImageTaskStatus(task, options = {}) {
 
         if (pollResult.status === 'completed') {
             const normalizedResult = normalizeImageResult(pollResult.raw);
-            const resultUrl = getFirstImageResultUrl(normalizedResult.images);
-            if (!resultUrl) {
-                throw new Error('APIMart image task completed without a usable image URL.');
-            }
-
-            return await markTaskCompleted(task.taskId, resultUrl, {
+            return await completeImageTaskWithResult(task, normalizedResult, {
                 provider: pollResult.provider,
                 model: providerConfig.upstreamModel,
-                images: sanitizeImagesForOutput(normalizedResult.images),
                 rawStatus: pollResult.rawStatus || pollResult.status,
-                progress: pollResult.progress ?? 100
+                progress: pollResult.progress ?? 100,
+                providerTaskId: task.providerTaskId || pollResult.taskId || null
             });
         }
 

@@ -19,6 +19,7 @@ import { aiRouter } from '../services/ai/router.js';
 import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
+import { saveGeneratedImage } from '../utils/saveGeneratedImage.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 
 const router = express.Router();
@@ -36,7 +37,6 @@ router.post('/generate-image', async (req, res) => {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY } = req.app.locals;
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
-        const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
         const effectiveImageModel = imageModel || DEFAULT_IMAGE_MODEL;
 
         if (!SUPPORTED_IMAGE_MODELS.has(effectiveImageModel)) {
@@ -52,6 +52,7 @@ router.post('/generate-image', async (req, res) => {
 
         let imageBuffer;
         let imageFormat = 'png';
+        let aiResult = null;
 
         if (isCustomImageModel) {
             // --- CUSTOM IMAGE GENERATION ---
@@ -70,7 +71,7 @@ router.post('/generate-image', async (req, res) => {
                 resolution: resolution || aiProviderConfig.apimart.imageResolution
             });
 
-            const aiResult = await aiRouter.generateImage({
+            aiResult = await aiRouter.generateImage({
                 nodeId,
                 projectModelId: effectiveImageModel,
                 prompt,
@@ -204,25 +205,22 @@ router.post('/generate-image', async (req, res) => {
             });
         }
 
-        // Save to library - use unique filename to preserve previous generations
-        const saved = saveBufferToFile(imageBuffer, imagesDir, 'img', imageFormat);
-
-        // Determine metadata ID: use nodeId for recovery if available, otherwise use file ID
-        const metadataId = nodeId || saved.id;
-
-        // Save metadata (id must match the metadata filename for delete to work)
-        const metadata = {
-            id: metadataId,  // Must match the filename for delete API to find it
-            filename: saved.filename,
-            prompt: prompt,
+        const saved = await saveGeneratedImage({
+            user: req.user,
+            buffer: imageBuffer,
+            prompt,
             model: effectiveImageModel,
-            createdAt: new Date().toISOString(),
-            type: 'images'
-        };
-        fs.writeFileSync(path.join(imagesDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+            provider: aiResult?.provider,
+            providerTaskId: aiResult?.taskId,
+            taskId: aiResult?.requestId,
+            nodeId,
+            metadataId: nodeId || undefined,
+            remoteUrl: aiResult?.images?.[0]?.url,
+            imageFormat
+        });
 
-        console.log(`Image saved: ${saved.url} (model: ${effectiveImageModel})`);
-        return res.json({ resultUrl: saved.url });
+        console.log(`Image saved: ${saved.resultUrl} (model: ${effectiveImageModel})`);
+        return res.json({ resultUrl: saved.resultUrl });
 
     } catch (error) {
         console.error("Server Image Gen Error:", error);
