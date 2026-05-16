@@ -159,6 +159,15 @@ export const IMAGE_MODELS: ImageModel[] = [
         resolutions: ['Auto', '1K', '2K', '4K'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
     },
+    {
+        id: 'custom-image-pikachu-gpt-image-2',
+        name: 'Pikachu GPT-Image-2',
+        provider: 'custom',
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        resolutions: ['medium', 'low', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
+    },
 ];
 
 /**

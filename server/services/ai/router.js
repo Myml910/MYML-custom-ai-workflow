@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getAiProviderConfig, isApimartImageConfigured } from './aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
 import { AiProviderError, AI_ERROR_TYPES, classifyProviderError } from './errors.js';
 import { logAiEvent } from './logger.js';
 import { getImageModelConfig, getImageProviders } from './modelRegistry.js';
@@ -8,6 +8,7 @@ import {
     imageResultToBuffer,
     normalizeResolution
 } from './providers/apimartProvider.js';
+import { generateImage as generatePikachuImage } from './providers/pikachuProvider.js';
 
 function getImageFormat(result) {
     const mimeType = result?.images?.[0]?.mimeType || '';
@@ -40,9 +41,34 @@ async function runApimartProvider(input, providerConfig, modelConfig, config) {
     }, { config });
 }
 
-async function runImageProvider(input, providerConfig, modelConfig, config) {
+async function runPikachuProvider(input, providerConfig, modelConfig, config, options = {}) {
+    if (!isPikachuImageConfigured(config)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.AUTH_ERROR,
+            provider: 'pikachu',
+            model: providerConfig.upstreamModel,
+            message: 'Pikachu image provider is not configured. Add PIKACHU_BASE_URL and PIKACHU_API_KEY to .env.'
+        });
+    }
+
+    return await generatePikachuImage({
+        prompt: input.prompt,
+        referenceImages: input.imageUrls.length > 0 ? input.imageUrls : undefined,
+        size: input.size,
+        resolution: input.resolution || modelConfig.defaultResolution || config.pikachu.imageQuality,
+        model: providerConfig.upstreamModel
+    }, {
+        config,
+        user: options.user
+    });
+}
+
+async function runImageProvider(input, providerConfig, modelConfig, config, options = {}) {
     if (providerConfig.provider === 'apimart') {
         return await runApimartProvider(input, providerConfig, modelConfig, config);
+    }
+    if (providerConfig.provider === 'pikachu') {
+        return await runPikachuProvider(input, providerConfig, modelConfig, config, options);
     }
 
     throw new AiProviderError({
@@ -99,7 +125,7 @@ async function generateImage(input = {}, options = {}) {
             status: 'submitted'
         });
 
-        const providerResult = await runImageProvider(routerInput, providerConfig, modelConfig, config);
+        const providerResult = await runImageProvider(routerInput, providerConfig, modelConfig, config, options);
         if (providerResult.status !== 'completed') {
             throw new AiProviderError({
                 type: AI_ERROR_TYPES.PROVIDER_ERROR,

@@ -78,7 +78,7 @@ router.post('/generate-image', async (req, res) => {
                 imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
                 size: aspectRatio || aiProviderConfig.apimart.imageSize,
                 resolution: resolution || aiProviderConfig.apimart.imageResolution
-            }, { config: aiProviderConfig });
+            }, { config: aiProviderConfig, user: req.user });
 
             imageBuffer = aiResult.imageBuffer;
             imageFormat = aiResult.imageFormat || 'png';

@@ -1,6 +1,6 @@
 import express from 'express';
 import { cancelTask, createTask, getLatestTaskByNodeId, getTaskById } from '../db/tasks.js';
-import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
+import { getImageProviders, getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 
 const router = express.Router();
 const SUPPORTED_IMAGE_MODELS = new Set(getSupportedImageModelIds());
@@ -46,6 +46,7 @@ router.post('/image', async (req, res) => {
             });
         }
 
+        const provider = getImageProviders(imageModel)[0]?.provider || 'apimart';
         const task = await createTask({
             user: req.user,
             nodeId,
@@ -56,7 +57,7 @@ router.post('/image', async (req, res) => {
             resolution,
             referenceImages,
             taskType: 'image_generation',
-            provider: 'apimart'
+            provider
         });
 
         return res.status(201).json({

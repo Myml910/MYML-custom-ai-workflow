@@ -26,6 +26,25 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
             }
         ],
         defaultResolution: '2K'
+    },
+    'custom-image-pikachu-gpt-image-2': {
+        projectModelId: 'custom-image-pikachu-gpt-image-2',
+        displayName: 'Pikachu GPT-Image-2',
+        capability: 'image-generation',
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        enabled: true,
+        providers: [
+            {
+                provider: 'pikachu',
+                upstreamModel: 'gpt-image-2',
+                priority: 1,
+                isAsync: false
+            }
+        ],
+        defaultResolution: 'medium'
     }
 });
 

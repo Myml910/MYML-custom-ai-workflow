@@ -1,4 +1,4 @@
-import { getAiProviderConfig, isApimartImageConfigured } from '../../services/ai/aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
 import { getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
 import {
@@ -8,6 +8,11 @@ import {
     pollImageTask,
     submitImageTask
 } from '../../services/ai/providers/apimartProvider.js';
+import {
+    normalizeImageResult as normalizePikachuImageResult,
+    normalizeProviderError as normalizePikachuProviderError,
+    submitImageTask as submitPikachuImageTask
+} from '../../services/ai/providers/pikachuProvider.js';
 import {
     addTaskEvent,
     markTaskCompleted,
@@ -56,7 +61,7 @@ function getTaskUser(task) {
 async function completeImageTaskWithResult(task, imageResult, details) {
     const providerResultUrl = getFirstImageResultUrl(imageResult.images);
     if (!providerResultUrl) {
-        throw new Error('APIMart image task completed without a usable image URL.');
+        throw new Error('Image provider task completed without a usable image URL.');
     }
 
     const providerTaskId = details.providerTaskId || task.providerTaskId || null;
@@ -68,7 +73,9 @@ async function completeImageTaskWithResult(task, imageResult, details) {
         rawStatus: details.rawStatus,
         progress: details.progress,
         providerTaskId,
-        providerRemoteUrl
+        providerRemoteUrl,
+        usage: details.usage || undefined,
+        raw: details.raw ? sanitizeRawForOutput(details.raw) : undefined
     };
 
     try {
@@ -129,9 +136,30 @@ function sanitizeImagesForOutput(images = []) {
     });
 }
 
-function getApimartProviderConfig(task) {
+function sanitizeRawForOutput(value, depth = 0) {
+    if (depth > 4) return '[omitted nested raw]';
+    if (typeof value === 'string') {
+        if (value.startsWith('data:') || value.length > 2000) return '[omitted long string]';
+        return value;
+    }
+    if (!value || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(item => sanitizeRawForOutput(item, depth + 1));
+
+    return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => {
+            const normalizedKey = key.toLowerCase();
+            if (['base64', 'b64_json', 'image_base64', 'imagebase64'].includes(normalizedKey)) {
+                return [key, '[omitted base64]'];
+            }
+            return [key, sanitizeRawForOutput(item, depth + 1)];
+        })
+    );
+}
+
+function getTaskProviderConfig(task) {
     const modelConfig = getImageModelConfig(task.model);
-    const providerConfig = getImageProviders(task.model).find(provider => provider.provider === 'apimart');
+    const providers = getImageProviders(task.model);
+    const providerConfig = providers.find(provider => provider.provider === task.provider) || providers[0];
 
     if (!modelConfig || !providerConfig) {
         throw new Error(`Image model unavailable for task worker: ${task.model}`);
@@ -157,13 +185,31 @@ function buildApimartInput(task, config, providerConfig, modelConfig) {
     };
 }
 
+function buildPikachuInput(task, config, providerConfig, modelConfig) {
+    const input = getTaskInput(task);
+    const referenceImages = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+
+    return {
+        prompt: input.prompt || task.prompt || '',
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+        size: input.aspectRatio || input.size || '1024x1024',
+        resolution: input.resolution || modelConfig.defaultResolution || config.pikachu.imageQuality,
+        model: providerConfig.upstreamModel
+    };
+}
+
 function normalizeWorkerError(error, providerConfig = null) {
-    const normalized = providerConfig?.provider === 'apimart'
-        ? normalizeProviderError(error, { model: providerConfig.upstreamModel })
-        : classifyProviderError(error, {
+    let normalized;
+    if (providerConfig?.provider === 'apimart') {
+        normalized = normalizeProviderError(error, { model: providerConfig.upstreamModel });
+    } else if (providerConfig?.provider === 'pikachu') {
+        normalized = normalizePikachuProviderError(error, { model: providerConfig.upstreamModel });
+    } else {
+        normalized = classifyProviderError(error, {
             provider: providerConfig?.provider,
             model: providerConfig?.upstreamModel
         });
+    }
 
     return {
         type: normalized.type || AI_ERROR_TYPES.PROVIDER_ERROR,
@@ -205,11 +251,41 @@ export async function executeImageTask(task, options = {}) {
 
     try {
         const config = options.config || getAiProviderConfig();
-        const resolved = getApimartProviderConfig(task);
+        const resolved = getTaskProviderConfig(task);
         providerConfig = resolved.providerConfig;
 
-        if (!isApimartImageConfigured(config)) {
+        if (providerConfig.provider === 'apimart' && !isApimartImageConfigured(config)) {
             throw new Error('APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
+        }
+        if (providerConfig.provider === 'pikachu' && !isPikachuImageConfigured(config)) {
+            throw new Error('Pikachu image provider is not configured. Add PIKACHU_BASE_URL and PIKACHU_API_KEY to .env.');
+        }
+
+        if (providerConfig.provider === 'pikachu') {
+            const providerInput = buildPikachuInput(task, config, providerConfig, resolved.modelConfig);
+            const submitResult = await submitPikachuImageTask(providerInput, {
+                config,
+                user: getTaskUser(task)
+            });
+
+            if (submitResult.status !== 'completed') {
+                throw new Error(submitResult.error || 'Pikachu image task did not complete.');
+            }
+
+            const normalizedResult = normalizePikachuImageResult(submitResult);
+            return await completeImageTaskWithResult(task, normalizedResult, {
+                provider: submitResult.provider,
+                model: submitResult.model,
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? 100,
+                providerTaskId: submitResult.taskId || null,
+                usage: submitResult.usage || null,
+                raw: submitResult.raw || null
+            });
+        }
+
+        if (providerConfig.provider !== 'apimart') {
+            throw new Error(`Unsupported image task provider: ${providerConfig.provider}`);
         }
 
         const providerInput = buildApimartInput(task, config, providerConfig, resolved.modelConfig);
@@ -257,8 +333,13 @@ export async function pollImageTaskStatus(task, options = {}) {
         }
 
         const config = options.config || getAiProviderConfig();
-        const resolved = getApimartProviderConfig(task);
+        const resolved = getTaskProviderConfig(task);
         providerConfig = resolved.providerConfig;
+
+        if (providerConfig.provider !== 'apimart') {
+            throw new Error(`Provider ${providerConfig.provider} does not support polling.`);
+        }
+
         const pollResult = await pollImageTask(task.providerTaskId, {
             config,
             model: providerConfig.upstreamModel

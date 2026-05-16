@@ -5,6 +5,10 @@ const DEFAULT_IMAGE_RESOLUTION = '2K';
 const DEFAULT_IMAGE_SIZE = 'auto';
 const DEFAULT_POLL_INTERVAL_MS = 2500;
 const DEFAULT_POLL_TIMEOUT_MS = 180000;
+const DEFAULT_PIKACHU_BASE_URL = 'https://pikachu.claudecode.love/v1';
+const DEFAULT_PIKACHU_IMAGE_MODEL = 'gpt-image-2';
+const DEFAULT_PIKACHU_IMAGE_QUALITY = 'medium';
+const DEFAULT_PIKACHU_REQUEST_TIMEOUT_MS = 300000;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -33,6 +37,13 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             imagePollIntervalMs: parsePositiveInteger(env.APIMART_IMAGE_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS),
             imagePollTimeoutMs: parsePositiveInteger(env.APIMART_IMAGE_POLL_TIMEOUT_MS, DEFAULT_POLL_TIMEOUT_MS)
         },
+        pikachu: {
+            baseUrl: cleanBaseUrl(env.PIKACHU_BASE_URL) || DEFAULT_PIKACHU_BASE_URL,
+            apiKey: cleanString(env.PIKACHU_API_KEY),
+            requestTimeoutMs: parsePositiveInteger(env.PIKACHU_REQUEST_TIMEOUT_MS, DEFAULT_PIKACHU_REQUEST_TIMEOUT_MS),
+            imageModel: cleanString(env.PIKACHU_IMAGE_MODEL) || DEFAULT_PIKACHU_IMAGE_MODEL,
+            imageQuality: cleanString(env.PIKACHU_IMAGE_QUALITY) || DEFAULT_PIKACHU_IMAGE_QUALITY
+        },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',
             chatApiKey: cleanString(env.CHAT_API_KEY) || cleanString(locals.OPENAI_API_KEY) || cleanString(env.OPENAI_API_KEY),
@@ -56,6 +67,10 @@ export function isApimartTextConfigured(config = getAiProviderConfig()) {
 
 export function isApimartImageConfigured(config = getAiProviderConfig()) {
     return Boolean(config.apimart.baseUrl && config.apimart.apiKey && config.apimart.imageModel);
+}
+
+export function isPikachuImageConfigured(config = getAiProviderConfig()) {
+    return Boolean(config.pikachu.baseUrl && config.pikachu.apiKey && config.pikachu.imageModel);
 }
 
 export function getLegacyChatConfig(runtimeApiKey, config = getAiProviderConfig()) {
