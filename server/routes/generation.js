@@ -12,10 +12,11 @@ import { generateKlingVideo, generateKlingImage, generateKlingMultiImage } from 
 import { generateGeminiImage, generateVeoVideo } from '../services/gemini.js';
 import { generateHailuoVideo } from '../services/hailuo.js';
 import { generateOpenAIImage } from '../services/openai.js';
-import { generateCustomImage, generateCustomVideo } from '../services/customApi.js';
+import { generateCustomVideo } from '../services/customApi.js';
 import { generateSeedanceVideo } from '../services/seedance.js';
-import { getAiProviderConfig, isApimartImageConfigured } from '../services/ai/aiProviderConfig.js';
-import { generateImage as generateApimartImage, imageResultToBuffer, normalizeResolution, resolveApimartImageModel } from '../services/ai/providers/apimartProvider.js';
+import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
+import { aiRouter } from '../services/ai/router.js';
+import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
@@ -23,10 +24,7 @@ import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 const router = express.Router();
 const MAX_IMAGE_REFERENCES = 6;
 const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
-const SUPPORTED_IMAGE_MODELS = new Set([
-    'custom-image-gpt-image-2',
-    'custom-image-nano-banana-3-1-flash'
-]);
+const SUPPORTED_IMAGE_MODELS = new Set(getSupportedImageModelIds());
 const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
 
 // ============================================================================
@@ -47,12 +45,6 @@ router.post('/generate-image', async (req, res) => {
             });
         }
 
-        if (!isApimartImageConfigured(aiProviderConfig)) {
-            return res.status(500).json({
-                error: 'APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.'
-            });
-        }
-
         // Determine provider
         const isKlingModel = effectiveImageModel && effectiveImageModel.startsWith('kling-');
         const isOpenAIModel = effectiveImageModel && effectiveImageModel.startsWith('gpt-image-');
@@ -69,44 +61,26 @@ router.post('/generate-image', async (req, res) => {
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
-            let resolvedApimartModel;
-            try {
-                resolvedApimartModel = resolveApimartImageModel(effectiveImageModel, aiProviderConfig.apimart.imageModel);
-            } catch (error) {
-                return res.status(400).json({ error: error.message });
-            }
-
-            const apimartSize = aspectRatio || aiProviderConfig.apimart.imageSize;
-            const apimartResolution = normalizeResolution(resolvedApimartModel, resolution || aiProviderConfig.apimart.imageResolution);
             const referenceCount = resolvedImages ? resolvedImages.length : 0;
 
-            console.log('[APIMart][image route]', {
+            console.log('[AI Gateway][image route]', {
                 projectModelId: effectiveImageModel,
-                resolvedApimartModel,
                 referenceCount,
-                size: apimartSize,
-                resolution: apimartResolution
+                size: aspectRatio || aiProviderConfig.apimart.imageSize,
+                resolution: resolution || aiProviderConfig.apimart.imageResolution
             });
 
-            const apimartResult = await generateApimartImage({
+            const aiResult = await aiRouter.generateImage({
+                nodeId,
+                projectModelId: effectiveImageModel,
                 prompt,
                 imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
-                size: apimartSize,
-                resolution: apimartResolution,
-                model: resolvedApimartModel
+                size: aspectRatio || aiProviderConfig.apimart.imageSize,
+                resolution: resolution || aiProviderConfig.apimart.imageResolution
             }, { config: aiProviderConfig });
 
-            if (apimartResult.status !== 'completed') {
-                throw new Error(apimartResult.error || 'APIMart image generation failed.');
-            }
-
-            imageBuffer = await imageResultToBuffer(apimartResult);
-            const mimeType = apimartResult.images?.[0]?.mimeType || '';
-            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
-                imageFormat = 'jpg';
-            } else if (mimeType.includes('webp')) {
-                imageFormat = 'webp';
-            }
+            imageBuffer = aiResult.imageBuffer;
+            imageFormat = aiResult.imageFormat || 'png';
 
         } else if (isKlingModel) {
             // --- KLING AI IMAGE GENERATION ---
