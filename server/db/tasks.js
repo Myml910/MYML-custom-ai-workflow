@@ -169,13 +169,18 @@ export async function createTask(input) {
 
 export async function getTaskById(taskId, userContext) {
     const user = requireUserContext(userContext);
+    const normalizedTaskId = typeof taskId === 'string' ? taskId.trim() : '';
+    if (!normalizedTaskId) {
+        return null;
+    }
+
     const db = getDb();
     const result = await db.query(`
         ${TASK_SELECT}
         WHERE id = $1
           AND user_id = $2
         LIMIT 1
-    `, [taskId, user.id]);
+    `, [normalizedTaskId, user.id]);
 
     return serializeTask(result.rows[0]);
 }

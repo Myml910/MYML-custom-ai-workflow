@@ -87,9 +87,9 @@ router.get('/by-node/:nodeId', async (req, res) => {
     }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:taskId', async (req, res) => {
     try {
-        const taskId = normalizeString(req.params.id);
+        const taskId = normalizeString(req.params.taskId);
 
         if (!taskId) {
             return res.status(400).json({ error: 'task id is required' });
