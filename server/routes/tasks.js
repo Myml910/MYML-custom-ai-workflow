@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTask, getLatestTaskByNodeId, getTaskById } from '../db/tasks.js';
+import { cancelTask, createTask, getLatestTaskByNodeId, getTaskById } from '../db/tasks.js';
 import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 
 const router = express.Router();
@@ -84,6 +84,30 @@ router.get('/by-node/:nodeId', async (req, res) => {
     } catch (error) {
         console.error('[Tasks] Failed to get task by node:', error);
         return res.status(500).json({ error: error.message || 'Failed to get task by node' });
+    }
+});
+
+router.post('/:taskId/cancel', async (req, res) => {
+    try {
+        const taskId = normalizeString(req.params.taskId);
+
+        if (!taskId) {
+            return res.status(400).json({ error: 'task id is required' });
+        }
+
+        const task = await cancelTask(taskId, req.user);
+        if (!task) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+
+        if (task.status !== 'cancelled') {
+            return res.status(409).json({ error: 'Only queued tasks can be cancelled' });
+        }
+
+        return res.json({ task });
+    } catch (error) {
+        console.error('[Tasks] Failed to cancel task:', error);
+        return res.status(500).json({ error: error.message || 'Failed to cancel task' });
     }
 });
 

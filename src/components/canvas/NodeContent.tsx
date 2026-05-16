@@ -9,6 +9,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Loader2, Maximize2, ImageIcon as ImageIcon, Film, Upload, Pencil, Video, GripVertical, Download, Expand, Shrink, HardDrive } from 'lucide-react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
 import { Language, t } from '../../i18n/translations';
+import { cancelTask } from '../../services/generationService';
 
 interface NodeContentProps {
     data: NodeData;
@@ -60,6 +61,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
 
     // Local state for text node textarea to prevent lag
     const [localPrompt, setLocalPrompt] = useState(data.prompt || '');
+    const [isCancellingQueuedTask, setIsCancellingQueuedTask] = useState(false);
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSentPromptRef = useRef<string | undefined>(data.prompt); // Track what we sent
 
@@ -69,6 +71,24 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const isVideoType = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     // Helper: Check if node is local model
     const isLocalModel = data.type === NodeType.LOCAL_IMAGE_MODEL || data.type === NodeType.LOCAL_VIDEO_MODEL;
+    const generationStatusLabel = (() => {
+        if (language === 'zh') {
+            if (data.generationStatus === 'queued') return '排队中';
+            if (data.generationStatus === 'running') return '生成中';
+            if (data.generationStatus === 'polling') return '等待结果';
+            if (data.generationStatus === 'timeout') return '生成超时';
+            if (data.generationStatus === 'failed') return '生成失败';
+            if (data.generationStatus === 'cancelled') return '已取消';
+        }
+
+        if (data.generationStatus === 'queued') return 'Queued';
+        if (data.generationStatus === 'running') return 'Generating';
+        if (data.generationStatus === 'polling') return 'Waiting for result';
+        if (data.generationStatus === 'timeout') return 'Timed out';
+        if (data.generationStatus === 'failed') return 'Failed';
+        if (data.generationStatus === 'cancelled') return 'Cancelled';
+        return t(language, 'generating');
+    })();
 
     // Sync local state ONLY when data.prompt changes externally (not from our own update)
     useEffect(() => {
@@ -111,6 +131,32 @@ export const NodeContent: React.FC<NodeContentProps> = ({
         reader.readAsDataURL(file);
     };
 
+    const canCancelQueuedTask = data.generationStatus === 'queued' && Boolean(data.taskId);
+
+    const handleCancelQueuedTask = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        if (!data.taskId || !onUpdate || isCancellingQueuedTask) return;
+
+        setIsCancellingQueuedTask(true);
+        try {
+            await cancelTask(data.taskId);
+            onUpdate(data.id, {
+                status: data.resultUrl ? NodeStatus.SUCCESS : NodeStatus.IDLE,
+                taskId: undefined,
+                generationStatus: undefined,
+                progress: undefined,
+                errorMessage: undefined
+            });
+        } catch (error: any) {
+            onUpdate(data.id, {
+                status: NodeStatus.ERROR,
+                errorMessage: error?.message || 'Failed to cancel queued task'
+            });
+        } finally {
+            setIsCancellingQueuedTask(false);
+        }
+    };
+
     return (
         <div className={`transition-[background-color,border-color,opacity] duration-[var(--myml-motion-base)] ${!selected ? 'p-0 rounded-[var(--myml-radius-panel)] overflow-hidden' : 'p-1'}`}>
             {/* Hidden File Input - Always rendered for upload functionality (image types only) */}
@@ -145,9 +191,23 @@ export const NodeContent: React.FC<NodeContentProps> = ({
 
                     {/* Regenerating Overlay - Shows when loading with existing content */}
                     {isLoading && (
-                        <div className="pointer-events-none absolute inset-0 z-[1] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                        <div className={`absolute inset-0 z-[1] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${canCancelQueuedTask ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                             <Loader2 size={40} className="animate-spin text-[#D8FF00]" />
-                            <span className="mt-3 text-sm text-white font-medium">{t(language, 'regenerating')}</span>
+                            <span className="mt-3 text-sm text-white font-medium">{generationStatusLabel || t(language, 'regenerating')}</span>
+                            {canCancelQueuedTask && (
+                                <button
+                                    type="button"
+                                    onClick={handleCancelQueuedTask}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    disabled={isCancellingQueuedTask}
+                                    className="mt-3 h-7 rounded-[var(--myml-radius-control)] border border-white/20 bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isCancellingQueuedTask
+                                        ? (language === 'zh' ? '取消中' : 'Cancelling')
+                                        : (language === 'zh' ? '取消排队' : 'Cancel queue')
+                                    }
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -240,7 +300,28 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {isLoading ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
                             <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
-                            <span className="text-xs text-[var(--myml-text-muted)] font-medium">{t(language, 'generating')}</span>
+                            <span className="text-xs text-[var(--myml-text-muted)] font-medium">{generationStatusLabel}</span>
+                            {canCancelQueuedTask && (
+                                <button
+                                    type="button"
+                                    onClick={handleCancelQueuedTask}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    disabled={isCancellingQueuedTask}
+                                    className="h-7 rounded-[var(--myml-radius-control)] border border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] px-3 text-xs font-semibold text-[var(--myml-text-primary)] transition-colors hover:bg-[var(--myml-surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isCancellingQueuedTask
+                                        ? (language === 'zh' ? '取消中' : 'Cancelling')
+                                        : (language === 'zh' ? '取消排队' : 'Cancel queue')
+                                    }
+                                </button>
+                            )}
+                        </div>
+                    ) : data.status === NodeStatus.ERROR ? (
+                        <div className="relative z-10 flex max-w-[80%] flex-col items-center gap-2 text-center">
+                            <span className="text-xs font-semibold text-red-400">{generationStatusLabel}</span>
+                            {data.errorMessage && (
+                                <span className="text-[11px] leading-snug text-[var(--myml-text-muted)]">{data.errorMessage}</span>
+                            )}
                         </div>
                     ) : (
                         <div className="relative z-10 flex flex-col items-center gap-3">

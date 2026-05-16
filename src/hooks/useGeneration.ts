@@ -8,7 +8,14 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { NodeData, NodeType, NodeStatus } from '../types';
 import type { Language } from '../i18n/translations';
-import { generateImage, generateVideo } from '../services/generationService';
+import {
+    createImageTask,
+    generateImage,
+    generateVideo,
+    getTask,
+    type GenerationTask,
+    type GenerationTaskStatus
+} from '../services/generationService';
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 import { getEffectiveImageReference } from '../utils/imageReferences';
@@ -18,6 +25,9 @@ const MIN_IMAGE_GENERATION_COUNT = 1;
 const MAX_IMAGE_GENERATION_COUNT = 4;
 const CANDIDATE_X_OFFSET = 500;
 const CANDIDATE_Y_STEP = 460;
+const TASK_POLL_INTERVAL_MS = 4000;
+const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
+const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
 
 interface UseGenerationProps {
     nodes: NodeData[];
@@ -25,9 +35,10 @@ interface UseGenerationProps {
     setNodes?: Dispatch<SetStateAction<NodeData[]>>;
     setSelectedNodeIds?: Dispatch<SetStateAction<string[]>>;
     language?: Language;
+    workflowId?: string | null;
 }
 
-export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds, language = 'en' }: UseGenerationProps) => {
+export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds, language = 'en', workflowId = null }: UseGenerationProps) => {
     // ============================================================================
     // HELPERS
     // ============================================================================
@@ -136,14 +147,83 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         return imageBase64s;
     };
 
-    const generateSingleImageNode = async (
-        targetNode: NodeData,
-        allNodes: NodeData[],
-        nodesById: Map<string, NodeData>
-    ) => {
-        const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
-        const imageBase64s = collectImageReferences(targetNode, nodesById);
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    const withCacheBusting = (url: string): string => {
+        if (!url || url.startsWith('data:')) return url;
+        return `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    };
+
+    const getTaskErrorMessage = (task: GenerationTask): string => {
+        if (task.errorMessage) return task.errorMessage;
+        if (task.status === 'timeout') return 'Image generation timed out.';
+        return 'Image generation failed.';
+    };
+
+    const applyCompletedImageTask = async (targetNodeId: string, task: GenerationTask) => {
+        if (!task.resultUrl) {
+            throw new Error('Image task completed without resultUrl');
+        }
+
+        const resultUrl = withCacheBusting(task.resultUrl);
+        const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
+
+        updateNode(targetNodeId, {
+            status: NodeStatus.SUCCESS,
+            resultUrl,
+            resultAspectRatio,
+            generationStatus: 'completed',
+            progress: 100,
+            errorMessage: undefined
+        });
+    };
+
+    const waitForImageTask = async (targetNodeId: string, taskId: string) => {
+        while (true) {
+            const task = await getTask(taskId);
+
+            if (ACTIVE_TASK_STATUSES.has(task.status)) {
+                updateNode(targetNodeId, {
+                    status: NodeStatus.LOADING,
+                    taskId: task.taskId,
+                    generationStatus: task.status,
+                    progress: task.progress ?? undefined,
+                    errorMessage: undefined
+                });
+                await sleep(TASK_POLL_INTERVAL_MS);
+                continue;
+            }
+
+            if (task.status === 'completed') {
+                await applyCompletedImageTask(targetNodeId, task);
+                return;
+            }
+
+            if (task.status === 'cancelled') {
+                const currentNode = nodes.find(n => n.id === targetNodeId);
+                updateNode(targetNodeId, {
+                    status: currentNode?.resultUrl ? NodeStatus.SUCCESS : NodeStatus.IDLE,
+                    taskId: undefined,
+                    generationStatus: undefined,
+                    progress: undefined,
+                    errorMessage: undefined
+                });
+                return;
+            }
+
+            if (task.status === 'failed' || task.status === 'timeout') {
+                throw new Error(getTaskErrorMessage(task));
+            }
+
+            throw new Error(`Unexpected image task status: ${task.status}`);
+        }
+    };
+
+    const generateImageViaLegacyFallback = async (
+        targetNode: NodeData,
+        combinedPrompt: string,
+        imageBase64s: string[]
+    ) => {
         const rawResultUrl = await generateImage({
             prompt: combinedPrompt,
             aspectRatio: targetNode.aspectRatio,
@@ -156,18 +236,59 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             klingSubjectIntensity: targetNode.klingSubjectIntensity
         });
 
-        // Add cache-busting parameter to force browser to fetch new image.
-        // Backend metadata is keyed by nodeId for recovery.
-        const resultUrl = `${rawResultUrl}?t=${Date.now()}`;
+        const resultUrl = withCacheBusting(rawResultUrl);
         const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
 
         updateNode(targetNode.id, {
             status: NodeStatus.SUCCESS,
             resultUrl,
             resultAspectRatio,
-            // Note: aspectRatio is intentionally NOT updated to preserve user's selection.
-            errorMessage: undefined
+            generationStatus: 'completed',
+            progress: 100,
+            errorMessage: undefined,
+            taskId: undefined
         });
+    };
+
+    const generateSingleImageNode = async (
+        targetNode: NodeData,
+        allNodes: NodeData[],
+        nodesById: Map<string, NodeData>
+    ) => {
+        const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
+        const imageBase64s = collectImageReferences(targetNode, nodesById);
+
+        let taskCreated = false;
+        try {
+            const task = await createImageTask({
+                nodeId: targetNode.id,
+                workflowId,
+                prompt: combinedPrompt,
+                imageModel: targetNode.imageModel || DEFAULT_IMAGE_MODEL,
+                aspectRatio: targetNode.aspectRatio,
+                resolution: targetNode.resolution,
+                referenceImages: imageBase64s.length > 0 ? imageBase64s : undefined
+            });
+
+            taskCreated = true;
+            updateNode(targetNode.id, {
+                status: NodeStatus.LOADING,
+                taskId: task.taskId,
+                generationStatus: task.status,
+                progress: 0,
+                generationStartTime: Date.now(),
+                errorMessage: undefined
+            });
+
+            await waitForImageTask(targetNode.id, task.taskId);
+        } catch (error) {
+            if (taskCreated) {
+                throw error;
+            }
+
+            console.warn('[Generation] Falling back to legacy /api/generate-image:', error);
+            await generateImageViaLegacyFallback(targetNode, combinedPrompt, imageBase64s);
+        }
     };
 
     const createImageCandidateNodes = (sourceNode: NodeData, count: number, generationStartTime: number): NodeData[] => {
@@ -185,6 +306,8 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 y: startY + (candidateIndex * CANDIDATE_Y_STEP),
                 prompt: sourceNode.prompt,
                 status: NodeStatus.LOADING,
+                generationStatus: 'queued',
+                progress: 0,
                 model: sourceNode.model,
                 imageModel: sourceNode.imageModel,
                 aspectRatio: sourceNode.aspectRatio,
@@ -242,27 +365,43 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         if (node.type === NodeType.IMAGE && imageGenerationCount > 1 && setNodes) {
             const candidateNodes = createImageCandidateNodes(node, imageGenerationCount, generationStartTime);
             const generationNodes = [
-                { ...node, status: NodeStatus.LOADING, generationStartTime },
+                { ...node, status: NodeStatus.LOADING, generationStatus: 'queued' as const, progress: 0, generationStartTime },
                 ...candidateNodes
             ];
 
-            updateNode(id, { status: NodeStatus.LOADING, generationStartTime });
+            updateNode(id, {
+                status: NodeStatus.LOADING,
+                generationStatus: 'queued',
+                progress: 0,
+                generationStartTime,
+                errorMessage: undefined
+            });
             setNodes(prev => [...prev, ...candidateNodes]);
             setSelectedNodeIds?.([id, ...candidateNodes.map(candidate => candidate.id)]);
 
-            for (const generationNode of generationNodes) {
+            await Promise.allSettled(generationNodes.map(async (generationNode) => {
                 try {
                     await generateSingleImageNode(generationNode, [...nodes, ...candidateNodes], nodesById);
                 } catch (error: any) {
                     const errorMessage = getGenerationErrorMessage(error);
-                    updateNode(generationNode.id, { status: NodeStatus.ERROR, errorMessage });
+                    updateNode(generationNode.id, {
+                        status: NodeStatus.ERROR,
+                        generationStatus: 'failed',
+                        errorMessage
+                    });
                     console.error('Generation failed:', error);
                 }
-            }
+            }));
             return;
         }
 
-        updateNode(id, { status: NodeStatus.LOADING, generationStartTime });
+        updateNode(id, {
+            status: NodeStatus.LOADING,
+            generationStatus: node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR ? 'queued' : undefined,
+            progress: node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR ? 0 : undefined,
+            generationStartTime,
+            errorMessage: undefined
+        });
 
         try {
             if (node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR) {
@@ -311,6 +450,8 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                         status: NodeStatus.SUCCESS,
                         resultUrl,
                         resultAspectRatio,
+                        generationStatus: undefined,
+                        progress: undefined,
                         errorMessage: undefined
                     });
                 } else {
@@ -471,7 +612,11 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 errorMessage = 'Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
             }
 
-            updateNode(id, { status: NodeStatus.ERROR, errorMessage });
+            updateNode(id, {
+                status: NodeStatus.ERROR,
+                generationStatus: node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR ? 'failed' : undefined,
+                errorMessage
+            });
             console.error('Generation failed:', error);
         }
     };

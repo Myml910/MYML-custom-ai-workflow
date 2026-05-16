@@ -33,6 +33,131 @@ export interface GenerateVideoParams {
   nodeId?: string; // ID of the node initiating generation
 }
 
+export type GenerationTaskStatus = 'queued' | 'running' | 'polling' | 'completed' | 'failed' | 'timeout' | 'cancelled';
+
+export interface CreateImageTaskParams {
+  nodeId: string;
+  workflowId?: string | null;
+  prompt: string;
+  imageModel?: string;
+  aspectRatio?: string;
+  resolution?: string;
+  referenceImages?: string[];
+}
+
+export interface CreateImageTaskResponse {
+  taskId: string;
+  nodeId: string;
+  status: GenerationTaskStatus;
+}
+
+export interface GenerationTask {
+  taskId: string;
+  userId?: string;
+  username?: string;
+  workflowId?: string | null;
+  nodeId: string;
+  taskType?: string;
+  provider?: string;
+  model?: string;
+  status: GenerationTaskStatus;
+  prompt?: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  resultUrl?: string | null;
+  providerTaskId?: string | null;
+  progress?: number | null;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  submittedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  durationMs?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+async function readJsonResponse(response: Response): Promise<any> {
+  return response.json().catch(() => ({}));
+}
+
+/**
+ * Creates an asynchronous image generation task.
+ */
+export const createImageTask = async (params: CreateImageTaskParams): Promise<CreateImageTaskResponse> => {
+  const response = await fetch('/api/tasks/image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(params)
+  });
+
+  const data = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+
+  if (!data.taskId) {
+    throw new Error('Image task response did not include taskId');
+  }
+
+  return data;
+};
+
+/**
+ * Fetches a generation task by task id.
+ */
+export const getTask = async (taskId: string): Promise<GenerationTask> => {
+  const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    credentials: 'include'
+  });
+
+  const data = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+
+  return data;
+};
+
+/**
+ * Fetches the latest task for a node, optionally scoped to a workflow.
+ */
+export const getTaskByNodeId = async (
+  nodeId: string,
+  workflowId?: string | null
+): Promise<{ task: GenerationTask | null }> => {
+  const query = workflowId ? `?workflowId=${encodeURIComponent(workflowId)}` : '';
+  const response = await fetch(`/api/tasks/by-node/${encodeURIComponent(nodeId)}${query}`, {
+    credentials: 'include'
+  });
+
+  const data = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+
+  return data;
+};
+
+/**
+ * Cancels a queued generation task.
+ */
+export const cancelTask = async (taskId: string): Promise<{ task: GenerationTask }> => {
+  const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/cancel`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+
+  const data = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+
+  return data;
+};
+
 /**
  * Generates an image by calling the backend API
  */

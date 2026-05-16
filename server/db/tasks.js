@@ -185,6 +185,71 @@ export async function getTaskById(taskId, userContext) {
     return serializeTask(result.rows[0]);
 }
 
+export async function cancelTask(taskId, userContext) {
+    const user = requireUserContext(userContext);
+    const normalizedTaskId = typeof taskId === 'string' ? taskId.trim() : '';
+    if (!normalizedTaskId) {
+        return null;
+    }
+
+    const db = getDb();
+    const client = await db.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const existing = await client.query(`
+            ${TASK_SELECT}
+            WHERE id = $1
+              AND user_id = $2
+            FOR UPDATE
+            LIMIT 1
+        `, [normalizedTaskId, user.id]);
+
+        const row = existing.rows[0];
+        if (!row) {
+            await client.query('COMMIT');
+            return null;
+        }
+
+        if (row.status !== 'queued') {
+            await client.query('COMMIT');
+            return serializeTask(row);
+        }
+
+        const result = await client.query(`
+            UPDATE generation_tasks
+            SET status = 'cancelled',
+                updated_at = now()
+            WHERE id = $1
+              AND user_id = $2
+            RETURNING *
+        `, [normalizedTaskId, user.id]);
+
+        await client.query(`
+            INSERT INTO task_events (id, task_id, event_type, message, payload)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [
+            crypto.randomUUID(),
+            normalizedTaskId,
+            'task_cancelled',
+            'Task cancelled by user',
+            {
+                previousStatus: 'queued',
+                userId: user.id
+            }
+        ]);
+
+        await client.query('COMMIT');
+        return serializeTask(result.rows[0]);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 export async function getLatestTaskByNodeId(nodeId, userContext, workflowId = null) {
     const user = requireUserContext(userContext);
     const db = getDb();

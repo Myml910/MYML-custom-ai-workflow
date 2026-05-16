@@ -373,7 +373,8 @@ function CanvasApp({
     updateNode,
     setNodes,
     setSelectedNodeIds,
-    language
+    language,
+    workflowId
   });
 
   // Keep a ref to handleGenerate so setTimeout callbacks can access the latest version
@@ -481,7 +482,8 @@ function CanvasApp({
   // Generation Recovery Management
   useGenerationRecovery({
     nodes,
-    updateNode
+    updateNode,
+    workflowId
   });
 
   // Video Frame Extraction (auto-extract lastFrame for videos missing thumbnails)
