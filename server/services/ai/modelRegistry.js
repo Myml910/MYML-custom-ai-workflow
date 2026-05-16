@@ -19,10 +19,10 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         capability: 'image-generation',
         providers: [
             {
-                provider: 'apimart',
+                provider: 'dataler',
                 upstreamModel: 'gemini-3.1-flash-image-preview',
                 priority: 1,
-                isAsync: true
+                isAsync: false
             }
         ],
         defaultResolution: '2K'

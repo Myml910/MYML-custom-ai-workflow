@@ -9,6 +9,10 @@ const DEFAULT_PIKACHU_BASE_URL = 'https://pikachu.claudecode.love/v1';
 const DEFAULT_PIKACHU_IMAGE_MODEL = 'gpt-image-2';
 const DEFAULT_PIKACHU_IMAGE_QUALITY = 'medium';
 const DEFAULT_PIKACHU_REQUEST_TIMEOUT_MS = 300000;
+const DEFAULT_DATALER_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+const DEFAULT_DATALER_IMAGE_SIZE = 'auto';
+const DEFAULT_DATALER_IMAGE_RESOLUTION = '2K';
+const DEFAULT_DATALER_REQUEST_TIMEOUT_MS = 300000;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -44,6 +48,14 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             imageModel: cleanString(env.PIKACHU_IMAGE_MODEL) || DEFAULT_PIKACHU_IMAGE_MODEL,
             imageQuality: cleanString(env.PIKACHU_IMAGE_QUALITY) || DEFAULT_PIKACHU_IMAGE_QUALITY
         },
+        dataler: {
+            baseUrl: cleanBaseUrl(env.DATALER_API_BASE_URL),
+            apiKey: cleanString(env.DATALER_API_KEY),
+            requestTimeoutMs: parsePositiveInteger(env.DATALER_REQUEST_TIMEOUT_MS, DEFAULT_DATALER_REQUEST_TIMEOUT_MS),
+            imageModel: cleanString(env.DATALER_IMAGE_MODEL) || DEFAULT_DATALER_IMAGE_MODEL,
+            imageSize: cleanString(env.DATALER_IMAGE_SIZE) || DEFAULT_DATALER_IMAGE_SIZE,
+            imageResolution: cleanString(env.DATALER_IMAGE_RESOLUTION) || DEFAULT_DATALER_IMAGE_RESOLUTION
+        },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',
             chatApiKey: cleanString(env.CHAT_API_KEY) || cleanString(locals.OPENAI_API_KEY) || cleanString(env.OPENAI_API_KEY),
@@ -71,6 +83,10 @@ export function isApimartImageConfigured(config = getAiProviderConfig()) {
 
 export function isPikachuImageConfigured(config = getAiProviderConfig()) {
     return Boolean(config.pikachu.baseUrl && config.pikachu.apiKey && config.pikachu.imageModel);
+}
+
+export function isDatalerImageConfigured(config = getAiProviderConfig()) {
+    return Boolean(config.dataler.baseUrl && config.dataler.apiKey && config.dataler.imageModel);
 }
 
 export function getLegacyChatConfig(runtimeApiKey, config = getAiProviderConfig()) {

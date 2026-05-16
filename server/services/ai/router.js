@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getAiProviderConfig, isApimartImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
 import { AiProviderError, AI_ERROR_TYPES, classifyProviderError } from './errors.js';
 import { logAiEvent } from './logger.js';
 import { getImageModelConfig, getImageProviders } from './modelRegistry.js';
@@ -8,6 +8,7 @@ import {
     imageResultToBuffer,
     normalizeResolution
 } from './providers/apimartProvider.js';
+import { generateImage as generateDatalerImage } from './providers/datalerProvider.js';
 import { generateImage as generatePikachuImage } from './providers/pikachuProvider.js';
 
 function getImageFormat(result) {
@@ -63,9 +64,34 @@ async function runPikachuProvider(input, providerConfig, modelConfig, config, op
     });
 }
 
+async function runDatalerProvider(input, providerConfig, modelConfig, config, options = {}) {
+    if (!isDatalerImageConfigured(config)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.AUTH_ERROR,
+            provider: 'dataler',
+            model: providerConfig.upstreamModel,
+            message: 'Dataler image provider is not configured. Add DATALER_API_BASE_URL and DATALER_API_KEY to .env.'
+        });
+    }
+
+    return await generateDatalerImage({
+        prompt: input.prompt,
+        imageUrls: input.imageUrls.length > 0 ? input.imageUrls : undefined,
+        size: input.size || config.dataler.imageSize,
+        resolution: input.resolution || modelConfig.defaultResolution || config.dataler.imageResolution,
+        model: providerConfig.upstreamModel
+    }, {
+        config,
+        user: options.user
+    });
+}
+
 async function runImageProvider(input, providerConfig, modelConfig, config, options = {}) {
     if (providerConfig.provider === 'apimart') {
         return await runApimartProvider(input, providerConfig, modelConfig, config);
+    }
+    if (providerConfig.provider === 'dataler') {
+        return await runDatalerProvider(input, providerConfig, modelConfig, config, options);
     }
     if (providerConfig.provider === 'pikachu') {
         return await runPikachuProvider(input, providerConfig, modelConfig, config, options);

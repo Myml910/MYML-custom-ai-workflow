@@ -1,4 +1,4 @@
-import { getAiProviderConfig, isApimartImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
 import { getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
 import {
@@ -8,6 +8,11 @@ import {
     pollImageTask,
     submitImageTask
 } from '../../services/ai/providers/apimartProvider.js';
+import {
+    normalizeDatalerImageResponse,
+    normalizeProviderError as normalizeDatalerProviderError,
+    submitImageTask as submitDatalerImageTask
+} from '../../services/ai/providers/datalerProvider.js';
 import {
     normalizeImageResult as normalizePikachuImageResult,
     normalizeProviderError as normalizePikachuProviderError,
@@ -198,10 +203,25 @@ function buildPikachuInput(task, config, providerConfig, modelConfig) {
     };
 }
 
+function buildDatalerInput(task, config, providerConfig, modelConfig) {
+    const input = getTaskInput(task);
+    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+
+    return {
+        prompt: input.prompt || task.prompt || '',
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        size: input.aspectRatio || input.size || config.dataler.imageSize,
+        resolution: input.resolution || modelConfig.defaultResolution || config.dataler.imageResolution,
+        model: providerConfig.upstreamModel
+    };
+}
+
 function normalizeWorkerError(error, providerConfig = null) {
     let normalized;
     if (providerConfig?.provider === 'apimart') {
         normalized = normalizeProviderError(error, { model: providerConfig.upstreamModel });
+    } else if (providerConfig?.provider === 'dataler') {
+        normalized = normalizeDatalerProviderError(error, { model: providerConfig.upstreamModel });
     } else if (providerConfig?.provider === 'pikachu') {
         normalized = normalizePikachuProviderError(error, { model: providerConfig.upstreamModel });
     } else {
@@ -257,8 +277,34 @@ export async function executeImageTask(task, options = {}) {
         if (providerConfig.provider === 'apimart' && !isApimartImageConfigured(config)) {
             throw new Error('APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
         }
+        if (providerConfig.provider === 'dataler' && !isDatalerImageConfigured(config)) {
+            throw new Error('Dataler image provider is not configured. Add DATALER_API_BASE_URL and DATALER_API_KEY to .env.');
+        }
         if (providerConfig.provider === 'pikachu' && !isPikachuImageConfigured(config)) {
             throw new Error('Pikachu image provider is not configured. Add PIKACHU_BASE_URL and PIKACHU_API_KEY to .env.');
+        }
+
+        if (providerConfig.provider === 'dataler') {
+            const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig);
+            const submitResult = await submitDatalerImageTask(providerInput, {
+                config,
+                user: getTaskUser(task)
+            });
+
+            if (submitResult.status !== 'completed') {
+                throw new Error(submitResult.error || 'Dataler image task did not complete.');
+            }
+
+            const normalizedResult = normalizeDatalerImageResponse(submitResult);
+            return await completeImageTaskWithResult(task, normalizedResult, {
+                provider: submitResult.provider,
+                model: submitResult.model,
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? 100,
+                providerTaskId: submitResult.taskId || null,
+                usage: submitResult.usage || null,
+                raw: submitResult.raw || null
+            });
         }
 
         if (providerConfig.provider === 'pikachu') {

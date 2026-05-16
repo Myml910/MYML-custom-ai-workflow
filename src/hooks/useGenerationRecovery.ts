@@ -33,6 +33,11 @@ export const useGenerationRecovery = ({
         return 'Image generation failed.';
     };
 
+    const hasActiveTaskState = (node?: NodeData | null): boolean => (
+        Boolean(node?.taskId) ||
+        ACTIVE_TASK_STATUSES.has(node?.generationStatus as GenerationTaskStatus)
+    );
+
     const applyTaskStatus = useCallback(async (nodeId: string, task: GenerationTask): Promise<boolean> => {
         if (ACTIVE_TASK_STATUSES.has(task.status)) {
             updateNode(nodeId, {
@@ -87,6 +92,11 @@ export const useGenerationRecovery = ({
 
     const checkLegacyStatus = useCallback(async (nodeId: string) => {
         try {
+            const currentNode = nodesRef.current.find(n => n.id === nodeId);
+            if (hasActiveTaskState(currentNode)) {
+                return;
+            }
+
             const response = await fetch(`/api/generation-status/${nodeId}`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
@@ -153,7 +163,10 @@ export const useGenerationRecovery = ({
             await checkLegacyStatus(nodeId);
         } catch (error) {
             console.error(`[Recovery] Error checking task status for node ${nodeId}:`, error);
-            await checkLegacyStatus(nodeId);
+            const node = nodesRef.current.find(n => n.id === nodeId);
+            if (!hasActiveTaskState(node)) {
+                await checkLegacyStatus(nodeId);
+            }
         }
     }, [applyTaskStatus, checkLegacyStatus, workflowId]); // nodes accessed via ref
 

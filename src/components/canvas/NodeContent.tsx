@@ -83,13 +83,10 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const isVideoType = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     // Helper: Check if node is local model
     const isLocalModel = data.type === NodeType.LOCAL_IMAGE_MODEL || data.type === NodeType.LOCAL_VIDEO_MODEL;
-    const imageDisplayVersion = [
-        data.id,
-        data.taskId || '',
-        data.generationStatus || '',
-        data.progress ?? '',
-        data.resultAspectRatio || ''
-    ].join('|');
+    const isActiveTask = data.generationStatus === 'queued' ||
+        data.generationStatus === 'running' ||
+        data.generationStatus === 'polling';
+    const imageDisplayVersion = `${data.id}|${data.resultUrl || ''}`;
     const displayResultUrl = React.useMemo(
         () => withDisplayCacheBust(data.resultUrl, imageDisplayVersion),
         [data.resultUrl, imageDisplayVersion]
@@ -193,8 +190,8 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 />
             )}
 
-            {/* Result View - Show when successful OR when regenerating (loading with existing content) */}
-            {(isSuccess || isLoading) && data.resultUrl ? (
+            {/* Result View - Show existing media under active task overlays instead of replacing it. */}
+            {(isSuccess || isLoading || isActiveTask) && data.resultUrl ? (
                 <div
                     className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-[var(--myml-radius-panel)] overflow-hidden'}`}
                     style={getAspectRatioStyle()}
@@ -217,8 +214,8 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         />
                     )}
 
-                    {/* Regenerating Overlay - Shows when loading with existing content */}
-                    {isLoading && (
+                    {/* Regenerating Overlay - Shows when loading/queued with existing content */}
+                    {(isLoading || isActiveTask) && (
                         <div className={`absolute inset-0 z-[1] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center ${canCancelQueuedTask ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                             <Loader2 size={40} className="animate-spin text-[#D8FF00]" />
                             <span className="mt-3 text-sm text-white font-medium">{generationStatusLabel || t(language, 'regenerating')}</span>
@@ -325,7 +322,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         </div>
                     )}
 
-                    {isLoading ? (
+                    {(isLoading || isActiveTask) ? (
                         <div className="relative z-10 flex flex-col items-center gap-2">
                             <Loader2 size={32} className="animate-spin text-[#D8FF00]" />
                             <span className="text-xs text-[var(--myml-text-muted)] font-medium">{generationStatusLabel}</span>

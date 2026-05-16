@@ -330,8 +330,14 @@ function CanvasApp({
 
   // Mark as dirty when nodes or title change
   const isInitialMount = React.useRef(true);
-  const lastLoadingCountRef = React.useRef(0);
+  const savedRecoveryTaskIdsRef = React.useRef<Set<string>>(new Set());
   const ignoreNextChange = React.useRef(false);
+  const activeTaskStatuses = React.useMemo(() => new Set(['queued', 'running', 'polling']), []);
+  const isActiveTaskNode = React.useCallback((node: NodeData) => (
+    Boolean(node.taskId) &&
+    Boolean(node.generationStatus) &&
+    activeTaskStatuses.has(node.generationStatus)
+  ), [activeTaskStatuses]);
 
   React.useEffect(() => {
     if (isInitialMount.current) {
@@ -346,14 +352,18 @@ function CanvasApp({
 
     setIsDirty(true);
 
-    // Trigger immediate save if any node JUST entered LOADING state
-    const currentLoadingCount = nodes.filter(n => n.status === NodeStatus.LOADING).length;
-    if (currentLoadingCount > lastLoadingCountRef.current) {
-      console.log('[App] New loading node detected, triggering immediate save for recovery protection');
+    const activeTaskIds = nodes
+      .filter(isActiveTaskNode)
+      .map(node => node.taskId)
+      .filter((taskId): taskId is string => Boolean(taskId));
+
+    const unsavedActiveTaskId = activeTaskIds.find(taskId => !savedRecoveryTaskIdsRef.current.has(taskId));
+    if (unsavedActiveTaskId) {
+      savedRecoveryTaskIdsRef.current.add(unsavedActiveTaskId);
+      console.log('[App] New active generation task detected, triggering immediate save for recovery protection');
       handleSaveWithTracking();
     }
-    lastLoadingCountRef.current = currentLoadingCount;
-  }, [nodes, canvasTitle]);
+  }, [nodes, canvasTitle, isActiveTaskNode]);
 
   // Update saved state after workflow save
   const handleSaveWithTracking = async () => {
@@ -386,6 +396,7 @@ function CanvasApp({
   // Create new canvas
   const handleNewCanvas = () => {
     ignoreNextChange.current = true;
+    savedRecoveryTaskIdsRef.current.clear();
     setNodes([]);
     setGroups([]); // Reset groups for new canvas
     setSelectedNodeIds([]);
