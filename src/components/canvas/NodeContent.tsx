@@ -36,6 +36,18 @@ interface NodeContentProps {
     language?: Language;
 }
 
+function withDisplayCacheBust(url: string | undefined, version: string): string | undefined {
+    if (!url || url.startsWith('data:') || url.startsWith('blob:')) {
+        return url;
+    }
+
+    const [pathAndQuery, hash] = url.split('#');
+    const separator = pathAndQuery.includes('?') ? '&' : '?';
+    const displayUrl = `${pathAndQuery}${separator}v=${encodeURIComponent(version)}`;
+
+    return hash ? `${displayUrl}#${hash}` : displayUrl;
+}
+
 export const NodeContent: React.FC<NodeContentProps> = ({
     data,
     inputUrl,
@@ -71,6 +83,17 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const isVideoType = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     // Helper: Check if node is local model
     const isLocalModel = data.type === NodeType.LOCAL_IMAGE_MODEL || data.type === NodeType.LOCAL_VIDEO_MODEL;
+    const imageDisplayVersion = [
+        data.id,
+        data.taskId || '',
+        data.generationStatus || '',
+        data.progress ?? '',
+        data.resultAspectRatio || ''
+    ].join('|');
+    const displayResultUrl = React.useMemo(
+        () => withDisplayCacheBust(data.resultUrl, imageDisplayVersion),
+        [data.resultUrl, imageDisplayVersion]
+    );
     const generationStatusLabel = (() => {
         if (language === 'zh') {
             if (data.generationStatus === 'queued') return '排队中';
@@ -179,14 +202,19 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         if (isVideoType || !data.resultUrl) return;
 
                         e.stopPropagation();
-                        onExpand?.(data.resultUrl);
+                        onExpand?.(displayResultUrl || data.resultUrl);
                     }}
                     title={!isVideoType ? t(language, 'viewFullSize') : undefined}
                 >
                     {isVideoType ? (
                         <video src={data.resultUrl} controls loop className="w-full h-full object-cover" />
                     ) : (
-                        <img src={data.resultUrl} alt={t(language, 'generated')} className="w-full h-full object-cover pointer-events-none" />
+                        <img
+                            key={`${data.id}-${displayResultUrl || data.resultUrl}`}
+                            src={displayResultUrl || data.resultUrl}
+                            alt={t(language, 'generated')}
+                            className="w-full h-full object-cover pointer-events-none"
+                        />
                     )}
 
                     {/* Regenerating Overlay - Shows when loading with existing content */}

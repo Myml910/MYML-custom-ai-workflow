@@ -27,11 +27,6 @@ export const useGenerationRecovery = ({
 
     const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
 
-    const withCacheBusting = (url: string): string => {
-        if (!url || url.startsWith('data:')) return url;
-        return `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    };
-
     const getTaskErrorMessage = (task: GenerationTask): string => {
         if (task.errorMessage) return task.errorMessage;
         if (task.status === 'timeout') return 'Image generation timed out.';
@@ -53,7 +48,7 @@ export const useGenerationRecovery = ({
         if (task.status === 'completed' && task.resultUrl) {
             updateNode(nodeId, {
                 status: NodeStatus.SUCCESS,
-                resultUrl: withCacheBusting(task.resultUrl),
+                resultUrl: task.resultUrl,
                 taskId: task.taskId,
                 generationStatus: 'completed',
                 progress: 100,

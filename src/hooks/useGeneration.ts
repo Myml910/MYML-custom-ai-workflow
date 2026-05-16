@@ -165,8 +165,8 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             throw new Error('Image task completed without resultUrl');
         }
 
-        const resultUrl = withCacheBusting(task.resultUrl);
-        const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
+        const resultUrl = task.resultUrl;
+        const { resultAspectRatio } = await getImageAspectRatio(withCacheBusting(resultUrl));
 
         updateNode(targetNodeId, {
             status: NodeStatus.SUCCESS,
@@ -236,8 +236,8 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             klingSubjectIntensity: targetNode.klingSubjectIntensity
         });
 
-        const resultUrl = withCacheBusting(rawResultUrl);
-        const { resultAspectRatio } = await getImageAspectRatio(resultUrl);
+        const resultUrl = rawResultUrl;
+        const { resultAspectRatio } = await getImageAspectRatio(withCacheBusting(resultUrl));
 
         updateNode(targetNode.id, {
             status: NodeStatus.SUCCESS,
