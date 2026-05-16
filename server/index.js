@@ -35,6 +35,7 @@ import { processTikTokVideo, isValidTikTokUrl } from './tools/tiktok.js';
 import localModelsRoutes from './routes/local-models.js';
 import storyboardRoutes from './routes/storyboard.js';
 import mattingRoutes from './routes/matting.js';
+import { startTaskRunner, stopTaskRunner } from './tasks/taskRunner.js';
 import {
     ASSETS_DIR,
     CHATS_DIR,
@@ -1535,6 +1536,26 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
     console.log(`Backend server running on http://${HOST}:${PORT}`);
+
+    if (process.env.TASK_WORKER_ENABLED === 'true') {
+        startTaskRunner().catch(error => {
+            console.error('[TaskRunner] Failed to start image task runner:', error);
+        });
+    } else {
+        console.log('[taskRunner] disabled. Set TASK_WORKER_ENABLED=true to enable background task workers.');
+    }
 });
+
+function shutdown(signal) {
+    console.log(`[Server] Received ${signal}, shutting down...`);
+    stopTaskRunner();
+    server.close(() => {
+        console.log('[Server] HTTP server stopped');
+        process.exit(0);
+    });
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));

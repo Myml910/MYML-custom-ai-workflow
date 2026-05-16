@@ -1,4 +1,5 @@
 import { getAiProviderConfig } from '../aiProviderConfig.js';
+import { classifyProviderError } from '../errors.js';
 
 const GEMINI_FLASH_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GPT_IMAGE_2_MODEL = 'gpt-image-2';
@@ -325,6 +326,29 @@ export function resolveApimartImageModel(projectModelId, fallbackModel) {
     throw new Error(`Unsupported APIMart image project model: ${projectModelId}`);
 }
 
+function createImageGenerationRequestBody(input, config) {
+    const { imageModel, imageResolution, imageSize } = config.apimart;
+    const model = input.model || imageModel;
+    const { maxReferenceImages } = getImageModelLimits(model);
+    const imageUrls = normalizeInputArray(input.imageUrls || input.image_urls || [])
+        .filter(Boolean)
+        .slice(0, maxReferenceImages);
+
+    const requestBody = {
+        model,
+        prompt: input.prompt || '',
+        size: input.size || imageSize,
+        resolution: normalizeResolution(model, input.resolution || imageResolution),
+        n: 1
+    };
+
+    if (imageUrls.length > 0) {
+        requestBody.image_urls = imageUrls;
+    }
+
+    return { model, requestBody, imageUrls };
+}
+
 export async function createTextResponse(input, options = {}) {
     const config = options.config || getAiProviderConfig();
     const { baseUrl, apiKey, textModel } = config.apimart;
@@ -365,31 +389,15 @@ export function extractResponseText(data) {
     throw new Error('APIMart text response did not include parsable text content.');
 }
 
-export async function generateImage(input, options = {}) {
+export async function submitImageTask(input, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey, imageModel, imageResolution, imageSize, imagePollIntervalMs, imagePollTimeoutMs } = config.apimart;
-    const model = input.model || imageModel;
+    const { baseUrl, apiKey } = config.apimart;
 
     if (!baseUrl || !apiKey) {
         throw new Error('APIMart image API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
     }
 
-    const { maxReferenceImages } = getImageModelLimits(model);
-    const imageUrls = normalizeInputArray(input.imageUrls || input.image_urls || [])
-        .filter(Boolean)
-        .slice(0, maxReferenceImages);
-
-    const requestBody = {
-        model,
-        prompt: input.prompt || '',
-        size: input.size || imageSize,
-        resolution: normalizeResolution(model, input.resolution || imageResolution),
-        n: 1
-    };
-
-    if (imageUrls.length > 0) {
-        requestBody.image_urls = imageUrls;
-    }
+    const { model, requestBody, imageUrls } = createImageGenerationRequestBody(input, config);
 
     const submitResponse = await fetch(`${baseUrl}/images/generations`, {
         method: 'POST',
@@ -404,6 +412,7 @@ export async function generateImage(input, options = {}) {
     const taskId = pickTaskId(submitData);
     const immediateImages = collectImages(submitData);
     const submitStatus = getRawTaskStatus(submitData);
+    const submittedAt = new Date().toISOString();
 
     devLog('[APIMart][image submit]', {
         task_id: taskId,
@@ -415,9 +424,16 @@ export async function generateImage(input, options = {}) {
         return {
             provider: APIMART_PROVIDER,
             model,
+            taskId,
             status: 'completed',
             images: immediateImages,
-            raw: submitData
+            raw: submitData,
+            submittedAt,
+            request: {
+                size: requestBody.size,
+                resolution: requestBody.resolution,
+                referenceCount: imageUrls.length
+            }
         };
     }
 
@@ -428,36 +444,113 @@ export async function generateImage(input, options = {}) {
             status: 'failed',
             images: [],
             raw: submitData,
+            submittedAt,
             error: `APIMart image generation did not return task_id: ${JSON.stringify(submitData).slice(0, 800)}`
         };
     }
 
+    return {
+        provider: APIMART_PROVIDER,
+        model,
+        taskId,
+        status: normalizeTaskStatus(submitData),
+        rawStatus: submitStatus || undefined,
+        progress: getTaskProgress(submitData),
+        images: [],
+        raw: submitData,
+        submittedAt,
+        request: {
+            size: requestBody.size,
+            resolution: requestBody.resolution,
+            referenceCount: imageUrls.length
+        }
+    };
+}
+
+export async function pollImageTask(providerTaskId, options = {}) {
+    const config = options.config || getAiProviderConfig();
+    const { baseUrl, apiKey } = config.apimart;
+
+    if (!baseUrl || !apiKey) {
+        throw new Error('APIMart image API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
+    }
+
+    const taskResponse = await fetch(`${baseUrl}/tasks/${encodeURIComponent(providerTaskId)}`, {
+        headers: {
+            Authorization: `Bearer ${apiKey}`
+        }
+    });
+
+    const taskData = await parseJsonResponse(taskResponse, `task ${providerTaskId} poll`);
+    const status = normalizeTaskStatus(taskData);
+    const rawStatus = getRawTaskStatus(taskData) || status;
+    const progress = getTaskProgress(taskData);
+    const errorMessage = getTaskErrorMessage(taskData);
+    const images = status === 'completed' ? collectImages(taskData) : [];
+
+    return {
+        provider: APIMART_PROVIDER,
+        model: options.model || undefined,
+        taskId: providerTaskId,
+        status,
+        rawStatus,
+        progress,
+        images,
+        raw: taskData,
+        error: status === 'failed' ? (errorMessage || 'APIMart image task failed.') : undefined
+    };
+}
+
+export function normalizeImageResult(raw) {
+    const images = collectImages(raw);
+    if (images.length === 0) {
+        throw new Error('Task completed but no image could be parsed');
+    }
+
+    return {
+        images
+    };
+}
+
+export function normalizeProviderError(error, context = {}) {
+    return classifyProviderError(error, {
+        provider: APIMART_PROVIDER,
+        model: context.model,
+        raw: error?.raw || context.raw
+    });
+}
+
+export async function generateImage(input, options = {}) {
+    const config = options.config || getAiProviderConfig();
+    const { imagePollIntervalMs, imagePollTimeoutMs } = config.apimart;
+    const submitResult = await submitImageTask(input, options);
+    const model = submitResult.model;
+
+    if (!submitResult.taskId) {
+        return submitResult;
+    }
+
     const startedAt = Date.now();
-    let lastData = submitData;
-    let lastStatus = submitStatus || 'submitted';
-    let lastProgress = getTaskProgress(submitData);
-    let lastErrorMessage = getTaskErrorMessage(submitData);
+    let lastData = submitResult.raw;
+    let lastStatus = submitResult.rawStatus || 'submitted';
+    let lastProgress = submitResult.progress;
+    let lastErrorMessage = getTaskErrorMessage(submitResult.raw);
     let pollAttempt = 0;
 
     while (Date.now() - startedAt < imagePollTimeoutMs) {
         await sleep(imagePollIntervalMs);
         pollAttempt++;
 
-        const taskResponse = await fetch(`${baseUrl}/tasks/${encodeURIComponent(taskId)}`, {
-            headers: {
-                Authorization: `Bearer ${apiKey}`
-            }
-        });
-
-        const taskData = await parseJsonResponse(taskResponse, `task ${taskId} poll`);
+        const taskResult = await pollImageTask(submitResult.taskId, { ...options, model });
+        const taskData = taskResult.raw;
         lastData = taskData;
-        const status = normalizeTaskStatus(taskData);
-        lastStatus = getRawTaskStatus(taskData) || status;
-        lastProgress = getTaskProgress(taskData);
-        lastErrorMessage = getTaskErrorMessage(taskData);
+        const status = taskResult.status;
+        lastStatus = taskResult.rawStatus || status;
+        lastProgress = taskResult.progress;
+        lastErrorMessage = taskResult.error || getTaskErrorMessage(taskData);
 
         devLog('[APIMart][image poll]', {
-            task_id: taskId,
+            task_id: submitResult.taskId,
             pollAttempt,
             elapsedMs: Date.now() - startedAt,
             status: lastStatus,
@@ -467,10 +560,10 @@ export async function generateImage(input, options = {}) {
         });
 
         if (status === 'completed') {
-            const images = collectImages(taskData);
+            const images = taskResult.images;
             if (images.length === 0) {
                 devLog('[APIMart][image parse miss]', {
-                    task_id: taskId,
+                    task_id: submitResult.taskId,
                     resultKeys: getObjectKeys(taskData?.data?.result || taskData?.result),
                     dataKeys: getObjectKeys(taskData?.data),
                     rootKeys: getObjectKeys(taskData)
@@ -479,7 +572,7 @@ export async function generateImage(input, options = {}) {
                 return {
                     provider: APIMART_PROVIDER,
                     model,
-                    taskId,
+                    taskId: submitResult.taskId,
                     status: 'failed',
                     images: [],
                     raw: taskData,
@@ -490,7 +583,7 @@ export async function generateImage(input, options = {}) {
             return {
                 provider: APIMART_PROVIDER,
                 model,
-                taskId,
+                taskId: submitResult.taskId,
                 status,
                 images,
                 raw: taskData
@@ -508,7 +601,7 @@ export async function generateImage(input, options = {}) {
             return {
                 provider: APIMART_PROVIDER,
                 model,
-                taskId,
+                taskId: submitResult.taskId,
                 status,
                 images: [],
                 raw: taskData,
@@ -520,11 +613,11 @@ export async function generateImage(input, options = {}) {
     return {
         provider: APIMART_PROVIDER,
         model,
-        taskId,
+        taskId: submitResult.taskId,
         status: 'failed',
         images: [],
         raw: lastData,
-        error: `APIMart image task timed out: task_id=${taskId}, lastStatus=${lastStatus || 'unknown'}, lastProgress=${lastProgress ?? 'unknown'}, lastErrorMessage=${lastErrorMessage || 'none'}, elapsedMs=${Date.now() - startedAt}`
+        error: `APIMart image task timed out: task_id=${submitResult.taskId}, lastStatus=${lastStatus || 'unknown'}, lastProgress=${lastProgress ?? 'unknown'}, lastErrorMessage=${lastErrorMessage || 'none'}, elapsedMs=${Date.now() - startedAt}`
     };
 }
 
