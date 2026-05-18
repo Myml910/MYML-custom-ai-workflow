@@ -20,6 +20,8 @@ export enum NodeStatus {
   ERROR = 'error'
 }
 
+export type GenerationStatus = 'queued' | 'running' | 'polling' | 'completed' | 'failed' | 'timeout' | 'cancelled';
+
 export interface NodeData {
   id: string;
   type: NodeType;
@@ -60,6 +62,9 @@ export interface NodeData {
   resultAspectRatio?: string; // Actual aspect ratio of the generated image (e.g., '16/9')
   generationStartTime?: number; // Timestamp when generation started (for recovery race condition prevention)
   generationCount?: number; // Number of image variants to generate for Image nodes
+  taskId?: string; // Async generation task id for queued image generation
+  generationStatus?: GenerationStatus; // Backend task status for queued image generation
+  progress?: number; // Backend task progress, if provider reports one
 
   // Legacy image reference settings retained for historical workflow compatibility
   klingReferenceMode?: 'subject' | 'face'; // Reference type for image-to-image

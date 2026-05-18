@@ -12,21 +12,20 @@ import { generateKlingVideo, generateKlingImage, generateKlingMultiImage } from 
 import { generateGeminiImage, generateVeoVideo } from '../services/gemini.js';
 import { generateHailuoVideo } from '../services/hailuo.js';
 import { generateOpenAIImage } from '../services/openai.js';
-import { generateCustomImage, generateCustomVideo } from '../services/customApi.js';
+import { generateCustomVideo } from '../services/customApi.js';
 import { generateSeedanceVideo } from '../services/seedance.js';
-import { getAiProviderConfig, isApimartImageConfigured } from '../services/ai/aiProviderConfig.js';
-import { generateImage as generateApimartImage, imageResultToBuffer, normalizeResolution, resolveApimartImageModel } from '../services/ai/providers/apimartProvider.js';
+import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
+import { aiRouter } from '../services/ai/router.js';
+import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
+import { saveGeneratedImage } from '../utils/saveGeneratedImage.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 
 const router = express.Router();
 const MAX_IMAGE_REFERENCES = 6;
 const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
-const SUPPORTED_IMAGE_MODELS = new Set([
-    'custom-image-gpt-image-2',
-    'custom-image-nano-banana-3-1-flash'
-]);
+const SUPPORTED_IMAGE_MODELS = new Set(getSupportedImageModelIds());
 const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
 
 // ============================================================================
@@ -38,18 +37,11 @@ router.post('/generate-image', async (req, res) => {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY } = req.app.locals;
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
-        const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
         const effectiveImageModel = imageModel || DEFAULT_IMAGE_MODEL;
 
         if (!SUPPORTED_IMAGE_MODELS.has(effectiveImageModel)) {
             return res.status(400).json({
                 error: `Image model unavailable: ${effectiveImageModel}. Available models: ${Array.from(SUPPORTED_IMAGE_MODELS).join(', ')}`
-            });
-        }
-
-        if (!isApimartImageConfigured(aiProviderConfig)) {
-            return res.status(500).json({
-                error: 'APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.'
             });
         }
 
@@ -60,6 +52,7 @@ router.post('/generate-image', async (req, res) => {
 
         let imageBuffer;
         let imageFormat = 'png';
+        let aiResult = null;
 
         if (isCustomImageModel) {
             // --- CUSTOM IMAGE GENERATION ---
@@ -69,44 +62,26 @@ router.post('/generate-image', async (req, res) => {
                 resolvedImages = rawImages.map(img => resolveImageToBase64(img, req.user)).filter(Boolean);
             }
 
-            let resolvedApimartModel;
-            try {
-                resolvedApimartModel = resolveApimartImageModel(effectiveImageModel, aiProviderConfig.apimart.imageModel);
-            } catch (error) {
-                return res.status(400).json({ error: error.message });
-            }
-
-            const apimartSize = aspectRatio || aiProviderConfig.apimart.imageSize;
-            const apimartResolution = normalizeResolution(resolvedApimartModel, resolution || aiProviderConfig.apimart.imageResolution);
             const referenceCount = resolvedImages ? resolvedImages.length : 0;
 
-            console.log('[APIMart][image route]', {
+            console.log('[AI Gateway][image route]', {
                 projectModelId: effectiveImageModel,
-                resolvedApimartModel,
                 referenceCount,
-                size: apimartSize,
-                resolution: apimartResolution
+                size: aspectRatio || aiProviderConfig.apimart.imageSize,
+                resolution: resolution || aiProviderConfig.apimart.imageResolution
             });
 
-            const apimartResult = await generateApimartImage({
+            aiResult = await aiRouter.generateImage({
+                nodeId,
+                projectModelId: effectiveImageModel,
                 prompt,
                 imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
-                size: apimartSize,
-                resolution: apimartResolution,
-                model: resolvedApimartModel
-            }, { config: aiProviderConfig });
+                size: aspectRatio || aiProviderConfig.apimart.imageSize,
+                resolution: resolution || aiProviderConfig.apimart.imageResolution
+            }, { config: aiProviderConfig, user: req.user });
 
-            if (apimartResult.status !== 'completed') {
-                throw new Error(apimartResult.error || 'APIMart image generation failed.');
-            }
-
-            imageBuffer = await imageResultToBuffer(apimartResult);
-            const mimeType = apimartResult.images?.[0]?.mimeType || '';
-            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
-                imageFormat = 'jpg';
-            } else if (mimeType.includes('webp')) {
-                imageFormat = 'webp';
-            }
+            imageBuffer = aiResult.imageBuffer;
+            imageFormat = aiResult.imageFormat || 'png';
 
         } else if (isKlingModel) {
             // --- KLING AI IMAGE GENERATION ---
@@ -230,25 +205,22 @@ router.post('/generate-image', async (req, res) => {
             });
         }
 
-        // Save to library - use unique filename to preserve previous generations
-        const saved = saveBufferToFile(imageBuffer, imagesDir, 'img', imageFormat);
-
-        // Determine metadata ID: use nodeId for recovery if available, otherwise use file ID
-        const metadataId = nodeId || saved.id;
-
-        // Save metadata (id must match the metadata filename for delete to work)
-        const metadata = {
-            id: metadataId,  // Must match the filename for delete API to find it
-            filename: saved.filename,
-            prompt: prompt,
+        const saved = await saveGeneratedImage({
+            user: req.user,
+            buffer: imageBuffer,
+            prompt,
             model: effectiveImageModel,
-            createdAt: new Date().toISOString(),
-            type: 'images'
-        };
-        fs.writeFileSync(path.join(imagesDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+            provider: aiResult?.provider,
+            providerTaskId: aiResult?.taskId,
+            taskId: aiResult?.requestId,
+            nodeId,
+            metadataId: nodeId || undefined,
+            remoteUrl: aiResult?.images?.[0]?.url,
+            imageFormat
+        });
 
-        console.log(`Image saved: ${saved.url} (model: ${effectiveImageModel})`);
-        return res.json({ resultUrl: saved.url });
+        console.log(`Image saved: ${saved.resultUrl} (model: ${effectiveImageModel})`);
+        return res.json({ resultUrl: saved.resultUrl });
 
     } catch (error) {
         console.error("Server Image Gen Error:", error);
