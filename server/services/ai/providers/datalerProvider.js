@@ -173,10 +173,10 @@ async function parseJsonResponse(response, context) {
 }
 
 function parseDataUri(input) {
-    const match = String(input || '').match(/^data:([^;]+);base64,(.+)$/);
+    const match = String(input || '').match(/^data:([^;]+);base64,([\s\S]+)$/);
     if (!match) return null;
     return {
-        base64: match[2],
+        base64: match[2].replace(/\s+/g, ''),
         mimeType: match[1]
     };
 }
@@ -189,9 +189,35 @@ function safeJsonPreview(value) {
     }
 }
 
-function extractImageUrlFromText(text) {
-    const match = String(text || '').match(/https?:\/\/[^\s"'<>)]*\.(?:png|jpe?g|webp|gif)(?:\?[^\s"'<>)]*)?/i);
-    return match?.[0] || null;
+function extractImageRefsFromText(text) {
+    const source = String(text || '');
+    const refs = [];
+    const addRef = value => {
+        const ref = String(value || '').trim();
+        if (ref && !refs.includes(ref)) refs.push(ref);
+    };
+
+    const markdownDataUriPattern = /!\[[^\]]*]\(\s*(data:image\/[a-z0-9.+-]+;base64,[\s\S]*?)\s*\)/gi;
+    for (const match of source.matchAll(markdownDataUriPattern)) {
+        addRef(match[1]);
+    }
+
+    const markdownUrlPattern = /!\[[^\]]*]\(\s*(https?:\/\/[^\s"'<>)]*\.(?:png|jpe?g|webp|gif)(?:\?[^\s"'<>)]*)?)\s*\)/gi;
+    for (const match of source.matchAll(markdownUrlPattern)) {
+        addRef(match[1]);
+    }
+
+    const bareDataUriPattern = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=\r\n]+/gi;
+    for (const match of source.matchAll(bareDataUriPattern)) {
+        addRef(match[0]);
+    }
+
+    const bareUrlPattern = /https?:\/\/[^\s"'<>)]*\.(?:png|jpe?g|webp|gif)(?:\?[^\s"'<>)]*)?/gi;
+    for (const match of source.matchAll(bareUrlPattern)) {
+        addRef(match[0]);
+    }
+
+    return refs;
 }
 
 function guessMimeTypeFromUrl(url, contentType) {
@@ -306,8 +332,8 @@ function normalizeImageItem(item) {
         }
         if (item.startsWith('http')) return { url: item };
 
-        const extractedUrl = extractImageUrlFromText(item);
-        if (extractedUrl) return { url: extractedUrl };
+        const extractedRefs = extractImageRefsFromText(item);
+        if (extractedRefs.length > 0) return normalizeImageItem(extractedRefs[0]);
 
         return /^[A-Za-z0-9+/=]+$/.test(item) && item.length > 80
             ? { base64: item, mimeType: 'image/png' }
@@ -372,6 +398,13 @@ function collectImages(raw) {
     for (const candidate of candidates) {
         const items = Array.isArray(candidate) ? candidate : [candidate];
         for (const item of items) {
+            if (typeof item === 'string') {
+                for (const ref of extractImageRefsFromText(item)) {
+                    const extracted = normalizeImageItem(ref);
+                    if (extracted) images.push(extracted);
+                }
+            }
+
             const normalized = normalizeImageItem(item);
             if (normalized) images.push(normalized);
 

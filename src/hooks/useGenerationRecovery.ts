@@ -16,6 +16,13 @@ interface UseGenerationRecoveryOptions {
     workflowId?: string | null;
 }
 
+const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
+
+function hasActiveTaskState(node?: NodeData | null): node is NodeData & { taskId: string } {
+    return Boolean(node?.taskId) &&
+        ACTIVE_TASK_STATUSES.has(node?.generationStatus as GenerationTaskStatus);
+}
+
 export const useGenerationRecovery = ({
     nodes,
     updateNode,
@@ -25,18 +32,11 @@ export const useGenerationRecovery = ({
     const nodesRef = useRef<NodeData[]>(nodes);
     nodesRef.current = nodes;
 
-    const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
-
     const getTaskErrorMessage = (task: GenerationTask): string => {
         if (task.errorMessage) return task.errorMessage;
         if (task.status === 'timeout') return 'Image generation timed out.';
         return 'Image generation failed.';
     };
-
-    const hasActiveTaskState = (node?: NodeData | null): boolean => (
-        Boolean(node?.taskId) ||
-        ACTIVE_TASK_STATUSES.has(node?.generationStatus as GenerationTaskStatus)
-    );
 
     const applyTaskStatus = useCallback(async (nodeId: string, task: GenerationTask): Promise<boolean> => {
         if (ACTIVE_TASK_STATUSES.has(task.status)) {
@@ -54,9 +54,9 @@ export const useGenerationRecovery = ({
             updateNode(nodeId, {
                 status: NodeStatus.SUCCESS,
                 resultUrl: task.resultUrl,
-                taskId: task.taskId,
-                generationStatus: 'completed',
-                progress: 100,
+                taskId: undefined,
+                generationStatus: undefined,
+                progress: undefined,
                 errorMessage: undefined,
                 generationStartTime: undefined
             });
@@ -79,8 +79,9 @@ export const useGenerationRecovery = ({
         if (task.status === 'failed' || task.status === 'timeout') {
             updateNode(nodeId, {
                 status: NodeStatus.ERROR,
-                taskId: task.taskId,
+                taskId: undefined,
                 generationStatus: task.status,
+                progress: undefined,
                 errorMessage: getTaskErrorMessage(task),
                 generationStartTime: undefined
             });
@@ -146,14 +147,14 @@ export const useGenerationRecovery = ({
         try {
             const node = nodesRef.current.find(n => n.id === nodeId);
 
-            if (node?.taskId) {
+            if (hasActiveTaskState(node)) {
                 const task = await getTask(node.taskId);
                 if (await applyTaskStatus(nodeId, task)) {
                     return;
                 }
             }
 
-            if (node?.status === NodeStatus.LOADING) {
+            if (node?.status === NodeStatus.LOADING && !node.taskId) {
                 const { task } = await getTaskByNodeId(nodeId, workflowId);
                 if (task && await applyTaskStatus(nodeId, task)) {
                     return;
@@ -172,7 +173,7 @@ export const useGenerationRecovery = ({
 
     // Track loading node IDs for stable dependency
     const loadingNodeIds = nodes
-        .filter(n => n.status === NodeStatus.LOADING || n.taskId)
+        .filter(n => hasActiveTaskState(n) || (n.status === NodeStatus.LOADING && !n.taskId))
         .map(n => n.id)
         .join(',');
 

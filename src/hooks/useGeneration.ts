@@ -172,8 +172,9 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             status: NodeStatus.SUCCESS,
             resultUrl,
             resultAspectRatio,
-            generationStatus: 'completed',
-            progress: 100,
+            taskId: undefined,
+            generationStatus: undefined,
+            progress: undefined,
             errorMessage: undefined
         });
     };
@@ -386,7 +387,9 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                     const errorMessage = getGenerationErrorMessage(error);
                     updateNode(generationNode.id, {
                         status: NodeStatus.ERROR,
+                        taskId: undefined,
                         generationStatus: 'failed',
+                        progress: undefined,
                         errorMessage
                     });
                     console.error('Generation failed:', error);
@@ -614,7 +617,9 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
 
             updateNode(id, {
                 status: NodeStatus.ERROR,
+                taskId: undefined,
                 generationStatus: node.type === NodeType.IMAGE || node.type === NodeType.IMAGE_EDITOR ? 'failed' : undefined,
+                progress: undefined,
                 errorMessage
             });
             console.error('Generation failed:', error);
