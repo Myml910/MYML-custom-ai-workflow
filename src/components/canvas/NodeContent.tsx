@@ -36,18 +36,6 @@ interface NodeContentProps {
     language?: Language;
 }
 
-function withDisplayCacheBust(url: string | undefined, version: string): string | undefined {
-    if (!url || url.startsWith('data:') || url.startsWith('blob:')) {
-        return url;
-    }
-
-    const [pathAndQuery, hash] = url.split('#');
-    const separator = pathAndQuery.includes('?') ? '&' : '?';
-    const displayUrl = `${pathAndQuery}${separator}v=${encodeURIComponent(version)}`;
-
-    return hash ? `${displayUrl}#${hash}` : displayUrl;
-}
-
 export const NodeContent: React.FC<NodeContentProps> = ({
     data,
     inputUrl,
@@ -86,11 +74,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const isActiveTask = data.generationStatus === 'queued' ||
         data.generationStatus === 'running' ||
         data.generationStatus === 'polling';
-    const imageDisplayVersion = `${data.id}|${data.resultUrl || ''}`;
-    const displayResultUrl = React.useMemo(
-        () => withDisplayCacheBust(data.resultUrl, imageDisplayVersion),
-        [data.resultUrl, imageDisplayVersion]
-    );
+    const displayResultUrl = data.resultUrl;
     const generationStatusLabel = (() => {
         if (language === 'zh') {
             if (data.generationStatus === 'queued') return '排队中';
@@ -199,7 +183,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         if (isVideoType || !data.resultUrl) return;
 
                         e.stopPropagation();
-                        onExpand?.(displayResultUrl || data.resultUrl);
+                        onExpand?.(data.resultUrl);
                     }}
                     title={!isVideoType ? t(language, 'viewFullSize') : undefined}
                 >
@@ -207,8 +191,8 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         <video src={data.resultUrl} controls loop className="w-full h-full object-cover" />
                     ) : (
                         <img
-                            key={`${data.id}-${displayResultUrl || data.resultUrl}`}
-                            src={displayResultUrl || data.resultUrl}
+                            key={`${data.id}-${data.resultUrl || ''}`}
+                            src={displayResultUrl}
                             alt={t(language, 'generated')}
                             className="w-full h-full object-cover pointer-events-none"
                         />

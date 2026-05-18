@@ -79,7 +79,11 @@ export function resolveLibraryUrlToPath(input, user, options = {}) {
         return null;
     }
 
-    cleanPath = decodeURIComponent(cleanPath.split('?')[0]);
+    try {
+        cleanPath = decodeURIComponent(cleanPath.split('?')[0]);
+    } catch {
+        return null;
+    }
     if (!cleanPath.startsWith('/library/')) return null;
 
     const relativePath = cleanPath.replace('/library/', '');

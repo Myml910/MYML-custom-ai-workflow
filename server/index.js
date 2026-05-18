@@ -105,38 +105,78 @@ protectedApiAuth.use((req, _res, next) => {
 app.use('/api', protectedApiAuth);
 
 // Serve library assets only to the owning authenticated user.
-app.use('/library', requireAuth, (req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+app.use('/library', requireAuth, (req, res) => {
+    try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
-    const safeUsername = getSafeUsername(req.user?.username);
-    const cleanPath = decodeURIComponent(req.path || '/').replace(/^\/+/, '');
-    const segments = cleanPath.split('/').filter(Boolean);
-
-    let filePath = null;
-    if (segments[0] === 'users') {
-        if (segments[1] !== safeUsername) {
-            return res.status(403).json({ error: 'Forbidden' });
-        }
-        filePath = path.resolve(LIBRARY_DIR, cleanPath);
-        const userRoot = path.resolve(LIBRARY_DIR, 'users', safeUsername);
-        if (filePath !== userRoot && !filePath.startsWith(userRoot + path.sep)) {
+        const safeUsername = getSafeUsername(req.user?.username);
+        let cleanPath;
+        try {
+            const pathname = new URL(req.originalUrl || req.url || '/', 'http://myml.local').pathname;
+            cleanPath = decodeURIComponent(pathname.replace(/^\/library\/?/, '')).replace(/^\/+/, '');
+        } catch (error) {
+            console.warn('[Library] Invalid library path encoding:', {
+                path: req.originalUrl || req.url,
+                message: error.message
+            });
             return res.status(400).json({ error: 'Invalid library path' });
         }
-    } else if (canUseLegacyRootLibrary(req.user)) {
-        filePath = path.resolve(LIBRARY_DIR, cleanPath);
-    } else {
-        return res.status(403).json({ error: 'Forbidden' });
-    }
 
-    const libraryRoot = path.resolve(LIBRARY_DIR);
-    if (!filePath.startsWith(libraryRoot + path.sep)) {
-        return res.status(400).json({ error: 'Invalid library path' });
-    }
+        const segments = cleanPath.split('/').filter(Boolean);
 
-    return res.sendFile(filePath, (error) => {
-        if (error) next(error);
-    });
+        let filePath = null;
+        if (segments[0] === 'users') {
+            if (segments[1] !== safeUsername) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            filePath = path.resolve(LIBRARY_DIR, cleanPath);
+            const userRoot = path.resolve(LIBRARY_DIR, 'users', safeUsername);
+            if (filePath !== userRoot && !filePath.startsWith(userRoot + path.sep)) {
+                return res.status(400).json({ error: 'Invalid library path' });
+            }
+        } else if (canUseLegacyRootLibrary(req.user)) {
+            filePath = path.resolve(LIBRARY_DIR, cleanPath);
+        } else {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const libraryRoot = path.resolve(LIBRARY_DIR);
+        if (!filePath.startsWith(libraryRoot + path.sep)) {
+            return res.status(400).json({ error: 'Invalid library path' });
+        }
+
+        return res.sendFile(filePath, (error) => {
+            if (!error) return;
+
+            if (res.headersSent) {
+                console.warn('[Library] Static file response failed after headers were sent:', {
+                    path: cleanPath,
+                    code: error.code,
+                    message: error.message
+                });
+                return;
+            }
+
+            if (error.code === 'ENOENT' || error.status === 404 || error.statusCode === 404) {
+                return res.status(404).json({ error: 'Library file not found' });
+            }
+
+            console.error('[Library] Failed to serve library file:', {
+                path: cleanPath,
+                code: error.code,
+                message: error.message
+            });
+            return res.status(error.statusCode || error.status || 500).json({ error: 'Failed to serve library file' });
+        });
+    } catch (error) {
+        console.error('[Library] Unexpected error while serving library file:', {
+            path: req.originalUrl || req.url,
+            message: error.message
+        });
+        if (res.headersSent) return undefined;
+        return res.status(500).json({ error: 'Failed to serve library file' });
+    }
 });
 
 
