@@ -10,7 +10,13 @@ const DEFAULT_EDIT_MODEL = 'openai/gpt-image-2/edit';
 const DEFAULT_REQUEST_TIMEOUT_MS = 300000;
 const DEFAULT_OUTPUT_FORMAT = 'jpeg';
 const DEFAULT_MODERATION = 'low';
+const DEFAULT_NANO_BANANA_2_ASPECT_RATIO = '16:9';
+const DEFAULT_NANO_BANANA_2_RESOLUTION = '2k';
+const DEFAULT_NANO_BANANA_2_OUTPUT_FORMAT = 'default';
+const DEFAULT_NANO_BANANA_2_MEDIA_RESOLUTION = 'default';
+const DEFAULT_NANO_BANANA_2_THINKING_LEVEL = 'default';
 const TERMINAL_FAILURE_STATUSES = new Set(['failed', 'error', 'rejected', 'cancelled', 'canceled']);
+const NANO_BANANA_2_MAX_IMAGES = 14;
 
 function parsePositiveInteger(value, fallback) {
     const parsed = Number.parseInt(value, 10);
@@ -102,13 +108,40 @@ function classifyAtlasErrorType(message) {
     return AI_ERROR_TYPES.PROVIDER_ERROR;
 }
 
+function isAtlasDebugRequestsEnabled() {
+    return process.env.ATLAS_DEBUG_REQUESTS === 'true';
+}
+
+function sanitizeResponsePreview(value, maxLength = 500) {
+    return String(value || '')
+        .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+        .replace(/sk-[A-Za-z0-9._-]+/g, 'sk-[redacted]')
+        .slice(0, maxLength);
+}
+
 async function parseJsonResponse(response, context = {}) {
     const rawText = await response.text();
+    const bodyPreview = sanitizeResponsePreview(rawText);
     let data = {};
 
     try {
         data = rawText ? JSON.parse(rawText) : {};
     } catch {
+        if (!response.ok) {
+            throw new AiProviderError({
+                type: classifyAtlasErrorType(`${response.status} ${response.statusText} ${bodyPreview}`),
+                provider: ATLAS_PROVIDER,
+                model: context.model,
+                message: `Atlas ${context.action} failed: ${response.status} ${response.statusText} - ${bodyPreview || 'Non-JSON response'}`,
+                raw: {
+                    status: response.status,
+                    statusText: response.statusText,
+                    contentType: response.headers.get('content-type') || '',
+                    bodyPreview
+                }
+            });
+        }
+
         throw new AiProviderError({
             type: AI_ERROR_TYPES.PROVIDER_ERROR,
             provider: ATLAS_PROVIDER,
@@ -116,8 +149,9 @@ async function parseJsonResponse(response, context = {}) {
             message: `Atlas ${context.action} returned a non-JSON response.`,
             raw: {
                 status: response.status,
+                statusText: response.statusText,
                 contentType: response.headers.get('content-type') || '',
-                preview: rawText.slice(0, 300)
+                bodyPreview
             }
         });
     }
@@ -138,6 +172,8 @@ async function parseJsonResponse(response, context = {}) {
             message: `Atlas ${context.action} failed: ${response.status} ${response.statusText} - ${message}`,
             raw: {
                 status: response.status,
+                statusText: response.statusText,
+                bodyPreview,
                 data
             }
         });
@@ -218,6 +254,60 @@ export function resolveAtlasQuality(value) {
     if (['low', 'fast', '1k', '1K'.toLowerCase()].includes(normalized)) return 'low';
     if (['high', '4k', 'ultra'].includes(normalized)) return 'high';
     return 'medium';
+}
+
+function isNanoBanana2Model(model) {
+    return String(model || '').toLowerCase().includes('nano-banana-2');
+}
+
+function resolveAtlasAspectRatio(aspectRatioOrSize) {
+    const value = String(aspectRatioOrSize || '').trim();
+    if (!value || /^auto$/i.test(value)) return undefined;
+    if (/^\d+:\d+$/.test(value)) return value;
+    if (/^\d+x\d+$/i.test(value)) {
+        const [width, height] = value.toLowerCase().split('x').map(Number);
+        if (width > 0 && height > 0) {
+            const divisor = greatestCommonDivisor(width, height);
+            return `${width / divisor}:${height / divisor}`;
+        }
+    }
+    return undefined;
+}
+
+function greatestCommonDivisor(a, b) {
+    let x = Math.abs(a);
+    let y = Math.abs(b);
+    while (y) {
+        const next = x % y;
+        x = y;
+        y = next;
+    }
+    return x || 1;
+}
+
+function resolveAtlasResolution(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (['1k', '2k', '4k'].includes(normalized)) return normalized;
+    if (['low', 'fast'].includes(normalized)) return '1k';
+    if (['medium', 'default', ''].includes(normalized)) return '2k';
+    if (['high', 'ultra'].includes(normalized)) return '4k';
+    return undefined;
+}
+
+function resolveAtlasOutputFormat(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ['png', 'jpeg'].includes(normalized) ? normalized : DEFAULT_OUTPUT_FORMAT;
+}
+
+function resolveAtlasNanoBanana2OutputFormat(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'jpg') return 'jpeg';
+    return ['default', 'png', 'jpeg'].includes(normalized) ? normalized : DEFAULT_NANO_BANANA_2_OUTPUT_FORMAT;
+}
+
+function resolveAtlasNanoBanana2DefaultField(value, fallback) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized || fallback;
 }
 
 function normalizeImageItem(item) {
@@ -314,6 +404,7 @@ export async function submitImageTask(input = {}, options = {}) {
     const model = isEdit
         ? (/\/edit$/i.test(requestedModel) ? requestedModel : config.editModel || DEFAULT_EDIT_MODEL)
         : requestedModel || config.textToImageModel || DEFAULT_TEXT_TO_IMAGE_MODEL;
+    const isNanoBanana2 = isNanoBanana2Model(model);
 
     if (!baseUrl || !apiKey) {
         throw new AiProviderError({
@@ -328,20 +419,79 @@ export async function submitImageTask(input = {}, options = {}) {
     const images = isEdit
         ? await resolveAtlasReferenceImages(referenceImages, options.user, { model, timeoutMs })
         : [];
+
+    if (isNanoBanana2 && isEdit) {
+        if (images.length === 0) {
+            throw new AiProviderError({
+                type: AI_ERROR_TYPES.PARAM_ERROR,
+                provider: ATLAS_PROVIDER,
+                model,
+                message: 'Atlas Nano Banana 2 edit requires at least one reference image.'
+            });
+        }
+        if (images.length > NANO_BANANA_2_MAX_IMAGES) {
+            throw new AiProviderError({
+                type: AI_ERROR_TYPES.PARAM_ERROR,
+                provider: ATLAS_PROVIDER,
+                model,
+                message: `Atlas Nano Banana 2 edit supports at most ${NANO_BANANA_2_MAX_IMAGES} reference images.`
+            });
+        }
+    }
+
     const requestBody = {
         model,
         enable_base64_output: false,
         enable_sync_mode: false,
-        output_format: input.outputFormat || config.outputFormat || DEFAULT_OUTPUT_FORMAT,
+        output_format: resolveAtlasOutputFormat(input.outputFormat || config.outputFormat),
         prompt: input.prompt || '',
-        quality: resolveAtlasQuality(input.quality || input.resolution || config.quality),
-        size: resolveAtlasSize(input.size || input.aspectRatio),
         moderation: input.moderation || config.moderation || DEFAULT_MODERATION
     };
+
+    if (isNanoBanana2) {
+        delete requestBody.moderation;
+        requestBody.enable_web_search = false;
+        requestBody.enable_image_search = false;
+        requestBody.output_format = resolveAtlasNanoBanana2OutputFormat(
+            input.outputFormat || config.nanoBanana2OutputFormat
+        );
+        requestBody.aspect_ratio = resolveAtlasAspectRatio(
+            input.aspectRatio || input.size || config.aspectRatio
+        ) || DEFAULT_NANO_BANANA_2_ASPECT_RATIO;
+        requestBody.resolution = resolveAtlasResolution(
+            input.resolution || config.resolution
+        ) || DEFAULT_NANO_BANANA_2_RESOLUTION;
+        requestBody.media_resolution = resolveAtlasNanoBanana2DefaultField(
+            input.mediaResolution || config.nanoBanana2MediaResolution,
+            DEFAULT_NANO_BANANA_2_MEDIA_RESOLUTION
+        );
+        requestBody.thinking_level = resolveAtlasNanoBanana2DefaultField(
+            input.thinkingLevel || config.nanoBanana2ThinkingLevel,
+            DEFAULT_NANO_BANANA_2_THINKING_LEVEL
+        );
+    } else {
+        requestBody.quality = resolveAtlasQuality(input.quality || input.resolution || config.quality);
+        requestBody.size = resolveAtlasSize(input.size || input.aspectRatio);
+    }
 
     if (images.length > 0) requestBody.images = images;
 
     const endpoint = buildAtlasEndpoint(baseUrl, '/api/v1/model/generateImage');
+    if (isAtlasDebugRequestsEnabled()) {
+        console.log('[AtlasProvider] submit request', {
+            submitUrl: endpoint,
+            model,
+            payloadKeys: Object.keys(requestBody),
+            hasImages: images.length > 0,
+            imageCount: images.length,
+            outputFormat: requestBody.output_format || null,
+            aspectRatio: requestBody.aspect_ratio || null,
+            resolution: requestBody.resolution || null,
+            mediaResolution: requestBody.media_resolution || null,
+            thinkingLevel: requestBody.thinking_level || null
+        });
+    }
+
     const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
@@ -388,8 +538,13 @@ export async function submitImageTask(input = {}, options = {}) {
             usage: data?.usage || raw?.usage || data?.metrics || null,
             request: {
                 endpoint: '/api/v1/model/generateImage',
-                size: requestBody.size,
+                size: requestBody.size || null,
+                aspectRatio: requestBody.aspect_ratio || null,
+                resolution: requestBody.resolution || null,
+                mediaResolution: requestBody.media_resolution || null,
+                thinkingLevel: requestBody.thinking_level || null,
                 quality: requestBody.quality,
+                outputFormat: requestBody.output_format,
                 referenceCount: images.length
             }
         };
@@ -417,8 +572,13 @@ export async function submitImageTask(input = {}, options = {}) {
         usage: data?.usage || raw?.usage || data?.metrics || null,
         request: {
             endpoint: '/api/v1/model/generateImage',
-            size: requestBody.size,
+            size: requestBody.size || null,
+            aspectRatio: requestBody.aspect_ratio || null,
+            resolution: requestBody.resolution || null,
+            mediaResolution: requestBody.media_resolution || null,
+            thinkingLevel: requestBody.thinking_level || null,
             quality: requestBody.quality,
+            outputFormat: requestBody.output_format,
             referenceCount: images.length
         }
     };

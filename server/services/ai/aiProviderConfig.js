@@ -16,6 +16,11 @@ const DEFAULT_DATALER_REQUEST_TIMEOUT_MS = 300000;
 const DEFAULT_ATLAS_BASE_URL = 'https://api.atlascloud.ai';
 const DEFAULT_ATLAS_TEXT_TO_IMAGE_MODEL = 'openai/gpt-image-2/text-to-image';
 const DEFAULT_ATLAS_EDIT_MODEL = 'openai/gpt-image-2/edit';
+const DEFAULT_ATLAS_NANO_BANANA_2_TEXT_MODEL = 'google/nano-banana-2/text-to-image';
+const DEFAULT_ATLAS_NANO_BANANA_2_EDIT_MODEL = 'google/nano-banana-2/edit';
+const DEFAULT_ATLAS_NANO_BANANA_2_OUTPUT_FORMAT = 'default';
+const DEFAULT_ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION = 'default';
+const DEFAULT_ATLAS_NANO_BANANA_2_THINKING_LEVEL = 'default';
 const DEFAULT_ATLAS_REQUEST_TIMEOUT_MS = 300000;
 
 function cleanString(value) {
@@ -65,7 +70,12 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             apiKey: cleanString(env.ATLAS_API_KEY) || cleanString(env.ATLASCLOUD_API_KEY),
             requestTimeoutMs: parsePositiveInteger(env.ATLAS_REQUEST_TIMEOUT_MS, DEFAULT_ATLAS_REQUEST_TIMEOUT_MS),
             textToImageModel: cleanString(env.ATLAS_TEXT_TO_IMAGE_MODEL) || DEFAULT_ATLAS_TEXT_TO_IMAGE_MODEL,
-            editModel: cleanString(env.ATLAS_EDIT_MODEL) || DEFAULT_ATLAS_EDIT_MODEL
+            editModel: cleanString(env.ATLAS_EDIT_MODEL) || DEFAULT_ATLAS_EDIT_MODEL,
+            nanoBanana2TextModel: cleanString(env.ATLAS_NANO_BANANA_2_TEXT_MODEL) || DEFAULT_ATLAS_NANO_BANANA_2_TEXT_MODEL,
+            nanoBanana2EditModel: cleanString(env.ATLAS_NANO_BANANA_2_EDIT_MODEL) || DEFAULT_ATLAS_NANO_BANANA_2_EDIT_MODEL,
+            nanoBanana2OutputFormat: cleanString(env.ATLAS_NANO_BANANA_2_OUTPUT_FORMAT) || DEFAULT_ATLAS_NANO_BANANA_2_OUTPUT_FORMAT,
+            nanoBanana2MediaResolution: cleanString(env.ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION) || DEFAULT_ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION,
+            nanoBanana2ThinkingLevel: cleanString(env.ATLAS_NANO_BANANA_2_THINKING_LEVEL) || DEFAULT_ATLAS_NANO_BANANA_2_THINKING_LEVEL
         },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',

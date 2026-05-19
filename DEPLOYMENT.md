@@ -243,6 +243,7 @@ Dataler, Pikachu, and Atlas are disabled by default:
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
 ENABLE_ATLAS_PROVIDER=false
+ENABLE_ATLAS_NANO_BANANA_2=false
 ```
 
 They do not enter the visible model/provider chain unless explicitly enabled. Use them only for controlled tests.
@@ -251,12 +252,41 @@ Atlas Cloud configuration:
 
 ```env
 ENABLE_ATLAS_PROVIDER=true
+# Keep false unless the account/route is confirmed for Nano Banana 2.
+ENABLE_ATLAS_NANO_BANANA_2=false
 ATLAS_BASE_URL=https://api.atlascloud.ai
 ATLAS_API_KEY=
 ATLAS_TEXT_TO_IMAGE_MODEL=openai/gpt-image-2/text-to-image
 ATLAS_EDIT_MODEL=openai/gpt-image-2/edit
+ATLAS_NANO_BANANA_2_TEXT_MODEL=google/nano-banana-2/text-to-image
+ATLAS_NANO_BANANA_2_EDIT_MODEL=google/nano-banana-2/edit
+ATLAS_NANO_BANANA_2_OUTPUT_FORMAT=default
+ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION=default
+ATLAS_NANO_BANANA_2_THINKING_LEVEL=default
 ATLAS_REQUEST_TIMEOUT_MS=300000
 PROVIDER_MAX_RUNNING_ATLAS=1
+```
+
+Atlas currently registers these GPT Image 2 experimental image models when `ENABLE_ATLAS_PROVIDER=true`:
+
+- `openai/gpt-image-2/text-to-image`
+- `openai/gpt-image-2/edit`
+
+Atlas Nano Banana 2 is additionally gated by `ENABLE_ATLAS_NANO_BANANA_2=true`:
+
+- `google/nano-banana-2/text-to-image`
+- `google/nano-banana-2/edit`
+
+Atlas Nano Banana 2 requests follow the logged-in Atlas API example: they send `aspect_ratio`, `resolution`, `output_format=default`, `media_resolution=default`, and `thinking_level=default`; they do not send GPT Image style `size` or `quality`.
+If Atlas returns `404 Not Found`, the current account, route, or model id is likely not open yet; keep `ENABLE_ATLAS_NANO_BANANA_2=false`.
+
+Nano Banana 2 uses the same `provider = atlas` team credential. It does not need a separate key. For internal strong-isolation tests, use:
+
+```env
+ENABLE_ATLAS_PROVIDER=true
+ENABLE_ATLAS_NANO_BANANA_2=false
+REQUIRE_TEAM_PROVIDER_CREDENTIALS=true
+PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<long-random-secret>
 ```
 
 ### Team Atlas Credential Example
