@@ -20,6 +20,7 @@ import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
 import { saveGeneratedImage } from '../utils/saveGeneratedImage.js';
+import { safeFetchImageUrl } from '../utils/safeFetchImage.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
 
 const router = express.Router();
@@ -149,11 +150,8 @@ router.post('/generate-image', async (req, res) => {
             }
 
             // Download from Kling's URL
-            const imageResponse = await fetch(klingImageUrl);
-            if (!imageResponse.ok) {
-                throw new Error('Failed to download image from Kling');
-            }
-            imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            const downloadedImage = await safeFetchImageUrl(klingImageUrl);
+            imageBuffer = downloadedImage.buffer;
 
             if (klingImageUrl.includes('.jpg') || klingImageUrl.includes('.jpeg')) {
                 imageFormat = 'jpg';

@@ -260,7 +260,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
     return (
         <div
-            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-40 shadow-[var(--myml-shadow-panel)] motion-panel-in transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${
+            className={`fixed top-0 right-0 w-[400px] h-full border-l flex flex-col z-[70] shadow-[var(--myml-shadow-panel)] motion-panel-in transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-panel)] ${
                 showHighlight
                     ? isDark
                         ? 'border-neutral-800 ring-2 ring-[#D8FF00]/40'
@@ -645,7 +645,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ onClick, isOpen, languag
             onClick={onClick}
             aria-label={t(language, 'openChat')}
             aria-pressed={isOpen}
-            className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-xl bg-[#D8FF00] shadow-[0_8px_20px_rgba(216,255,0,0.12)] transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-[#e4ff3a] hover:shadow-[0_10px_22px_rgba(216,255,0,0.14)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            className="fixed bottom-6 right-6 z-[80] flex h-12 w-12 items-center justify-center rounded-xl bg-[#D8FF00] shadow-[0_8px_20px_rgba(216,255,0,0.12)] transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-[#e4ff3a] hover:shadow-[0_10px_22px_rgba(216,255,0,0.14)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
             <Sparkles size={22} className="text-black" />
         </button>

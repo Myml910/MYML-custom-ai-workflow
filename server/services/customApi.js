@@ -4,6 +4,8 @@
  * Adapter for your internal / domestic model aggregation API.
  */
 
+import { safeFetchImageUrl } from '../utils/safeFetchImage.js';
+
 const MAX_IMAGE_REFERENCES = 6;
 const NANO_BANANA_FLASH_MODEL_ID = 'custom-image-nano-banana-3-1-flash';
 const DEFAULT_NANO_BANANA_FLASH_VENDOR_MODEL = 'gemini-3.1-flash-image-preview';
@@ -25,11 +27,8 @@ const NANO_BANANA_ALLOWED_ASPECT_RATIOS = new Set([
 ]);
 
 async function downloadToBuffer(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to download result from custom API URL: ${response.status} ${response.statusText}`);
-    }
-    return Buffer.from(await response.arrayBuffer());
+    const downloaded = await safeFetchImageUrl(url);
+    return downloaded.buffer;
 }
 
 function base64ToBuffer(base64) {

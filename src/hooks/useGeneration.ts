@@ -28,6 +28,8 @@ const CANDIDATE_Y_STEP = 460;
 const TASK_POLL_INTERVAL_MS = 4000;
 const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
 const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
+const ENABLE_LEGACY_GENERATION_FALLBACK =
+    ((import.meta as ImportMeta & { env?: { VITE_ENABLE_LEGACY_GENERATION_FALLBACK?: string } }).env?.VITE_ENABLE_LEGACY_GENERATION_FALLBACK) === 'true';
 
 interface UseGenerationProps {
     nodes: NodeData[];
@@ -287,8 +289,13 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 throw error;
             }
 
-            console.warn('[Generation] Falling back to legacy /api/generate-image:', error);
-            await generateImageViaLegacyFallback(targetNode, combinedPrompt, imageBase64s);
+            if (ENABLE_LEGACY_GENERATION_FALLBACK) {
+                console.warn('[Generation] Falling back to legacy /api/generate-image:', error);
+                await generateImageViaLegacyFallback(targetNode, combinedPrompt, imageBase64s);
+                return;
+            }
+
+            throw new Error(`Failed to create image generation task: ${getGenerationErrorMessage(error)}`);
         }
     };
 

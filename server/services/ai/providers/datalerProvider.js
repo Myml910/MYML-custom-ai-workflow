@@ -1,6 +1,7 @@
 import { getAiProviderConfig } from '../aiProviderConfig.js';
 import { AI_ERROR_TYPES, AiProviderError, classifyProviderError } from '../errors.js';
 import { resolveImageToBase64 } from '../../../utils/imageHelpers.js';
+import { safeFetchImageUrl } from '../../../utils/safeFetchImage.js';
 
 const DATALER_PROVIDER = 'dataler';
 const DEFAULT_REQUEST_TIMEOUT_MS = 300000;
@@ -256,34 +257,25 @@ function buildPromptWithOutputHints(prompt, { size, resolution } = {}) {
 }
 
 async function fetchReferenceImageAsDataUri(reference, context = {}) {
-    const response = await fetchWithTimeout(reference, {
-        method: 'GET',
-        headers: {
-            Accept: 'image/*'
-        }
-    }, {
-        action: 'reference image fetch',
-        model: context.model,
-        timeoutMs: context.timeoutMs
-    });
-
-    if (!response.ok) {
+    try {
+        const downloaded = await safeFetchImageUrl(reference, {
+            timeoutMs: context.timeoutMs
+        });
+        return dataUriFromBuffer(downloaded.buffer, downloaded.contentType);
+    } catch (error) {
         throw new AiProviderError({
-            type: classifyDatalerErrorType(`${response.status} ${response.statusText}`),
+            type: error.message?.startsWith('Blocked unsafe image URL') || error.message?.includes('Unsupported image content type')
+                ? AI_ERROR_TYPES.PARAM_ERROR
+                : classifyDatalerErrorType(error.message),
             provider: DATALER_PROVIDER,
             model: context.model,
-            message: `Dataler reference image fetch failed: ${response.status} ${response.statusText}`,
+            message: `Dataler reference image fetch failed: ${error.message}`,
             raw: {
-                referenceUrl: reference,
-                status: response.status,
-                contentType: response.headers.get('content-type') || ''
-            }
+                referenceUrl: reference
+            },
+            cause: error
         });
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const mimeType = guessMimeTypeFromUrl(reference, response.headers.get('content-type'));
-    return dataUriFromBuffer(Buffer.from(arrayBuffer), mimeType);
 }
 
 async function resolveReferenceImageToDataUri(reference, user, context = {}) {

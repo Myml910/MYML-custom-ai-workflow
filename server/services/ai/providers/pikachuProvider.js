@@ -3,6 +3,7 @@ import path from 'path';
 import { getAiProviderConfig } from '../aiProviderConfig.js';
 import { AI_ERROR_TYPES, AiProviderError, classifyProviderError } from '../errors.js';
 import { resolveLibraryUrlToPath } from '../../../utils/userLibrary.js';
+import { safeFetchImageUrl } from '../../../utils/safeFetchImage.js';
 
 const PIKACHU_PROVIDER = 'pikachu';
 const DEFAULT_REQUEST_TIMEOUT_MS = 300000;
@@ -156,27 +157,26 @@ async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
     }
 
     if (typeof reference === 'string' && /^https?:\/\//i.test(reference)) {
-        const response = await fetchWithTimeout(reference, {}, {
-            action: 'reference image fetch',
-            model,
-            timeoutMs
-        });
-
-        if (!response.ok) {
+        try {
+            const downloaded = await safeFetchImageUrl(reference, {
+                timeoutMs
+            });
+            return {
+                buffer: downloaded.buffer,
+                mimeType: downloaded.contentType || guessMimeType(reference),
+                filename: getFilenameFromUrl(downloaded.url || reference, 'reference.png')
+            };
+        } catch (error) {
             throw new AiProviderError({
-                type: AI_ERROR_TYPES.NETWORK_ERROR,
+                type: error.message?.startsWith('Blocked unsafe image URL') || error.message?.includes('Unsupported image content type')
+                    ? AI_ERROR_TYPES.PARAM_ERROR
+                    : AI_ERROR_TYPES.NETWORK_ERROR,
                 provider: PIKACHU_PROVIDER,
                 model,
-                message: `Failed to fetch Pikachu reference image: ${response.status} ${response.statusText}`
+                message: `Failed to fetch Pikachu reference image: ${error.message}`,
+                cause: error
             });
         }
-
-        const contentType = response.headers.get('content-type')?.split(';')[0] || guessMimeType(reference);
-        return {
-            buffer: Buffer.from(await response.arrayBuffer()),
-            mimeType: contentType,
-            filename: getFilenameFromUrl(reference, 'reference.png')
-        };
     }
 
     throw new AiProviderError({

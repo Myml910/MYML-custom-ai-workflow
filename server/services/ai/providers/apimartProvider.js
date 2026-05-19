@@ -1,5 +1,6 @@
 import { getAiProviderConfig } from '../aiProviderConfig.js';
 import { AI_ERROR_TYPES, AiProviderError, classifyProviderError } from '../errors.js';
+import { safeFetchImageUrl } from '../../../utils/safeFetchImage.js';
 
 const GEMINI_FLASH_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GPT_IMAGE_2_MODEL = 'gpt-image-2';
@@ -691,11 +692,8 @@ export async function imageResultToBuffer(result) {
             if (match) return Buffer.from(match[2], 'base64');
         }
 
-        const response = await fetch(image.url);
-        if (!response.ok) {
-            throw new Error(`Failed to download APIMart image result: ${response.status} ${response.statusText}`);
-        }
-        return Buffer.from(await response.arrayBuffer());
+        const downloaded = await safeFetchImageUrl(image.url);
+        return downloaded.buffer;
     }
 
     throw new Error('APIMart image result did not include url or base64 data.');

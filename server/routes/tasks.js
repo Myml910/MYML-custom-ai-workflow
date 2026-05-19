@@ -46,7 +46,13 @@ router.post('/image', async (req, res) => {
             });
         }
 
-        const provider = getImageProviders(imageModel)[0]?.provider || 'apimart';
+        const providerConfig = getImageProviders(imageModel)[0];
+        if (!providerConfig) {
+            return res.status(400).json({
+                error: `Image model unavailable or disabled: ${imageModel}`
+            });
+        }
+
         const task = await createTask({
             user: req.user,
             nodeId,
@@ -57,7 +63,7 @@ router.post('/image', async (req, res) => {
             resolution,
             referenceImages,
             taskType: 'image_generation',
-            provider
+            provider: providerConfig.provider
         });
 
         return res.status(201).json({

@@ -1363,11 +1363,13 @@ function CanvasApp({
       />
 
       {/* Agent Chat */}
+      <ChatBubble
+        onClick={toggleChat}
+        isOpen={isChatOpen && !storyboardGenerator.isModalOpen && !isTikTokModalOpen}
+        language={language}
+      />
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
-        <>
-          <ChatBubble onClick={toggleChat} isOpen={isChatOpen} language={language} />
-          <ChatPanel isOpen={isChatOpen} onClose={closeChat} isDraggingNode={isDraggingNodeToChat} canvasTheme={canvasTheme} language={language} />
-        </>
+        <ChatPanel isOpen={isChatOpen} onClose={closeChat} isDraggingNode={isDraggingNodeToChat} canvasTheme={canvasTheme} language={language} />
       )}
 
       {/* Top Bar */}
