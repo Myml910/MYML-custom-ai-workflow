@@ -27,6 +27,13 @@ const TASK_SELECT = `
         completed_at,
         failed_at,
         duration_ms,
+        locked_by,
+        locked_at,
+        lease_expires_at,
+        heartbeat_at,
+        attempt_count,
+        max_attempts,
+        last_error,
         created_at,
         updated_at
     FROM generation_tasks
@@ -91,6 +98,7 @@ export async function markTaskPolling(taskId, providerTaskId, payload = null) {
             SET status = 'polling',
                 provider_task_id = $2,
                 submitted_at = COALESCE(submitted_at, now()),
+                heartbeat_at = now(),
                 updated_at = now()
             WHERE id = $1
             RETURNING *
@@ -132,7 +140,7 @@ export async function recordProviderPollError(taskId, payload = null) {
 }
 
 export async function markTaskCompleted(taskId, resultUrl, output = null) {
-    return updateTaskWithEvent({
+    return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
             UPDATE generation_tasks
@@ -141,6 +149,11 @@ export async function markTaskCompleted(taskId, resultUrl, output = null) {
                 output = $3,
                 progress = 100,
                 completed_at = now(),
+                locked_by = NULL,
+                locked_at = NULL,
+                lease_expires_at = NULL,
+                heartbeat_at = NULL,
+                last_error = NULL,
                 duration_ms = CASE
                     WHEN started_at IS NOT NULL THEN FLOOR(EXTRACT(EPOCH FROM (now() - started_at)) * 1000)::int
                     ELSE duration_ms
@@ -159,14 +172,19 @@ export async function markTaskCompleted(taskId, resultUrl, output = null) {
 }
 
 export async function markTaskFailed(taskId, errorType, errorMessage, payload = null) {
-    return updateTaskWithEvent({
+    return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
             UPDATE generation_tasks
             SET status = 'failed',
                 error_type = $2,
                 error_message = $3,
+                last_error = $3,
                 failed_at = now(),
+                locked_by = NULL,
+                locked_at = NULL,
+                lease_expires_at = NULL,
+                heartbeat_at = NULL,
                 duration_ms = CASE
                     WHEN started_at IS NOT NULL THEN FLOOR(EXTRACT(EPOCH FROM (now() - started_at)) * 1000)::int
                     ELSE duration_ms
@@ -183,14 +201,19 @@ export async function markTaskFailed(taskId, errorType, errorMessage, payload = 
 }
 
 export async function markTaskTimeout(taskId, payload = null) {
-    return updateTaskWithEvent({
+    return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
             UPDATE generation_tasks
             SET status = 'timeout',
                 error_type = 'TIMEOUT',
                 error_message = 'Image generation task timed out',
+                last_error = 'Image generation task timed out',
                 failed_at = now(),
+                locked_by = NULL,
+                locked_at = NULL,
+                lease_expires_at = NULL,
+                heartbeat_at = NULL,
                 duration_ms = CASE
                     WHEN started_at IS NOT NULL THEN FLOOR(EXTRACT(EPOCH FROM (now() - started_at)) * 1000)::int
                     ELSE duration_ms
@@ -210,6 +233,34 @@ export async function addTaskEvent(taskId, eventType, message = null, payload = 
     return addDbTaskEvent(taskId, eventType, message, payload);
 }
 
+export async function heartbeatTask(taskId, workerId, leaseMs, payload = null) {
+    const db = getDb();
+    const leaseIntervalMs = Math.max(1000, Number(leaseMs) || 120000);
+    const result = await db.query(`
+        UPDATE generation_tasks
+        SET heartbeat_at = now(),
+            lease_expires_at = now() + ($3::int * interval '1 millisecond'),
+            updated_at = now()
+        WHERE id = $1
+          AND locked_by = $2
+          AND status IN ('running', 'polling')
+        RETURNING *
+    `, [taskId, workerId, leaseIntervalMs]);
+
+    const task = serializeTask(result.rows[0]);
+    if (!task) return null;
+
+    await addDbTaskEvent(taskId, 'task_heartbeat', 'Task worker heartbeat', {
+        workerId,
+        attemptCount: task.attemptCount,
+        provider: task.provider,
+        leaseExpiresAt: task.leaseExpiresAt,
+        ...(payload && typeof payload === 'object' ? payload : {})
+    });
+
+    return task;
+}
+
 export async function getPollingTasks() {
     const db = getDb();
     const result = await db.query(`
@@ -221,6 +272,257 @@ export async function getPollingTasks() {
     `);
 
     return result.rows.map(serializeTask);
+}
+
+export async function claimPollingImageTasks(options = {}) {
+    const db = getDb();
+    const workerId = options.workerId;
+    const limit = Math.max(1, Number(options.limit) || 1);
+    const leaseMs = Math.max(1000, Number(options.leaseMs) || 120000);
+    if (!workerId) {
+        throw new Error('workerId is required to claim polling image tasks');
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const result = await client.query(`
+            WITH candidates AS (
+                SELECT id
+                FROM generation_tasks
+                WHERE task_type = 'image_generation'
+                  AND status = 'polling'
+                  AND provider_task_id IS NOT NULL
+                  AND (
+                    locked_by IS NULL
+                    OR locked_by = $1
+                    OR lease_expires_at IS NULL
+                    OR lease_expires_at < now()
+                  )
+                ORDER BY updated_at ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT $2
+            )
+            UPDATE generation_tasks task
+            SET locked_by = $1,
+                locked_at = COALESCE(task.locked_at, now()),
+                lease_expires_at = now() + ($3::int * interval '1 millisecond'),
+                heartbeat_at = now(),
+                updated_at = now()
+            FROM candidates
+            WHERE task.id = candidates.id
+            RETURNING task.*
+        `, [workerId, limit, leaseMs]);
+
+        for (const row of result.rows) {
+            await client.query(`
+                INSERT INTO task_events (id, task_id, event_type, message, payload)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [
+                crypto.randomUUID(),
+                row.id,
+                'task_claimed',
+                'Polling image generation task claimed by worker',
+                {
+                    workerId,
+                    attemptCount: row.attempt_count,
+                    provider: row.provider,
+                    leaseExpiresAt: row.lease_expires_at
+                }
+            ]);
+        }
+
+        await client.query('COMMIT');
+        return result.rows.map(serializeTask);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function addTaskEventBestEffort(taskId, eventType, message = null, payload = null) {
+    try {
+        await addDbTaskEvent(taskId, eventType, message, jsonOrNull(payload));
+    } catch (error) {
+        console.warn('[TaskStore] Failed to write task event:', {
+            taskId,
+            eventType,
+            error: error?.message || error
+        });
+    }
+}
+
+async function updateTerminalTaskWithBestEffortEvent({ taskId, updateSql, updateParams, eventType, message, payload }) {
+    const db = getDb();
+    const result = await db.query(updateSql, updateParams);
+    const task = serializeTask(result.rows[0]);
+
+    if (task) {
+        await addTaskEventBestEffort(taskId, eventType, message, payload);
+    }
+
+    return task;
+}
+
+export async function sweepExpiredRunningLeases(options = {}) {
+    const db = getDb();
+    const workerId = options.workerId || null;
+    const client = await db.connect();
+
+    try {
+        await client.query('BEGIN');
+        const expired = await client.query(`
+            SELECT *
+            FROM generation_tasks
+            WHERE task_type = 'image_generation'
+              AND status = 'running'
+              AND lease_expires_at IS NOT NULL
+              AND lease_expires_at < now()
+            FOR UPDATE SKIP LOCKED
+        `);
+
+        const resumedPolling = [];
+        const requeued = [];
+        const timedOut = [];
+
+        for (const row of expired.rows) {
+            const attempts = Number(row.attempt_count || 0);
+            const maxAttempts = Number(row.max_attempts || 2);
+            if (row.provider_task_id) {
+                const result = await client.query(`
+                    UPDATE generation_tasks
+                    SET status = 'polling',
+                        locked_by = NULL,
+                        locked_at = NULL,
+                        lease_expires_at = NULL,
+                        heartbeat_at = NULL,
+                        last_error = 'Lease expired after provider submission; resumed polling',
+                        updated_at = now()
+                    WHERE id = $1
+                    RETURNING *
+                `, [row.id]);
+
+                await client.query(`
+                    INSERT INTO task_events (id, task_id, event_type, message, payload)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    crypto.randomUUID(),
+                    row.id,
+                    'lease_expired_resume_polling',
+                    'Worker lease expired after provider submission; task resumed polling',
+                    {
+                        workerId,
+                        previousWorkerId: row.locked_by,
+                        attemptCount: attempts,
+                        maxAttempts,
+                        provider: row.provider,
+                        providerTaskId: row.provider_task_id,
+                        leaseExpiresAt: row.lease_expires_at,
+                        error: 'Lease expired after provider submission; resumed polling'
+                    }
+                ]);
+
+                resumedPolling.push(serializeTask(result.rows[0]));
+                continue;
+            }
+
+            if (attempts < maxAttempts) {
+                const result = await client.query(`
+                    UPDATE generation_tasks
+                    SET status = 'queued',
+                        locked_by = NULL,
+                        locked_at = NULL,
+                        lease_expires_at = NULL,
+                        heartbeat_at = NULL,
+                        last_error = 'Worker lease expired before task completed',
+                        updated_at = now()
+                    WHERE id = $1
+                    RETURNING *
+                `, [row.id]);
+
+                const payload = {
+                    workerId,
+                    previousWorkerId: row.locked_by,
+                    attemptCount: attempts,
+                    maxAttempts,
+                    provider: row.provider,
+                    leaseExpiresAt: row.lease_expires_at,
+                    error: 'Worker lease expired before task completed'
+                };
+
+                await client.query(`
+                    INSERT INTO task_events (id, task_id, event_type, message, payload)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    crypto.randomUUID(),
+                    row.id,
+                    'lease_expired_requeued',
+                    'Worker lease expired; task returned to queued',
+                    payload
+                ]);
+
+                await client.query(`
+                    INSERT INTO task_events (id, task_id, event_type, message, payload)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    crypto.randomUUID(),
+                    row.id,
+                    'task_retry_scheduled',
+                    'Task retry scheduled after worker lease expired',
+                    payload
+                ]);
+
+                requeued.push(serializeTask(result.rows[0]));
+            } else {
+                const result = await client.query(`
+                    UPDATE generation_tasks
+                    SET status = 'timeout',
+                        error_type = 'LEASE_EXPIRED',
+                        error_message = 'Worker lease expired and max attempts were reached',
+                        last_error = 'Worker lease expired and max attempts were reached',
+                        failed_at = now(),
+                        locked_by = NULL,
+                        locked_at = NULL,
+                        lease_expires_at = NULL,
+                        heartbeat_at = NULL,
+                        updated_at = now()
+                    WHERE id = $1
+                    RETURNING *
+                `, [row.id]);
+
+                await client.query(`
+                    INSERT INTO task_events (id, task_id, event_type, message, payload)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    crypto.randomUUID(),
+                    row.id,
+                    'lease_expired_timeout',
+                    'Worker lease expired; task timed out after max attempts',
+                    {
+                        workerId,
+                        previousWorkerId: row.locked_by,
+                        attemptCount: attempts,
+                        maxAttempts,
+                        provider: row.provider,
+                        leaseExpiresAt: row.lease_expires_at,
+                        error: 'Worker lease expired and max attempts were reached'
+                    }
+                ]);
+
+                timedOut.push(serializeTask(result.rows[0]));
+            }
+        }
+
+        await client.query('COMMIT');
+        return { resumedPolling, requeued, timedOut };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 export async function resetStuckRunningTasks() {
@@ -276,7 +578,12 @@ export async function failPollingTasksMissingProviderTaskId() {
             SET status = 'failed',
                 error_type = 'INVALID_TASK_STATE',
                 error_message = 'Polling task is missing provider_task_id',
+                last_error = 'Polling task is missing provider_task_id',
                 failed_at = now(),
+                locked_by = NULL,
+                locked_at = NULL,
+                lease_expires_at = NULL,
+                heartbeat_at = NULL,
                 updated_at = now()
             WHERE task_type = 'image_generation'
               AND status = 'polling'

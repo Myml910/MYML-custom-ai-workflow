@@ -45,6 +45,14 @@ export async function runMigrations(db) {
         );
     `);
 
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS locked_by TEXT;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 2;');
+    await db.query('ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS last_error TEXT;');
+
     await db.query(`
         CREATE TABLE IF NOT EXISTS task_events (
             id TEXT PRIMARY KEY,
@@ -62,6 +70,9 @@ export async function runMigrations(db) {
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_status ON generation_tasks(status);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_provider_task_id ON generation_tasks(provider_task_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_created_at ON generation_tasks(created_at);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_lease_expires_at ON generation_tasks(lease_expires_at);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_locked_by ON generation_tasks(locked_by);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_status_lease ON generation_tasks(status, lease_expires_at);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_task_events_task_id ON task_events(task_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_task_events_created_at ON task_events(created_at);');
 }

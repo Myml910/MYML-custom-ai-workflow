@@ -1,9 +1,9 @@
 import {
+    claimPollingImageTasks,
     claimNextImageTask,
     failPollingTasksMissingProviderTaskId,
-    getPollingTasks,
     markTaskTimeout,
-    resetStuckRunningTasks
+    sweepExpiredRunningLeases
 } from './taskStore.js';
 import { getImageTaskConcurrencyOptions } from './taskQueue.js';
 import { executeImageTask, pollImageTaskStatus } from './workers/imageWorker.js';
@@ -11,10 +11,14 @@ import { executeImageTask, pollImageTaskStatus } from './workers/imageWorker.js'
 const DEFAULT_POLL_INTERVAL_MS = 5000;
 const DEFAULT_TASK_TIMEOUT_MS = 600000;
 const DEFAULT_MAX_RETRIES = 1;
+const DEFAULT_TASK_WORKER_CONCURRENCY = 2;
+const DEFAULT_TASK_LEASE_MS = 120000;
+const DEFAULT_TASK_HEARTBEAT_MS = 30000;
 
 let runnerTimer = null;
 let runnerActive = false;
 let runnerStopped = true;
+let defaultWorkerId = null;
 
 function parsePositiveInteger(value, fallback) {
     const parsed = Number.parseInt(value, 10);
@@ -22,10 +26,18 @@ function parsePositiveInteger(value, fallback) {
 }
 
 export function getImageTaskRunnerConfig(env = process.env) {
+    if (!defaultWorkerId) {
+        defaultWorkerId = env.TASK_WORKER_ID || `worker-${process.pid}-${Date.now()}`;
+    }
+
     return {
+        workerId: env.TASK_WORKER_ID || defaultWorkerId,
         pollIntervalMs: parsePositiveInteger(env.IMAGE_TASK_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS),
         taskTimeoutMs: parsePositiveInteger(env.IMAGE_TASK_TIMEOUT_MS, DEFAULT_TASK_TIMEOUT_MS),
         maxRetries: parsePositiveInteger(env.IMAGE_TASK_MAX_RETRIES, DEFAULT_MAX_RETRIES),
+        workerConcurrency: parsePositiveInteger(env.TASK_WORKER_CONCURRENCY, DEFAULT_TASK_WORKER_CONCURRENCY),
+        leaseMs: parsePositiveInteger(env.TASK_LEASE_MS, DEFAULT_TASK_LEASE_MS),
+        heartbeatMs: parsePositiveInteger(env.TASK_HEARTBEAT_MS, DEFAULT_TASK_HEARTBEAT_MS),
         concurrency: getImageTaskConcurrencyOptions(env)
     };
 }
@@ -41,39 +53,60 @@ function isTaskTimedOut(task, config) {
 }
 
 async function processPollingTasks(config) {
-    const pollingTasks = await getPollingTasks();
+    const pollingTasks = await claimPollingImageTasks({
+        workerId: config.workerId,
+        leaseMs: config.leaseMs,
+        limit: config.workerConcurrency
+    });
 
-    for (const task of pollingTasks) {
+    await Promise.allSettled(pollingTasks.map(async (task) => {
         if (isTaskTimedOut(task, config)) {
             await markTaskTimeout(task.taskId, {
+                workerId: config.workerId,
                 providerTaskId: task.providerTaskId,
                 elapsedMs: getTaskAgeMs(task),
                 timeoutMs: config.taskTimeoutMs
             });
-            continue;
+            return;
         }
 
-        await pollImageTaskStatus(task);
-    }
+        await pollImageTaskStatus(task, {
+            workerId: config.workerId,
+            leaseMs: config.leaseMs,
+            heartbeatMs: config.heartbeatMs
+        });
+    }));
 }
 
 async function processQueuedTasks(config) {
-    while (!runnerStopped) {
-        const task = await claimNextImageTask(config.concurrency);
+    const tasks = [];
+    while (!runnerStopped && tasks.length < config.workerConcurrency) {
+        const task = await claimNextImageTask({
+            ...config.concurrency,
+            workerId: config.workerId,
+            leaseMs: config.leaseMs
+        });
         if (!task) {
-            return;
+            break;
         }
 
         if (isTaskTimedOut(task, config)) {
             await markTaskTimeout(task.taskId, {
+                workerId: config.workerId,
                 elapsedMs: getTaskAgeMs(task),
                 timeoutMs: config.taskTimeoutMs
             });
             continue;
         }
 
-        await executeImageTask(task);
+        tasks.push(task);
     }
+
+    await Promise.allSettled(tasks.map(task => executeImageTask(task, {
+        workerId: config.workerId,
+        leaseMs: config.leaseMs,
+        heartbeatMs: config.heartbeatMs
+    })));
 }
 
 async function runTaskLoop() {
@@ -85,6 +118,14 @@ async function runTaskLoop() {
     const config = getImageTaskRunnerConfig();
 
     try {
+        const sweepResult = await sweepExpiredRunningLeases({ workerId: config.workerId });
+        if (sweepResult.resumedPolling.length > 0 || sweepResult.requeued.length > 0 || sweepResult.timedOut.length > 0) {
+            console.warn('[TaskRunner] Swept expired image task leases.', {
+                resumedPolling: sweepResult.resumedPolling.length,
+                requeued: sweepResult.requeued.length,
+                timedOut: sweepResult.timedOut.length
+            });
+        }
         const invalidPollingTasks = await failPollingTasksMissingProviderTaskId();
         if (invalidPollingTasks.length > 0) {
             console.warn(`[TaskRunner] Failed ${invalidPollingTasks.length} polling image task(s) missing provider_task_id.`);
@@ -107,9 +148,13 @@ export async function startTaskRunner() {
     runnerStopped = false;
 
     try {
-        const resetTasks = await resetStuckRunningTasks();
-        if (resetTasks.length > 0) {
-            console.log(`[TaskRunner] Reset ${resetTasks.length} stuck running image task(s) to queued.`);
+        const sweepResult = await sweepExpiredRunningLeases({ workerId: config.workerId });
+        if (sweepResult.resumedPolling.length > 0 || sweepResult.requeued.length > 0 || sweepResult.timedOut.length > 0) {
+            console.warn('[TaskRunner] Swept expired image task leases during startup.', {
+                resumedPolling: sweepResult.resumedPolling.length,
+                requeued: sweepResult.requeued.length,
+                timedOut: sweepResult.timedOut.length
+            });
         }
         const invalidPollingTasks = await failPollingTasksMissingProviderTaskId();
         if (invalidPollingTasks.length > 0) {
@@ -120,9 +165,13 @@ export async function startTaskRunner() {
     }
 
     console.log('[TaskRunner] Image task runner started', {
+        workerId: config.workerId,
         pollIntervalMs: config.pollIntervalMs,
         taskTimeoutMs: config.taskTimeoutMs,
         maxRetries: config.maxRetries,
+        workerConcurrency: config.workerConcurrency,
+        leaseMs: config.leaseMs,
+        heartbeatMs: config.heartbeatMs,
         concurrency: config.concurrency
     });
 
