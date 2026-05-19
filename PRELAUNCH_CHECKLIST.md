@@ -268,3 +268,28 @@ tr '\0' '\n' < /proc/<PID>/environ | grep -E 'NODE_ENV|PORT|TASK_WORKER|ENABLE_A
 - `/api/models/image` 需要登录 cookie；裸 `curl` 返回 `401` 是正常现象。
 - 如果模型下拉框显示旧 fallback，优先检查浏览器 Network 里的 `/api/models/image`，不要只看 UI。
 - Vite 在 `4246` 被占用时可能自动切到 `4247`，容易访问错实例。
+
+## 11. Dev / Production / Docker 启动差异复核
+
+- 当前测试环境可以短期使用 `nohup npm run dev`，但这不是正式生产最佳方式。
+- `npm run dev` 已启用 Vite `--strictPort`；如果 `4246` 被占用，Vite 应直接启动失败，不应自动切到 `4247`。
+- 如果 Vite 启动失败，先检查 `4246` 是否被旧进程占用，不要通过切端口绕过。
+- Production Node 模式建议：
+
+```bash
+npm run build
+NODE_ENV=production npm start
+```
+
+- Nginx dist 模式必须把 `/api` 和 `/library` 反代到 Node backend。
+- Docker 模式上线前必须确认 Atlas / credential / worker env 已完整传入：
+  - `ENABLE_ATLAS_PROVIDER`
+  - `ENABLE_ATLAS_NANO_BANANA_2`
+  - `ATLAS_BASE_URL`
+  - `ATLAS_API_KEY` 或 team-scoped `provider_credentials`
+  - `ATLAS_TEXT_TO_IMAGE_MODEL`
+  - `ATLAS_EDIT_MODEL`
+  - `ATLAS_REQUEST_TIMEOUT_MS`
+  - `PROVIDER_MAX_RUNNING_ATLAS`
+  - `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
+  - `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`

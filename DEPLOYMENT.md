@@ -26,10 +26,19 @@ npm run server
 Start the Vite frontend in a second terminal:
 
 ```bash
-npx vite --host 0.0.0.0 --port 4246
+npx vite --host 0.0.0.0 --port 4246 --strictPort
 ```
 
-`npm run dev` still starts backend and frontend together. Use it for simple UI development only. If you enable the background worker, prefer separate terminals so it is clear which process can submit paid provider tasks.
+`npm run dev` still starts backend and frontend together. Use it for simple UI development only. It now runs Vite with `--strictPort`, so startup fails if `4246` is already occupied instead of silently switching to `4247`. If you enable the background worker, prefer separate terminals so it is clear which process can submit paid provider tasks.
+
+For production Node mode:
+
+```bash
+npm run build
+NODE_ENV=production npm start
+```
+
+In production Node mode, the Node process on `3001` serves the built `dist`, `/api`, and `/library`.
 
 ## 3. Worker-Enabled Development
 
@@ -39,7 +48,7 @@ Linux/macOS:
 
 ```bash
 TASK_WORKER_ENABLED=true TASK_WORKER_CONCURRENCY=1 npm run server
-npx vite --host 0.0.0.0 --port 4246
+npx vite --host 0.0.0.0 --port 4246 --strictPort
 ```
 
 Windows cmd:
@@ -53,7 +62,7 @@ npm run server
 Then start Vite in another terminal:
 
 ```bat
-npx vite --host 0.0.0.0 --port 4246
+npx vite --host 0.0.0.0 --port 4246 --strictPort
 ```
 
 Recommended defaults:
@@ -84,7 +93,7 @@ Operational notes:
 
 - `/api/models/image` requires the login cookie; a bare `curl` returning `401` is expected.
 - If the model dropdown shows the old fallback list, inspect the browser Network request for `/api/models/image` before judging the UI.
-- Vite may auto-switch from `4246` to `4247` when `4246` is occupied, which can make you view the wrong instance.
+- Vite is configured with `--strictPort`; if `4246` is occupied, fix the old process instead of allowing Vite to switch to `4247`.
 - Prefer separate backend and Vite terminals for worker tests; avoid multiple old `npm run dev` processes.
 
 ## 4. Core Environment
@@ -247,6 +256,21 @@ docker compose config
 ```
 
 Set real passwords and API keys through your shell environment or a local `.env` file before starting Compose.
+
+For Atlas and team credential deployments, confirm these values render in `docker compose config` before starting the app:
+
+- `ENABLE_ATLAS_PROVIDER`
+- `ENABLE_ATLAS_NANO_BANANA_2`
+- `ATLAS_BASE_URL`
+- `ATLAS_API_KEY` or team-scoped `provider_credentials`
+- `ATLAS_TEXT_TO_IMAGE_MODEL`
+- `ATLAS_EDIT_MODEL`
+- `ATLAS_REQUEST_TIMEOUT_MS`
+- `PROVIDER_MAX_RUNNING_ATLAS`
+- `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
+- `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`
+
+Do not hard-code real provider secrets in `docker-compose.yml`; pass them from the host environment or deployment secret store.
 
 ## 7. Legacy Generation Endpoint
 
