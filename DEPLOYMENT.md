@@ -62,6 +62,31 @@ Recommended defaults:
 - Staging: `TASK_WORKER_ENABLED=true`, low provider limits
 - Production: `TASK_WORKER_ENABLED=true`, provider limits set to purchased quota
 
+## 3.1 Migration / Prelaunch Instance Checks
+
+Before switching traffic, verify that the browser is talking to the intended directory, process, and ports. This is especially important when an older checkout is still running.
+
+```bash
+ss -lntp | grep -E '3001|4246|4247'
+ps aux | grep -E "node|vite|npm|concurrently" | grep -v grep
+pwdx <PID>
+readlink -f /proc/<PID>/cwd
+tr '\0' '\n' < /proc/<PID>/environ | grep -E 'NODE_ENV|PORT|TASK_WORKER|ENABLE_ATLAS|LIBRARY_DIR|DATABASE_URL'
+```
+
+Deployment modes:
+
+- Dev mode: Vite runs on `4246`, backend runs on `3001`.
+- Production Node mode: Node on `3001` serves `dist`, `/api`, and `/library`.
+- Nginx dist mode: Nginx serves `dist` and must reverse proxy both `/api` and `/library` to the backend.
+
+Operational notes:
+
+- `/api/models/image` requires the login cookie; a bare `curl` returning `401` is expected.
+- If the model dropdown shows the old fallback list, inspect the browser Network request for `/api/models/image` before judging the UI.
+- Vite may auto-switch from `4246` to `4247` when `4246` is occupied, which can make you view the wrong instance.
+- Prefer separate backend and Vite terminals for worker tests; avoid multiple old `npm run dev` processes.
+
 ## 4. Core Environment
 
 Use `.env.example` as the template. At minimum configure:

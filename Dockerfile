@@ -19,4 +19,4 @@ EXPOSE 3001
 ENV NODE_ENV=production
 
 # Start the server
-CMD ["node", "server/index.js"]
+CMD ["node", "server/bootstrap.js"]

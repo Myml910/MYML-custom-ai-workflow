@@ -1,6 +1,9 @@
-// Load environment variables FIRST before any other imports
 import dotenv from 'dotenv';
-dotenv.config();
+// `npm run server` uses server/bootstrap.js so dotenv is loaded before this
+// module's static imports evaluate. Keep this fallback for direct index runs.
+if (process.env.MYML_DOTENV_BOOTSTRAPPED !== 'true') {
+    dotenv.config();
+}
 
 import express from 'express';
 import cors from 'cors';
@@ -37,6 +40,7 @@ import localModelsRoutes from './routes/local-models.js';
 import storyboardRoutes from './routes/storyboard.js';
 import mattingRoutes from './routes/matting.js';
 import { startTaskRunner, stopTaskRunner } from './tasks/taskRunner.js';
+import { logStartupSummary } from './utils/startupSummary.js';
 import {
     ASSETS_DIR,
     CHATS_DIR,
@@ -1582,6 +1586,12 @@ if (process.env.NODE_ENV === 'production') {
 
 const server = app.listen(PORT, HOST, () => {
     console.log(`Backend server running on http://${HOST}:${PORT}`);
+    logStartupSummary({
+        host: HOST,
+        port: PORT,
+        libraryDir: LIBRARY_DIR,
+        dbLabel: getDatabaseLabel()
+    });
 
     if (process.env.TASK_WORKER_ENABLED === 'true') {
         startTaskRunner().catch(error => {

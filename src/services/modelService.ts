@@ -6,6 +6,7 @@ interface ImageModelsResponse {
 
 let cachedImageModels: ImageModelOption[] | null = null;
 let pendingImageModelsRequest: Promise<ImageModelOption[]> | null = null;
+let hasWarnedImageModelFallback = false;
 
 async function readJsonResponse(response: Response): Promise<ImageModelsResponse> {
     return response.json().catch(() => ({}));
@@ -22,10 +23,14 @@ export async function fetchImageModels({ force = false } = {}): Promise<ImageMod
 
         const data = await readJsonResponse(response);
         if (!response.ok) {
-            throw new Error((data as any).error || response.statusText);
+            throw new Error((data as any).error || `${response.status} ${response.statusText}`);
         }
 
-        const models = Array.isArray(data.models)
+        if (!Array.isArray(data.models)) {
+            throw new Error('Invalid /api/models/image response: models must be an array.');
+        }
+
+        const models = data.models
             ? data.models.map(normalizeImageModelOption).filter(model => model.id && model.enabled !== false)
             : [];
 
@@ -46,4 +51,19 @@ export async function fetchImageModels({ force = false } = {}): Promise<ImageMod
 
 export function getFallbackImageModels(): ImageModelOption[] {
     return FALLBACK_IMAGE_MODELS;
+}
+
+export function warnUsingFallbackImageModels(reason?: unknown) {
+    if (hasWarnedImageModelFallback) return;
+    hasWarnedImageModelFallback = true;
+
+    const message = reason instanceof Error
+        ? reason.message
+        : typeof reason === 'string'
+            ? reason
+            : 'Unknown model API error';
+
+    console.warn('[Models] Using fallback image models because /api/models/image failed', {
+        message
+    });
 }

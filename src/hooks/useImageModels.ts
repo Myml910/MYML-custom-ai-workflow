@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ImageModelOption } from '../config/imageModels';
-import { fetchImageModels, getFallbackImageModels } from '../services/modelService';
+import { fetchImageModels, getFallbackImageModels, warnUsingFallbackImageModels } from '../services/modelService';
 
 export function useImageModels() {
     const [models, setModels] = useState<ImageModelOption[]>(() => getFallbackImageModels());
@@ -19,6 +19,7 @@ export function useImageModels() {
             })
             .catch(fetchError => {
                 if (cancelled) return;
+                warnUsingFallbackImageModels(fetchError);
                 setModels(getFallbackImageModels());
                 setError(fetchError?.message || 'Failed to load image models');
             })

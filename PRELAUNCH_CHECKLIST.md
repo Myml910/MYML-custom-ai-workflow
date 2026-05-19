@@ -249,3 +249,22 @@ No-Go 条件：
 - 出现重复 submit provider 的证据。
 - `/api/tasks/image` 失败后默认 fallback legacy。
 - SSRF 防护失效。
+
+## 10. 迁移 / 上线前旧进程与端口检查
+
+上线或迁移前必须确认浏览器访问的是新目录的新进程，而不是旧目录、旧 Vite 或旧后端。
+
+```bash
+ss -lntp | grep -E '3001|4246|4247'
+ps aux | grep -E "node|vite|npm|concurrently" | grep -v grep
+pwdx <PID>
+readlink -f /proc/<PID>/cwd
+tr '\0' '\n' < /proc/<PID>/environ | grep -E 'NODE_ENV|PORT|TASK_WORKER|ENABLE_ATLAS|LIBRARY_DIR|DATABASE_URL'
+```
+
+- Dev 模式：Vite `4246` + backend `3001`。
+- Production Node 模式：Node `3001` 同时 serve `dist`、`/api`、`/library`。
+- Nginx dist 模式：Nginx serve `dist`，并必须反代 `/api` 和 `/library` 到后端。
+- `/api/models/image` 需要登录 cookie；裸 `curl` 返回 `401` 是正常现象。
+- 如果模型下拉框显示旧 fallback，优先检查浏览器 Network 里的 `/api/models/image`，不要只看 UI。
+- Vite 在 `4246` 被占用时可能自动切到 `4247`，容易访问错实例。
