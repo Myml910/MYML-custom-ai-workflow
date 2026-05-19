@@ -15,6 +15,7 @@ import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
 import { ActionRow, PanelSection, StatusDot } from '../ui';
 import { useImageModels } from '../../hooks/useImageModels';
+import { useRuntimeStatus } from '../../hooks/useRuntimeStatus';
 import {
     getDefaultImageModel,
     HIDDEN_IMAGE_MODEL_IDS,
@@ -148,6 +149,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     language = 'zh'
 }) => {
     const { models: imageModels } = useImageModels();
+    const runtimeStatus = useRuntimeStatus();
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showSizeDropdown, setShowSizeDropdown] = useState(false);
     const [showAspectRatioDropdown, setShowAspectRatioDropdown] = useState(false);
@@ -624,6 +626,25 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const promptSectionTitle = language === 'zh' ? '提示词' : 'Prompt';
     const modelSectionTitle = language === 'zh' ? '模型与输出' : 'Model & Output';
     const advancedSectionTitle = language === 'zh' ? '高级设置' : 'Advanced';
+    const runtimeWarningText = React.useMemo(() => {
+        if (!isImageNode || runtimeStatus.loading) return null;
+        if (runtimeStatus.error) {
+            return 'Runtime status unavailable. Check login/session or server health.';
+        }
+        if (runtimeStatus.runtime?.workerEnabled === false) {
+            return 'Image worker is disabled. New generation tasks may stay queued.';
+        }
+        if (runtimeStatus.runtime?.libraryWritable === false) {
+            return 'Asset library is not writable. Generated results may fail to save.';
+        }
+        return null;
+    }, [
+        isImageNode,
+        runtimeStatus.error,
+        runtimeStatus.loading,
+        runtimeStatus.runtime?.libraryWritable,
+        runtimeStatus.runtime?.workerEnabled
+    ]);
 
     const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
         rotation: settings?.rotation ?? 0,
@@ -781,6 +802,12 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             {data.errorMessage && (
                 <div className="text-red-300 text-xs mb-2 p-2 bg-red-500/[0.08] rounded-lg border border-red-500/50">
                     {data.errorMessage}
+                </div>
+            )}
+
+            {runtimeWarningText && (
+                <div className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/[0.08] p-2 text-xs text-amber-300">
+                    {runtimeWarningText}
                 </div>
             )}
 
