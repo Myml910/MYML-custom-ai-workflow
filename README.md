@@ -128,6 +128,42 @@ If you prefer using Docker to run the application in a containerized environment
    - Data persists in the local `library/` folder
    - To stop: `docker compose down`
 
+### Current Deployment Notes
+
+For the current task-based image generation flow, PostgreSQL is required for users/auth and generation tasks. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full environment template, Docker Compose details, worker settings, and troubleshooting notes.
+
+Minimal local startup:
+
+```bash
+npm install
+npm run server
+npx vite --host 0.0.0.0 --port 4246
+```
+
+If you want the background task worker to submit queued image tasks, do not rely on `npm run dev`. Use separate terminals so it is explicit which backend process can submit paid provider jobs.
+
+Linux/macOS:
+
+```bash
+TASK_WORKER_ENABLED=true TASK_WORKER_CONCURRENCY=1 npm run server
+npx vite --host 0.0.0.0 --port 4246
+```
+
+Windows cmd:
+
+```bat
+set TASK_WORKER_ENABLED=true
+set TASK_WORKER_CONCURRENCY=1
+npm run server
+```
+
+Common checks:
+
+- `TASK_WORKER_ENABLED=false`: tasks remain queued and no provider job is submitted.
+- `APIMart 402 Payment Required / Insufficient balance`: provider balance or quota issue, not a frontend or worker bug.
+- `/api/generate-image`: legacy compatibility endpoint only; new generation should use `/api/tasks/image`.
+- Dataler and Pikachu providers are experimental and disabled unless `ENABLE_DATALER_PROVIDER=true` or `ENABLE_PIKACHU_PROVIDER=true`.
+
 ### Optional: Local Open-Source Models Setup
 
 MYML Canvas supports running open-source AI models (like Stable Diffusion, Qwen Camera Control, ControlNet) locally on your GPU. This is **optional** - the cloud-based AI models work without this setup.

@@ -1,27 +1,79 @@
-version: '3.8'
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: myml-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-myml_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change_this_password}
+      - POSTGRES_DB=${POSTGRES_DB:-myml_canvas}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   twitcanva:
     build: .
     image: twitcanva:latest
     container_name: twitcanva-app
     ports:
       - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       # CRITICAL: Mount the local library folder to the container to persist data
       - ./library:/app/library
     environment:
       - NODE_ENV=production
-      - MYML_AUTH_SECRET=${MYML_AUTH_SECRET}
-      - MYML_COOKIE_SECURE=${MYML_COOKIE_SECURE}
-      - MYML_DB_PATH=${MYML_DB_PATH}
-      - MYML_SEED_ADMIN_USERNAME=${MYML_SEED_ADMIN_USERNAME}
-      - MYML_SEED_ADMIN_PASSWORD=${MYML_SEED_ADMIN_PASSWORD}
-      # Pass through API keys from host environment or .env file
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - KLING_ACCESS_KEY=${KLING_ACCESS_KEY}
-      - KLING_SECRET_KEY=${KLING_SECRET_KEY}
-      - HAILUO_API_KEY=${HAILUO_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - FAL_API_KEY=${FAL_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=3001
+      - LIBRARY_DIR=/app/library
+      - MYML_AUTH_SECRET=${MYML_AUTH_SECRET:-please_change_this}
+      - MYML_COOKIE_SECURE=${MYML_COOKIE_SECURE:-false}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - PGHOST=${PGHOST:-postgres}
+      - PGPORT=${PGPORT:-5432}
+      - PGUSER=${PGUSER:-myml_user}
+      - PGPASSWORD=${PGPASSWORD:-change_this_password}
+      - PGDATABASE=${PGDATABASE:-myml_canvas}
+      - PGSSL=${PGSSL:-false}
+      - MYML_SEED_ADMIN_USERNAME=${MYML_SEED_ADMIN_USERNAME:-myml}
+      - MYML_SEED_ADMIN_PASSWORD=${MYML_SEED_ADMIN_PASSWORD:-change_this_before_first_start}
+      - TASK_WORKER_ENABLED=${TASK_WORKER_ENABLED:-false}
+      - TASK_WORKER_CONCURRENCY=${TASK_WORKER_CONCURRENCY:-2}
+      - SYSTEM_MAX_RUNNING_IMAGE_TASKS=${SYSTEM_MAX_RUNNING_IMAGE_TASKS:-4}
+      - USER_MAX_RUNNING_IMAGE_TASKS=${USER_MAX_RUNNING_IMAGE_TASKS:-2}
+      - TASK_LEASE_MS=${TASK_LEASE_MS:-120000}
+      - TASK_HEARTBEAT_MS=${TASK_HEARTBEAT_MS:-30000}
+      - APIMART_BASE_URL=${APIMART_BASE_URL:-}
+      - APIMART_API_KEY=${APIMART_API_KEY:-}
+      - APIMART_TEXT_MODEL=${APIMART_TEXT_MODEL:-}
+      - APIMART_IMAGE_MODEL=${APIMART_IMAGE_MODEL:-}
+      - APIMART_IMAGE_RESOLUTION=${APIMART_IMAGE_RESOLUTION:-}
+      - APIMART_IMAGE_POLL_INTERVAL_MS=${APIMART_IMAGE_POLL_INTERVAL_MS:-}
+      - APIMART_IMAGE_POLL_TIMEOUT_MS=${APIMART_IMAGE_POLL_TIMEOUT_MS:-}
+      - APIMART_REQUEST_TIMEOUT_MS=${APIMART_REQUEST_TIMEOUT_MS:-30000}
+      - ENABLE_DATALER_PROVIDER=${ENABLE_DATALER_PROVIDER:-false}
+      - ENABLE_PIKACHU_PROVIDER=${ENABLE_PIKACHU_PROVIDER:-false}
+      - PROVIDER_MAX_RUNNING_APIMART=${PROVIDER_MAX_RUNNING_APIMART:-2}
+      - PROVIDER_MAX_RUNNING_DATALER=${PROVIDER_MAX_RUNNING_DATALER:-1}
+      - PROVIDER_MAX_RUNNING_PIKACHU=${PROVIDER_MAX_RUNNING_PIKACHU:-1}
+      - DATALER_API_BASE_URL=${DATALER_API_BASE_URL:-}
+      - DATALER_API_KEY=${DATALER_API_KEY:-}
+      - PIKACHU_BASE_URL=${PIKACHU_BASE_URL:-}
+      - PIKACHU_API_KEY=${PIKACHU_API_KEY:-}
+      # Legacy providers and integrations remain pass-through for compatibility.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - KLING_ACCESS_KEY=${KLING_ACCESS_KEY:-}
+      - KLING_SECRET_KEY=${KLING_SECRET_KEY:-}
+      - HAILUO_API_KEY=${HAILUO_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - FAL_API_KEY=${FAL_API_KEY:-}
     restart: unless-stopped
+
+volumes:
+  postgres-data:
