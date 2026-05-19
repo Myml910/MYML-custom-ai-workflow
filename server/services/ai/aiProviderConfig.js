@@ -13,6 +13,10 @@ const DEFAULT_DATALER_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const DEFAULT_DATALER_IMAGE_SIZE = 'auto';
 const DEFAULT_DATALER_IMAGE_RESOLUTION = '2K';
 const DEFAULT_DATALER_REQUEST_TIMEOUT_MS = 300000;
+const DEFAULT_ATLAS_BASE_URL = 'https://api.atlascloud.ai';
+const DEFAULT_ATLAS_TEXT_TO_IMAGE_MODEL = 'openai/gpt-image-2/text-to-image';
+const DEFAULT_ATLAS_EDIT_MODEL = 'openai/gpt-image-2/edit';
+const DEFAULT_ATLAS_REQUEST_TIMEOUT_MS = 300000;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -56,6 +60,13 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             imageSize: cleanString(env.DATALER_IMAGE_SIZE) || DEFAULT_DATALER_IMAGE_SIZE,
             imageResolution: cleanString(env.DATALER_IMAGE_RESOLUTION) || DEFAULT_DATALER_IMAGE_RESOLUTION
         },
+        atlas: {
+            baseUrl: cleanBaseUrl(env.ATLAS_BASE_URL) || cleanBaseUrl(env.ATLAS_API_BASE_URL) || DEFAULT_ATLAS_BASE_URL,
+            apiKey: cleanString(env.ATLAS_API_KEY) || cleanString(env.ATLASCLOUD_API_KEY),
+            requestTimeoutMs: parsePositiveInteger(env.ATLAS_REQUEST_TIMEOUT_MS, DEFAULT_ATLAS_REQUEST_TIMEOUT_MS),
+            textToImageModel: cleanString(env.ATLAS_TEXT_TO_IMAGE_MODEL) || DEFAULT_ATLAS_TEXT_TO_IMAGE_MODEL,
+            editModel: cleanString(env.ATLAS_EDIT_MODEL) || DEFAULT_ATLAS_EDIT_MODEL
+        },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',
             chatApiKey: cleanString(env.CHAT_API_KEY) || cleanString(locals.OPENAI_API_KEY) || cleanString(env.OPENAI_API_KEY),
@@ -87,6 +98,10 @@ export function isPikachuImageConfigured(config = getAiProviderConfig()) {
 
 export function isDatalerImageConfigured(config = getAiProviderConfig()) {
     return Boolean(config.dataler.baseUrl && config.dataler.apiKey && config.dataler.imageModel);
+}
+
+export function isAtlasImageConfigured(config = getAiProviderConfig()) {
+    return Boolean(config.atlas.baseUrl && config.atlas.apiKey);
 }
 
 export function getLegacyChatConfig(runtimeApiKey, config = getAiProviderConfig()) {

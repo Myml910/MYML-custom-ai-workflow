@@ -426,10 +426,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     // 0 inputs = all models, 1 input = needs supportsImageToImage, 2+ inputs = needs supportsMultiImage
     const inputCount = connectedImageNodes.length;
     const availableImageModels = React.useMemo(() => imageModelOptions.filter(model => {
-        if (inputCount === 0) return true; // Text-to-image: all models work
+        if (isModelDisabled(model) && model.id === data.imageModel) return true;
+        if (inputCount === 0) return model.supportsTextToImage; // Text-only mode should not expose edit-only models
         if (inputCount === 1) return model.supportsImageToImage; // Single ref: filter out V2.1
         return model.supportsMultiImage; // Multi-ref: filter out V1, V1.5, V2 New
-    }), [imageModelOptions, inputCount]);
+    }), [imageModelOptions, inputCount, data.imageModel]);
 
     // Auto-select only when there is no saved model yet. Existing legacy model ids stay visible as disabled options.
     useEffect(() => {

@@ -8,6 +8,7 @@ const DEFAULT_USER_MAX_RUNNING_IMAGE_TASKS = 2;
 const DEFAULT_APIMART_MAX_RUNNING_IMAGE_TASKS = 4;
 const DEFAULT_DATALER_MAX_RUNNING_IMAGE_TASKS = 1;
 const DEFAULT_PIKACHU_MAX_RUNNING_IMAGE_TASKS = 1;
+const DEFAULT_ATLAS_MAX_RUNNING_IMAGE_TASKS = 1;
 const DEFAULT_PROVIDER_MAX_RUNNING_IMAGE_TASKS = 2;
 const DEFAULT_TASK_LEASE_MS = 120000;
 const IMAGE_TASK_CLAIM_LOCK_KEY = 9104246;
@@ -40,6 +41,10 @@ export function getImageTaskConcurrencyOptions(env = process.env) {
             env.PROVIDER_MAX_RUNNING_PIKACHU,
             DEFAULT_PIKACHU_MAX_RUNNING_IMAGE_TASKS
         ),
+        atlasMaxRunningImageTasks: parsePositiveInteger(
+            env.PROVIDER_MAX_RUNNING_ATLAS,
+            DEFAULT_ATLAS_MAX_RUNNING_IMAGE_TASKS
+        ),
         providerDefaultMaxRunningImageTasks: parsePositiveInteger(
             env.PROVIDER_MAX_RUNNING_IMAGE_TASKS,
             DEFAULT_PROVIDER_MAX_RUNNING_IMAGE_TASKS
@@ -57,6 +62,7 @@ function getProviderMaxRunning(provider, options) {
     if (provider === 'apimart') return options.apimartMaxRunningImageTasks;
     if (provider === 'dataler') return options.datalerMaxRunningImageTasks;
     if (provider === 'pikachu') return options.pikachuMaxRunningImageTasks;
+    if (provider === 'atlas') return options.atlasMaxRunningImageTasks;
     return options.providerDefaultMaxRunningImageTasks;
 }
 

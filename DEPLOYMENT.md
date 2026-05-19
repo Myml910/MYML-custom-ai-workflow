@@ -89,9 +89,11 @@ TASK_WORKER_CONCURRENCY=2
 SYSTEM_MAX_RUNNING_IMAGE_TASKS=4
 USER_MAX_RUNNING_IMAGE_TASKS=2
 PROVIDER_MAX_RUNNING_APIMART=2
+PROVIDER_MAX_RUNNING_ATLAS=1
 
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
+ENABLE_ATLAS_PROVIDER=false
 VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false
 ```
 
@@ -132,14 +134,60 @@ Keep `VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false` unless you are intentionally
 
 ## 7. Experimental Providers
 
-Dataler and Pikachu are disabled by default:
+Dataler, Pikachu, and Atlas are disabled by default:
 
 ```env
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
+ENABLE_ATLAS_PROVIDER=false
 ```
 
 They do not enter the visible model/provider chain unless explicitly enabled. Use them only for controlled tests.
+
+Atlas Cloud configuration:
+
+```env
+ENABLE_ATLAS_PROVIDER=true
+ATLAS_BASE_URL=https://api.atlascloud.ai
+ATLAS_API_KEY=
+ATLAS_TEXT_TO_IMAGE_MODEL=openai/gpt-image-2/text-to-image
+ATLAS_EDIT_MODEL=openai/gpt-image-2/edit
+ATLAS_REQUEST_TIMEOUT_MS=300000
+PROVIDER_MAX_RUNNING_ATLAS=1
+```
+
+### Team Atlas Credential Example
+
+If team provider credentials are enabled in PostgreSQL, a team credential overrides the `.env` fallback for that provider. Example for group1:
+
+```sql
+INSERT INTO provider_credentials (
+  id,
+  scope_type,
+  scope_id,
+  provider,
+  label,
+  base_url,
+  api_key_encrypted,
+  api_key_last4,
+  status,
+  priority
+) VALUES (
+  'cred_group1_atlas_primary',
+  'team',
+  'team_group1_design',
+  'atlas',
+  'Group 1 Atlas Primary',
+  'https://api.atlascloud.ai',
+  '<ATLAS_API_KEY_PLACEHOLDER>',
+  '7611',
+  'active',
+  1
+)
+ON CONFLICT DO NOTHING;
+```
+
+`api_key_encrypted` is currently a passthrough placeholder in this branch. Do not store long-lived production keys there until proper encryption/KMS is wired in.
 
 ## 8. Troubleshooting
 
@@ -167,7 +215,7 @@ Check:
 - `PROVIDER_MAX_RUNNING_APIMART`
 - Existing tasks stuck in terminal states
 
-### Dataler / Pikachu do not appear
+### Dataler / Pikachu / Atlas do not appear
 
 They are experimental and disabled by default. Enable the provider explicitly and provide its API key:
 
@@ -182,6 +230,13 @@ or:
 ```env
 ENABLE_PIKACHU_PROVIDER=true
 PIKACHU_API_KEY=
+```
+
+or:
+
+```env
+ENABLE_ATLAS_PROVIDER=true
+ATLAS_API_KEY=
 ```
 
 ### Legacy generation unexpectedly runs

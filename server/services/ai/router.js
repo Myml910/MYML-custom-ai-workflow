@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getAiProviderConfig, isApimartImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
 import { AiProviderError, AI_ERROR_TYPES, classifyProviderError } from './errors.js';
 import { logAiEvent } from './logger.js';
 import { getImageModelConfig, getImageProviders } from './modelRegistry.js';
@@ -10,6 +10,7 @@ import {
 } from './providers/apimartProvider.js';
 import { generateImage as generateDatalerImage } from './providers/datalerProvider.js';
 import { generateImage as generatePikachuImage } from './providers/pikachuProvider.js';
+import { generateImage as generateAtlasImage } from './providers/atlasProvider.js';
 
 function getImageFormat(result) {
     const mimeType = result?.images?.[0]?.mimeType || '';
@@ -86,6 +87,28 @@ async function runDatalerProvider(input, providerConfig, modelConfig, config, op
     });
 }
 
+async function runAtlasProvider(input, providerConfig, modelConfig, config, options = {}) {
+    if (!isAtlasImageConfigured(config)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.AUTH_ERROR,
+            provider: 'atlas',
+            model: providerConfig.upstreamModel,
+            message: 'Atlas image provider is not configured. Add ATLAS_BASE_URL and ATLAS_API_KEY to .env, or configure a team provider credential.'
+        });
+    }
+
+    return await generateAtlasImage({
+        prompt: input.prompt,
+        imageUrls: input.imageUrls.length > 0 ? input.imageUrls : undefined,
+        size: input.size,
+        resolution: input.resolution || modelConfig.defaultResolution,
+        model: providerConfig.upstreamModel
+    }, {
+        config,
+        user: options.user
+    });
+}
+
 async function runImageProvider(input, providerConfig, modelConfig, config, options = {}) {
     if (providerConfig.provider === 'apimart') {
         return await runApimartProvider(input, providerConfig, modelConfig, config);
@@ -95,6 +118,9 @@ async function runImageProvider(input, providerConfig, modelConfig, config, opti
     }
     if (providerConfig.provider === 'pikachu') {
         return await runPikachuProvider(input, providerConfig, modelConfig, config, options);
+    }
+    if (providerConfig.provider === 'atlas') {
+        return await runAtlasProvider(input, providerConfig, modelConfig, config, options);
     }
 
     throw new AiProviderError({
