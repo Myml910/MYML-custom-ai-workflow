@@ -79,12 +79,19 @@ export interface GenerationTask {
 }
 
 export interface WaitForImageTaskOptions {
+  pollIntervalMs?: number;
   intervalMs?: number;
+  maxWaitMs?: number;
+  signal?: AbortSignal;
   onTaskUpdate?: (task: GenerationTask) => void;
 }
 
 const DEFAULT_TASK_POLL_INTERVAL_MS = 4000;
+const DEFAULT_TASK_MAX_WAIT_MS = 5 * 60 * 1000;
 const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
+
+const IMAGE_TASK_POLLING_ABORTED_MESSAGE = 'Image task polling aborted';
+const IMAGE_TASK_POLLING_TIMEOUT_MESSAGE = 'Image task polling timed out';
 
 async function readJsonResponse(response: Response): Promise<any> {
   return response.json().catch(() => ({}));
@@ -116,9 +123,13 @@ export const createImageTask = async (params: CreateImageTaskParams): Promise<Cr
 /**
  * Fetches a generation task by task id.
  */
-export const getTask = async (taskId: string): Promise<GenerationTask> => {
+export const getTask = async (
+  taskId: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<GenerationTask> => {
   const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
-    credentials: 'include'
+    credentials: 'include',
+    signal: options.signal
   });
 
   const data = await readJsonResponse(response);
@@ -127,6 +138,37 @@ export const getTask = async (taskId: string): Promise<GenerationTask> => {
   }
 
   return data;
+};
+
+const throwIfPollingAborted = (signal?: AbortSignal) => {
+  if (signal?.aborted) {
+    throw new Error(IMAGE_TASK_POLLING_ABORTED_MESSAGE);
+  }
+};
+
+const waitWithAbort = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    throwIfPollingAborted(signal);
+
+    const timeoutId = window.setTimeout(() => {
+      signal?.removeEventListener('abort', handleAbort);
+      resolve();
+    }, ms);
+
+    function handleAbort() {
+      window.clearTimeout(timeoutId);
+      reject(new Error(IMAGE_TASK_POLLING_ABORTED_MESSAGE));
+    }
+
+    signal?.addEventListener('abort', handleAbort, { once: true });
+  });
+
+const normalizePollingError = (error: unknown, signal?: AbortSignal): never => {
+  if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+    throw new Error(IMAGE_TASK_POLLING_ABORTED_MESSAGE);
+  }
+
+  throw error;
 };
 
 /**
@@ -173,21 +215,39 @@ export const waitForImageTaskCompletion = async (
   taskId: string,
   options: WaitForImageTaskOptions = {}
 ): Promise<GenerationTask> => {
-  const intervalMs = options.intervalMs || DEFAULT_TASK_POLL_INTERVAL_MS;
+  const intervalMs = options.pollIntervalMs || options.intervalMs || DEFAULT_TASK_POLL_INTERVAL_MS;
+  const maxWaitMs = options.maxWaitMs ?? DEFAULT_TASK_MAX_WAIT_MS;
+  const startedAt = Date.now();
 
-  while (true) {
-    const task = await getTask(taskId);
-    options.onTaskUpdate?.(task);
+  try {
+    while (true) {
+      throwIfPollingAborted(options.signal);
 
-    if (task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled') {
-      return task;
+      if (Date.now() - startedAt > maxWaitMs) {
+        throw new Error(IMAGE_TASK_POLLING_TIMEOUT_MESSAGE);
+      }
+
+      const task = await getTask(taskId, { signal: options.signal });
+      options.onTaskUpdate?.(task);
+
+      if (task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled') {
+        return task;
+      }
+
+      if (!ACTIVE_TASK_STATUSES.has(task.status)) {
+        throw new Error(`Unexpected image task status: ${task.status}`);
+      }
+
+      const elapsedMs = Date.now() - startedAt;
+      const remainingMs = Math.max(0, maxWaitMs - elapsedMs);
+      if (remainingMs <= 0) {
+        throw new Error(IMAGE_TASK_POLLING_TIMEOUT_MESSAGE);
+      }
+
+      await waitWithAbort(Math.min(intervalMs, remainingMs), options.signal);
     }
-
-    if (!ACTIVE_TASK_STATUSES.has(task.status)) {
-      throw new Error(`Unexpected image task status: ${task.status}`);
-    }
-
-    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  } catch (error) {
+    normalizePollingError(error, options.signal);
   }
 };
 

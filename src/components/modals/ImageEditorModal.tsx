@@ -26,6 +26,11 @@ import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
 import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
 import { useImageModels } from '../../hooks/useImageModels';
 import { NodeStatus } from '../../types';
+import {
+    LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
+    withLegacyImageModelOption,
+    isUnavailableLegacyImageModel
+} from '../../config/imageModels';
 import { EditorShell, EditorStatusBar, EditorTopBar, ToolButton } from '../ui';
 
 // Sub-components
@@ -70,8 +75,8 @@ const isRenderableElement = (element: EditorElement) => {
 
 const DEFAULT_IMAGE_MODEL_ID = 'custom-image-gpt-image-2';
 
-const getAvailableImageModelId = (modelId?: string, models = IMAGE_MODELS) => {
-    if (modelId && models.some(model => model.id === modelId)) {
+const getInitialImageModelId = (modelId?: string, models = IMAGE_MODELS) => {
+    if (modelId) {
         return modelId;
     }
 
@@ -107,7 +112,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const [showResolutionDropdown, setShowResolutionDropdown] = useState(false);
 
     // --- Model State ---
-    const [selectedModel, setSelectedModel] = useState(getAvailableImageModelId(initialModel));
+    const [selectedModel, setSelectedModel] = useState(getInitialImageModelId(initialModel));
     const [selectedAspectRatio, setSelectedAspectRatio] = useState(initialAspectRatio || 'Auto');
     const [selectedResolution, setSelectedResolution] = useState(initialResolution || '1K');
 
@@ -637,7 +642,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         shapes.setIsShapeMode(nextActive);
     }, [arrows, clearPrimaryModes, shapes]);
 
-    const currentModel = imageModels.find(m => m.id === selectedModel) || imageModels[0];
+    const imageModelOptions = React.useMemo(
+        () => withLegacyImageModelOption(imageModels, selectedModel),
+        [imageModels, selectedModel]
+    );
+    const currentModel = imageModelOptions.find(m => m.id === selectedModel) || imageModelOptions[0];
     const hasInputImage = !!imageUrl;
 
     // --- Effects ---
@@ -663,7 +672,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Initialize state from props
         setPrompt(initialPrompt || '');
-        setSelectedModel(getAvailableImageModelId(initialModel, imageModels));
+        setSelectedModel(getInitialImageModelId(initialModel, imageModels));
         setSelectedAspectRatio(initialAspectRatio || 'Auto');
         setSelectedResolution(initialResolution || '1K');
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
@@ -677,8 +686,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, imageModels]);
 
     useEffect(() => {
-        if (!imageModels.some(model => model.id === selectedModel)) {
-            setSelectedModel(getAvailableImageModelId(undefined, imageModels));
+        if (!selectedModel) {
+            setSelectedModel(getInitialImageModelId(undefined, imageModels));
         }
     }, [imageModels, selectedModel]);
 
@@ -859,6 +868,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             return;
         }
 
+        if (!currentModel || isUnavailableLegacyImageModel(imageModels, selectedModel) || currentModel.disabled || currentModel.status === 'disabled' || currentModel.status === 'comingSoon') {
+            setPromptError(currentModel?.disabledReason || LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE);
+            return;
+        }
+
         isGeneratingRef.current = true;
         setPromptError('');
         setIsGenerating(true);
@@ -907,8 +921,12 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     };
 
     const handleModelChange = (modelId: string) => {
+        const newModel = imageModelOptions.find(m => m.id === modelId);
+        if (!newModel || newModel.disabled || newModel.status === 'disabled' || newModel.status === 'comingSoon') {
+            return;
+        }
+
         setSelectedModel(modelId);
-        const newModel = imageModels.find(m => m.id === modelId);
 
         if (newModel?.aspectRatios && !newModel.aspectRatios.includes(selectedAspectRatio)) {
             setSelectedAspectRatio('Auto');
@@ -1396,7 +1414,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     language={language}
                     prompt={prompt}
                     setPrompt={handlePromptChange}
-                    imageModels={imageModels}
+                    imageModels={imageModelOptions}
                     selectedModel={selectedModel}
                     onModelChange={handleModelChange}
                     showModelDropdown={showModelDropdown}

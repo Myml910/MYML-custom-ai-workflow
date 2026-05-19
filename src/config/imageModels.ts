@@ -46,6 +46,50 @@ export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
     }
 ];
 
+export const LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE =
+    'Selected image model is no longer available. Please choose another model.';
+
+export function createLegacyImageModelOption(modelId: string): ImageModelOption {
+    const safeModelId = modelId || 'legacy-image-model';
+
+    return {
+        id: safeModelId,
+        label: `Legacy: ${safeModelId}`,
+        name: `Legacy: ${safeModelId}`,
+        description: LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
+        provider: 'custom',
+        providerChain: [],
+        capabilities: [],
+        experimental: false,
+        enabled: false,
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        disabled: true,
+        disabledReason: LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
+        status: 'disabled',
+        resolutions: ['Auto'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16']
+    };
+}
+
+export function withLegacyImageModelOption<T extends ImageModelOption>(
+    models: T[],
+    selectedModelId?: string | null
+): Array<T | ImageModelOption> {
+    if (!selectedModelId || models.some(model => model.id === selectedModelId)) {
+        return models;
+    }
+
+    return [createLegacyImageModelOption(selectedModelId), ...models];
+}
+
+export function isUnavailableLegacyImageModel(
+    models: Pick<ImageModelOption, 'id'>[],
+    selectedModelId?: string | null
+): boolean {
+    return Boolean(selectedModelId && !models.some(model => model.id === selectedModelId));
+}
+
 export function normalizeImageModelOption(raw: any): ImageModelOption {
     const capabilities = Array.isArray(raw?.capabilities) ? raw.capabilities : [];
     const providerChain = Array.isArray(raw?.providerChain) ? raw.providerChain : [];

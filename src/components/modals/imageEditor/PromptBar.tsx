@@ -157,8 +157,9 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const generateButtonClass = 'bg-[var(--myml-accent)] text-[var(--myml-accent-contrast)] hover:bg-[var(--myml-accent-hover)] hover:shadow-[var(--myml-shadow-accent)]';
     const disabledGenerateClass = 'disabled:bg-[var(--myml-editor-control)] disabled:text-[var(--myml-text-faint)]';
     const accentTextClass = 'text-[var(--myml-accent)]';
-    const isGenerateDisabled = isGenerating || prompt.trim().length === 0 || isModelDisabled(currentModel);
-    const displayedPromptError = promptError || (prompt.trim().length === 0 ? text.emptyPrompt : '');
+    const currentModelDisabledReason = isModelDisabled(currentModel) ? getModelDisabledReason(currentModel) : '';
+    const isGenerateDisabled = isGenerating || prompt.trim().length === 0 || Boolean(currentModelDisabledReason);
+    const displayedPromptError = promptError || currentModelDisabledReason || (prompt.trim().length === 0 ? text.emptyPrompt : '');
 
     // --- Effects ---
 
