@@ -1,6 +1,9 @@
 import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
-import { resolveProviderRuntimeConfig } from '../../services/ai/credentialResolver.js';
+import {
+    PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
+    resolveProviderRuntimeConfig
+} from '../../services/ai/credentialResolver.js';
 import { recordProviderUsageLog } from '../../db/providerCredentials.js';
 import { getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
 import {
@@ -124,9 +127,31 @@ function withCredentialPayload(payload = {}, credentialContext = null) {
     };
 }
 
+function getFailureCredentialContext(error, credentialContext = null) {
+    return credentialContext || error?.credentialContext || null;
+}
+
+async function persistFailureCredentialContext(task, credentialContext = null) {
+    if (!credentialContext?.teamId && !credentialContext?.credentialId) return;
+
+    try {
+        await updateTaskCredentialContext(task.taskId, credentialContext);
+        task.credentialId = credentialContext.credentialId || task.credentialId || null;
+        task.teamId = credentialContext.teamId || task.teamId || null;
+    } catch (error) {
+        console.warn('[ImageWorker] Failed to persist failure credential context:', {
+            taskId: task.taskId,
+            credentialId: credentialContext.credentialId,
+            teamId: credentialContext.teamId,
+            error: error?.message || error
+        });
+    }
+}
+
 async function resolveTaskRuntimeConfig(task, providerConfig, baseConfig) {
     const { config: providerRuntimeConfig, credentialContext } = await resolveProviderRuntimeConfig({
         userId: task.userId,
+        username: task.username,
         provider: providerConfig.provider,
         baseConfig: baseConfig?.[providerConfig.provider] || {},
         credentialId: task.credentialId || null
@@ -358,6 +383,13 @@ function buildAtlasInput(task, config, providerConfig, modelConfig) {
 }
 
 function normalizeWorkerError(error, providerConfig = null) {
+    if (error?.type === PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE) {
+        return {
+            type: PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
+            message: error.message || 'Provider credential is required for this team'
+        };
+    }
+
     let normalized;
     if (providerConfig?.provider === 'apimart') {
         normalized = normalizeProviderError(error, { model: providerConfig.upstreamModel });
@@ -529,7 +561,8 @@ export async function executeImageTask(task, options = {}) {
                     progress: submitResult.progress ?? 100,
                     providerTaskId: submitResult.taskId || null,
                     usage: submitResult.usage || null,
-                    raw: submitResult.raw || null
+                    raw: submitResult.raw || null,
+                    credentialContext
                 });
             }
 
@@ -541,7 +574,7 @@ export async function executeImageTask(task, options = {}) {
                 throw new Error(submitResult.error || 'Atlas image task submit did not return prediction id.');
             }
 
-            return await markTaskPolling(task.taskId, submitResult.taskId, {
+            return await markTaskPolling(task.taskId, submitResult.taskId, withCredentialPayload({
                 workerId: options.workerId || null,
                 attemptCount: task.attemptCount,
                 provider: submitResult.provider,
@@ -549,7 +582,7 @@ export async function executeImageTask(task, options = {}) {
                 rawStatus: submitResult.rawStatus || submitResult.status,
                 progress: submitResult.progress ?? null,
                 request: submitResult.request || null
-            });
+            }, credentialContext));
         }
 
         if (providerConfig.provider !== 'apimart') {
@@ -589,16 +622,20 @@ export async function executeImageTask(task, options = {}) {
         }, credentialContext));
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
+        const failureCredentialContext = getFailureCredentialContext(error, credentialContext);
+        await persistFailureCredentialContext(task, failureCredentialContext);
         const failed = await markTaskFailed(task.taskId, normalized.type, normalized.message, withCredentialPayload({
             phase: 'submit',
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
-            provider: providerConfig?.provider || task.provider
-        }, credentialContext));
+            provider: providerConfig?.provider || task.provider,
+            userId: task.userId || null,
+            username: task.username || null
+        }, failureCredentialContext));
         await recordTaskProviderUsage(task, {
             provider: providerConfig?.provider || task.provider,
             model: providerConfig?.upstreamModel || null,
-            credentialContext
+            credentialContext: failureCredentialContext
         }, 'failed', {
             errorType: normalized.type,
             errorMessage: normalized.message
@@ -698,6 +735,8 @@ export async function pollImageTaskStatus(task, options = {}) {
         }, credentialContext));
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
+        const failureCredentialContext = getFailureCredentialContext(error, credentialContext);
+        await persistFailureCredentialContext(task, failureCredentialContext);
         if (task.providerTaskId && isRecoverablePollError(normalized)) {
             await recordProviderPollError(task.taskId, withCredentialPayload({
                 workerId: options.workerId || null,
@@ -705,7 +744,7 @@ export async function pollImageTaskStatus(task, options = {}) {
                 providerTaskId: task.providerTaskId,
                 errorType: normalized.type,
                 errorMessage: normalized.message
-            }, credentialContext));
+            }, failureCredentialContext));
             return task;
         }
 
@@ -713,13 +752,16 @@ export async function pollImageTaskStatus(task, options = {}) {
             phase: 'poll',
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
-            providerTaskId: task.providerTaskId || null
-        }, credentialContext));
+            providerTaskId: task.providerTaskId || null,
+            provider: providerConfig?.provider || task.provider,
+            userId: task.userId || null,
+            username: task.username || null
+        }, failureCredentialContext));
         await recordTaskProviderUsage(task, {
             provider: providerConfig?.provider || task.provider,
             model: providerConfig?.upstreamModel || null,
             providerTaskId: task.providerTaskId || null,
-            credentialContext
+            credentialContext: failureCredentialContext
         }, 'failed', {
             errorType: normalized.type,
             errorMessage: normalized.message

@@ -34,6 +34,7 @@ docker compose config
 - `ENABLE_DATALER_PROVIDER`
 - `ENABLE_PIKACHU_PROVIDER`
 - `VITE_ENABLE_LEGACY_GENERATION_FALLBACK`
+- `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
 
 ## 2. 推荐启动方式
 
@@ -189,6 +190,14 @@ Experimental providers：
   - `ENABLE_DATALER_PROVIDER=true`
   - `ENABLE_PIKACHU_PROVIDER=true`
 - 未开启时，它们不应进入正式 `providerChain`。
+
+Team provider credential isolation:
+
+- Set `REQUIRE_TEAM_PROVIDER_CREDENTIALS=true` for strict internal launch testing.
+- group1 has active `atlas` credential -> Atlas task should succeed when provider balance/key is valid.
+- group2 without active `atlas` credential -> task should fail with `CREDENTIAL_REQUIRED` and must not use group1 key or `.env ATLAS_API_KEY`.
+- After inserting group2's own active `atlas` credential -> group2 Atlas task should succeed.
+- Check `task_events` and `provider_usage_logs`: `credentialSource` should not be `env` when strict isolation is enabled.
 
 ## 8. 失败排查速查
 
