@@ -15,7 +15,11 @@ import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
 import { ActionRow, PanelSection, StatusDot } from '../ui';
 import { useImageModels } from '../../hooks/useImageModels';
-import { withLegacyImageModelOption } from '../../config/imageModels';
+import {
+    getDefaultImageModel,
+    HIDDEN_IMAGE_MODEL_IDS,
+    withLegacyImageModelOption
+} from '../../config/imageModels';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -307,13 +311,13 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         ? (data.resolution || "Auto")
         : (data.aspectRatio || "Auto");
 
+    const inputCount = connectedImageNodes.length;
+
     // For image nodes, use model-specific aspect ratios (sizeOptions for video computed later with availableResolutions)
     const imageModelOptions = React.useMemo(
         () => withLegacyImageModelOption(imageModels, data.imageModel),
         [imageModels, data.imageModel]
     );
-    const currentImageModelForRatios = imageModelOptions.find(m => m.id === data.imageModel) || imageModelOptions[0];
-    const imageAspectRatioOptions = currentImageModelForRatios.aspectRatios || IMAGE_RATIOS;
     const isVideoNode = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     const isImageNode = data.type === NodeType.IMAGE || data.type === NodeType.LOCAL_IMAGE_MODEL;
     const hasConnectedImages = connectedImageNodes.length > 0;
@@ -398,11 +402,6 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     };
     const availableResolutions = getAvailableResolutions();
 
-    // sizeOptions: For video nodes use model-specific resolutions, for image nodes use aspect ratios
-    const sizeOptions = (data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL)
-        ? availableResolutions
-        : imageAspectRatioOptions;
-
     const handleDurationChange = (duration: number) => {
         const model = currentVideoModel as any;
         const updates: Partial<typeof data> = { videoDuration: duration };
@@ -419,12 +418,8 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         setShowDurationDropdown(false);
     };
 
-    // Image model selection logic
-    const currentImageModel = imageModelOptions.find(m => m.id === data.imageModel) || imageModelOptions[0];
-
     // Filter image models based on connected inputs
     // 0 inputs = all models, 1 input = needs supportsImageToImage, 2+ inputs = needs supportsMultiImage
-    const inputCount = connectedImageNodes.length;
     const availableImageModels = React.useMemo(() => imageModelOptions.filter(model => {
         if (isModelDisabled(model) && model.id === data.imageModel) return true;
         if (inputCount === 0) return model.supportsTextToImage; // Text-only mode should not expose edit-only models
@@ -432,14 +427,27 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         return model.supportsMultiImage; // Multi-ref: filter out V1, V1.5, V2 New
     }), [imageModelOptions, inputCount, data.imageModel]);
 
-    // Auto-select only when there is no saved model yet. Existing legacy model ids stay visible as disabled options.
+    // Image model selection logic
+    const currentImageModel = availableImageModels.find(m => m.id === data.imageModel)
+        || getDefaultImageModel(availableImageModels, inputCount > 0)
+        || imageModelOptions[0];
+    const currentImageModelForRatios = currentImageModel || imageModelOptions[0];
+    const imageAspectRatioOptions = currentImageModelForRatios?.aspectRatios || IMAGE_RATIOS;
+
+    // sizeOptions: For video nodes use model-specific resolutions, for image nodes use aspect ratios
+    const sizeOptions = (data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL)
+        ? availableResolutions
+        : imageAspectRatioOptions;
+
+    // Auto-select when there is no saved model yet, or when the saved model is a hidden prelaunch model.
     useEffect(() => {
         if (data.type !== NodeType.IMAGE && data.type !== NodeType.IMAGE_EDITOR) return;
-        if (data.imageModel) return;
 
         const enabledImageModels = availableImageModels.filter(model => !isModelDisabled(model));
-        if (enabledImageModels.length > 0) {
-            onUpdate(data.id, { imageModel: enabledImageModels[0].id });
+        const defaultModel = getDefaultImageModel(enabledImageModels, inputCount > 0);
+        const shouldSelectDefault = !data.imageModel || HIDDEN_IMAGE_MODEL_IDS.has(data.imageModel);
+        if (shouldSelectDefault && defaultModel) {
+            onUpdate(data.id, { imageModel: defaultModel.id });
         }
     }, [inputCount, data.imageModel, data.type, data.id, availableImageModels, onUpdate]);
 
@@ -921,13 +929,13 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                                 imageGenerationMode === 'image-to-image' ? t(language, 'imageToImage') :
                                                     `${inputCount} ${t(language, 'imagesToImage')}`}
                                         </div>
-                                        {/* MYML Models */}
-                                        {availableImageModels.filter(m => m.provider === 'custom').length > 0 && (
+                                        {/* Image Models */}
+                                        {availableImageModels.length > 0 && (
                                             <>
                                                 <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
-                                                    MYML
+                                                    {availableImageModels.some(model => model.provider === 'atlas') ? 'Atlas' : 'MYML'}
                                                 </div>
-                                                {availableImageModels.filter(m => m.provider === 'custom').map(model => (
+                                                {availableImageModels.map(model => (
                                                     <button
                                                         key={model.id}
                                                         disabled={isModelDisabled(model)}

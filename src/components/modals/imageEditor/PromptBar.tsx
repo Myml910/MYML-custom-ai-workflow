@@ -254,7 +254,8 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                             {hasInputImage ? text.imageToImage : text.textToImage}
                         </div>
 
-                        {renderModelGroup('custom', 'MYML')}
+                        {renderModelGroup('atlas', 'Atlas')}
+                        {renderModelGroup('custom', 'MYML', availableModels.some(model => model.provider === 'atlas'))}
                     </div>
                 )}
             </div>

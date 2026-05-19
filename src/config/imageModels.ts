@@ -19,33 +19,48 @@ export interface ImageModelOption {
     aspectRatios: string[];
 }
 
+export const ATLAS_TEXT_TO_IMAGE_MODEL_ID = 'custom-image-atlas-gpt-image-2-text';
+export const ATLAS_IMAGE_EDIT_MODEL_ID = 'custom-image-atlas-gpt-image-2-edit';
+
+export const HIDDEN_IMAGE_MODEL_IDS = new Set([
+    'custom-image-gpt-image-2',
+    'custom-image-nano-banana-3-1-flash'
+]);
+
+export const VISIBLE_IMAGE_MODEL_IDS = new Set([
+    ATLAS_TEXT_TO_IMAGE_MODEL_ID,
+    ATLAS_IMAGE_EDIT_MODEL_ID
+]);
+
 export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
     {
-        id: 'custom-image-gpt-image-2',
-        label: 'T8star GPT Image 2',
-        name: 'T8star GPT Image 2',
-        provider: 'custom',
-        providerChain: ['apimart'],
-        capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
+        id: ATLAS_TEXT_TO_IMAGE_MODEL_ID,
+        label: 'Atlas GPT Image 2 Text-to-Image',
+        name: 'Atlas GPT Image 2 Text-to-Image',
+        provider: 'atlas',
+        providerChain: ['atlas'],
+        capabilities: ['text-to-image'],
         supportsTextToImage: true,
-        supportsImageToImage: true,
-        supportsMultiImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
         recommended: true,
-        resolutions: ['Auto', '2k', '4k'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
+        experimental: true,
+        resolutions: ['low', 'medium', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
     },
     {
-        id: 'custom-image-nano-banana-3-1-flash',
-        label: 'Nano Banana 3.1 Flash',
-        name: 'Nano Banana 3.1 Flash',
-        provider: 'custom',
-        providerChain: ['apimart'],
-        capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
-        supportsTextToImage: true,
+        id: ATLAS_IMAGE_EDIT_MODEL_ID,
+        label: 'Atlas GPT Image 2 Edit',
+        name: 'Atlas GPT Image 2 Edit',
+        provider: 'atlas',
+        providerChain: ['atlas'],
+        capabilities: ['image-to-image', 'multi-image'],
+        supportsTextToImage: false,
         supportsImageToImage: true,
         supportsMultiImage: true,
-        resolutions: ['Auto', '1K', '2K', '4K'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
+        experimental: true,
+        resolutions: ['low', 'medium', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
     }
 ];
 
@@ -80,6 +95,10 @@ export function withLegacyImageModelOption<T extends ImageModelOption>(
     models: T[],
     selectedModelId?: string | null
 ): Array<T | ImageModelOption> {
+    if (selectedModelId && HIDDEN_IMAGE_MODEL_IDS.has(selectedModelId)) {
+        return models;
+    }
+
     if (!selectedModelId || models.some(model => model.id === selectedModelId)) {
         return models;
     }
@@ -92,6 +111,24 @@ export function isUnavailableLegacyImageModel(
     selectedModelId?: string | null
 ): boolean {
     return Boolean(selectedModelId && !models.some(model => model.id === selectedModelId));
+}
+
+export function filterVisibleImageModels<T extends ImageModelOption>(models: T[]): T[] {
+    return models.filter(model => VISIBLE_IMAGE_MODEL_IDS.has(model.id));
+}
+
+export function getDefaultImageModelId(hasReferenceImages = false): string {
+    return hasReferenceImages ? ATLAS_IMAGE_EDIT_MODEL_ID : ATLAS_TEXT_TO_IMAGE_MODEL_ID;
+}
+
+export function getDefaultImageModel(
+    models: ImageModelOption[],
+    hasReferenceImages = false
+): ImageModelOption | undefined {
+    const preferredId = getDefaultImageModelId(hasReferenceImages);
+    return models.find(model => model.id === preferredId && !model.disabled && model.status !== 'disabled')
+        || models.find(model => !model.disabled && model.status !== 'disabled')
+        || models[0];
 }
 
 export function normalizeImageModelOption(raw: any): ImageModelOption {

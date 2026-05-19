@@ -27,6 +27,8 @@ import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEdit
 import { useImageModels } from '../../hooks/useImageModels';
 import { NodeStatus } from '../../types';
 import {
+    ATLAS_IMAGE_EDIT_MODEL_ID,
+    HIDDEN_IMAGE_MODEL_IDS,
     LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
     withLegacyImageModelOption,
     isUnavailableLegacyImageModel
@@ -73,14 +75,16 @@ const isRenderableElement = (element: EditorElement) => {
     ].every(isFiniteNumber);
 };
 
-const DEFAULT_IMAGE_MODEL_ID = 'custom-image-gpt-image-2';
+const DEFAULT_IMAGE_MODEL_ID = ATLAS_IMAGE_EDIT_MODEL_ID;
 
 const getInitialImageModelId = (modelId?: string, models = IMAGE_MODELS) => {
-    if (modelId) {
+    if (modelId && !HIDDEN_IMAGE_MODEL_IDS.has(modelId)) {
         return modelId;
     }
 
-    return models[0]?.id || DEFAULT_IMAGE_MODEL_ID;
+    return models.find(model => model.id === DEFAULT_IMAGE_MODEL_ID)?.id
+        || models[0]?.id
+        || DEFAULT_IMAGE_MODEL_ID;
 };
 
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
@@ -690,10 +694,16 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, editorImageModels]);
 
     useEffect(() => {
-        if (!selectedModel) {
-            setSelectedModel(getInitialImageModelId(undefined, editorImageModels));
+        if (!isOpen) return;
+
+        if (!selectedModel || HIDDEN_IMAGE_MODEL_IDS.has(selectedModel)) {
+            const nextModelId = getInitialImageModelId(undefined, editorImageModels);
+            setSelectedModel(nextModelId);
+            if (nextModelId) {
+                onUpdate(nodeId, { imageModel: nextModelId });
+            }
         }
-    }, [editorImageModels, selectedModel]);
+    }, [editorImageModels, isOpen, nodeId, onUpdate, selectedModel]);
 
     useEffect(() => {
         if (!isOpen || !imageRef.current) return;

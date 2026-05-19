@@ -19,6 +19,7 @@ import {
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 import { getEffectiveImageReference } from '../utils/imageReferences';
+import { getDefaultImageModelId, HIDDEN_IMAGE_MODEL_IDS } from '../config/imageModels';
 
 const MAX_IMAGE_REFERENCES = 6;
 const MIN_IMAGE_GENERATION_COUNT = 1;
@@ -27,7 +28,6 @@ const CANDIDATE_X_OFFSET = 500;
 const CANDIDATE_Y_STEP = 460;
 const TASK_POLL_INTERVAL_MS = 4000;
 const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
-const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
 const ENABLE_LEGACY_GENERATION_FALLBACK =
     ((import.meta as ImportMeta & { env?: { VITE_ENABLE_LEGACY_GENERATION_FALLBACK?: string } }).env?.VITE_ENABLE_LEGACY_GENERATION_FALLBACK) === 'true';
 
@@ -260,6 +260,9 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
     ) => {
         const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
         const imageBase64s = collectImageReferences(targetNode, nodesById);
+        const imageModel = targetNode.imageModel && !HIDDEN_IMAGE_MODEL_IDS.has(targetNode.imageModel)
+            ? targetNode.imageModel
+            : getDefaultImageModelId(imageBase64s.length > 0);
 
         let taskCreated = false;
         try {
@@ -267,7 +270,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 nodeId: targetNode.id,
                 workflowId,
                 prompt: combinedPrompt,
-                imageModel: targetNode.imageModel || DEFAULT_IMAGE_MODEL,
+                imageModel,
                 aspectRatio: targetNode.aspectRatio,
                 resolution: targetNode.resolution,
                 referenceImages: imageBase64s.length > 0 ? imageBase64s : undefined

@@ -1,4 +1,9 @@
-import { FALLBACK_IMAGE_MODELS, ImageModelOption, normalizeImageModelOption } from '../config/imageModels';
+import {
+    FALLBACK_IMAGE_MODELS,
+    filterVisibleImageModels,
+    ImageModelOption,
+    normalizeImageModelOption
+} from '../config/imageModels';
 
 interface ImageModelsResponse {
     models?: unknown[];
@@ -33,13 +38,14 @@ export async function fetchImageModels({ force = false } = {}): Promise<ImageMod
         const models = data.models
             ? data.models.map(normalizeImageModelOption).filter(model => model.id && model.enabled !== false)
             : [];
+        const visibleModels = filterVisibleImageModels(models);
 
-        if (models.length === 0) {
-            throw new Error('No available image models returned from server.');
+        if (visibleModels.length === 0) {
+            throw new Error('No visible Atlas image models returned from server.');
         }
 
-        cachedImageModels = models;
-        return models;
+        cachedImageModels = visibleModels;
+        return visibleModels;
     })();
 
     try {
