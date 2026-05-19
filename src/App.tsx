@@ -414,6 +414,21 @@ function CanvasApp({
     handleUpload
   } = useImageEditor({ nodes, updateNode });
 
+  const imageEditorGenerationAbortRef = React.useRef<AbortController | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      imageEditorGenerationAbortRef.current?.abort();
+      imageEditorGenerationAbortRef.current = null;
+    };
+  }, []);
+
+  const handleCloseImageEditorWithAbort = React.useCallback(() => {
+    imageEditorGenerationAbortRef.current?.abort();
+    imageEditorGenerationAbortRef.current = null;
+    handleCloseImageEditor();
+  }, [handleCloseImageEditor]);
+
   // Video editor modal
   const {
     videoEditorModal,
@@ -1684,12 +1699,19 @@ function CanvasApp({
         initialCanvasData={nodes.find(n => n.id === editorModal.nodeId)?.editorCanvasData}
         initialCanvasSize={nodes.find(n => n.id === editorModal.nodeId)?.editorCanvasSize}
         initialBackgroundUrl={nodes.find(n => n.id === editorModal.nodeId)?.editorBackgroundUrl}
-        onClose={handleCloseImageEditor}
+        onClose={handleCloseImageEditorWithAbort}
         onGenerate={async (sourceId, prompt, count, options) => {
-          handleCloseImageEditor();
+          imageEditorGenerationAbortRef.current?.abort();
+          const generationAbortController = new AbortController();
+          imageEditorGenerationAbortRef.current = generationAbortController;
 
           const sourceNode = nodes.find(n => n.id === sourceId);
-          if (!sourceNode) return;
+          if (!sourceNode) {
+            if (imageEditorGenerationAbortRef.current === generationAbortController) {
+              imageEditorGenerationAbortRef.current = null;
+            }
+            return;
+          }
 
           // Prefer modal-selected settings because node updates may still be batched.
           const imageModel = options?.imageModel || sourceNode.imageModel || 'custom-image-gpt-image-2';
@@ -1737,8 +1759,12 @@ function CanvasApp({
             imageBase64 = await urlToBase64(editorReferenceUrl);
           }
 
-          newNodes.forEach(async (node) => {
+          const generationPromises = newNodes.map(async (node) => {
             try {
+              if (generationAbortController.signal.aborted) {
+                throw new Error('Image task polling aborted');
+              }
+
               const task = await createImageTask({
                 nodeId: node.id,
                 workflowId,
@@ -1758,7 +1784,12 @@ function CanvasApp({
               });
 
               const completedTask = await waitForImageTaskCompletion(task.taskId, {
+                signal: generationAbortController.signal,
                 onTaskUpdate: (nextTask) => {
+                  if (generationAbortController.signal.aborted) {
+                    return;
+                  }
+
                   if (nextTask.status === 'queued' || nextTask.status === 'running' || nextTask.status === 'polling') {
                     updateNode(node.id, {
                       status: NodeStatus.LOADING,
@@ -1784,6 +1815,17 @@ function CanvasApp({
                 errorMessage: undefined
               });
             } catch (error: any) {
+              if (generationAbortController.signal.aborted || error?.message === 'Image task polling aborted') {
+                updateNode(node.id, {
+                  status: NodeStatus.IDLE,
+                  taskId: undefined,
+                  generationStatus: undefined,
+                  progress: undefined,
+                  errorMessage: undefined
+                });
+                return;
+              }
+
               updateNode(node.id, {
                 status: NodeStatus.ERROR,
                 taskId: undefined,
@@ -1791,6 +1833,11 @@ function CanvasApp({
                 progress: undefined,
                 errorMessage: error.message || 'Image editor generation failed'
               });
+            }
+          });
+          void Promise.allSettled(generationPromises).then(() => {
+            if (imageEditorGenerationAbortRef.current === generationAbortController) {
+              imageEditorGenerationAbortRef.current = null;
             }
           });
         }}

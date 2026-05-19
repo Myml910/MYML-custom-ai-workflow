@@ -15,6 +15,7 @@ import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
 import { ActionRow, PanelSection, StatusDot } from '../ui';
 import { useImageModels } from '../../hooks/useImageModels';
+import { withLegacyImageModelOption } from '../../config/imageModels';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -307,7 +308,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         : (data.aspectRatio || "Auto");
 
     // For image nodes, use model-specific aspect ratios (sizeOptions for video computed later with availableResolutions)
-    const currentImageModelForRatios = imageModels.find(m => m.id === data.imageModel) || imageModels[0];
+    const imageModelOptions = React.useMemo(
+        () => withLegacyImageModelOption(imageModels, data.imageModel),
+        [imageModels, data.imageModel]
+    );
+    const currentImageModelForRatios = imageModelOptions.find(m => m.id === data.imageModel) || imageModelOptions[0];
     const imageAspectRatioOptions = currentImageModelForRatios.aspectRatios || IMAGE_RATIOS;
     const isVideoNode = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     const isImageNode = data.type === NodeType.IMAGE || data.type === NodeType.LOCAL_IMAGE_MODEL;
@@ -415,25 +420,24 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     };
 
     // Image model selection logic
-    const currentImageModel = imageModels.find(m => m.id === data.imageModel) || imageModels[0];
+    const currentImageModel = imageModelOptions.find(m => m.id === data.imageModel) || imageModelOptions[0];
 
     // Filter image models based on connected inputs
     // 0 inputs = all models, 1 input = needs supportsImageToImage, 2+ inputs = needs supportsMultiImage
     const inputCount = connectedImageNodes.length;
-    const availableImageModels = React.useMemo(() => imageModels.filter(model => {
+    const availableImageModels = React.useMemo(() => imageModelOptions.filter(model => {
         if (inputCount === 0) return true; // Text-to-image: all models work
         if (inputCount === 1) return model.supportsImageToImage; // Single ref: filter out V2.1
         return model.supportsMultiImage; // Multi-ref: filter out V1, V1.5, V2 New
-    }), [imageModels, inputCount]);
+    }), [imageModelOptions, inputCount]);
 
-    // Auto-select first available model when current model is no longer valid for the mode
+    // Auto-select only when there is no saved model yet. Existing legacy model ids stay visible as disabled options.
     useEffect(() => {
         if (data.type !== NodeType.IMAGE && data.type !== NodeType.IMAGE_EDITOR) return;
+        if (data.imageModel) return;
 
         const enabledImageModels = availableImageModels.filter(model => !isModelDisabled(model));
-        const isCurrentModelAvailable = availableImageModels.some(m => m.id === data.imageModel && !isModelDisabled(m));
-        if (!isCurrentModelAvailable && enabledImageModels.length > 0) {
-            // Auto-select first available model
+        if (enabledImageModels.length > 0) {
             onUpdate(data.id, { imageModel: enabledImageModels[0].id });
         }
     }, [inputCount, data.imageModel, data.type, data.id, availableImageModels, onUpdate]);
@@ -444,7 +448,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             : 'multi-image';
 
     const handleImageModelChange = (modelId: string) => {
-        const newModel = imageModels.find(m => m.id === modelId);
+        const newModel = imageModelOptions.find(m => m.id === modelId);
         if (!newModel || isModelDisabled(newModel)) return;
 
         const updates: Partial<typeof data> = { imageModel: modelId };
@@ -585,11 +589,12 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                 onClick={(e) => {
                     e.stopPropagation();
                     if (isGenerateBlocked) {
+                        onUpdate(data.id, { errorMessage: generateTitle });
                         return;
                     }
                     onGenerate(data.id);
                 }}
-                disabled={isGenerateBlocked}
+                aria-disabled={isGenerateBlocked}
                 className={`group h-9 w-9 shrink-0 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35 disabled:active:scale-100 ${generateButtonClass(isGenerateBlocked)}`}
                 aria-label={generateTitle}
                 title={generateTitle}
