@@ -1,19 +1,21 @@
 import { execFileSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { getAvailableImageModels } from '../services/ai/modelRegistry.js';
 
-function safeValue(value, fallback = 'unknown') {
+export function safeValue(value, fallback = 'unknown') {
     if (value === undefined || value === null || value === '') return fallback;
     return String(value);
 }
 
-function normalizeDatabaseLabel(label) {
+export function normalizeDatabaseLabel(label) {
     const text = String(label || '').toLowerCase();
     if (text.includes('postgres')) return 'postgres';
     if (text.includes('sqlite')) return 'sqlite';
     return 'unknown';
 }
 
-function readGitCommit() {
+export function readGitCommit() {
     try {
         return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
             cwd: process.cwd(),
@@ -25,7 +27,7 @@ function readGitCommit() {
     }
 }
 
-function readImageModelSummary() {
+export function readImageModelSummary() {
     try {
         const models = getAvailableImageModels();
         return {
@@ -41,20 +43,57 @@ function readImageModelSummary() {
     }
 }
 
-function getStartupEntry() {
+export function getStartupEntry() {
     if (process.env.MYML_DOTENV_BOOTSTRAPPED === 'true') return 'bootstrap';
     return 'direct';
 }
 
-export function logStartupSummary(options = {}) {
+export async function checkLibraryDirStatus(libraryDir) {
+    const targetDir = safeValue(libraryDir, '');
+    const result = {
+        exists: false,
+        writable: false,
+        error: null
+    };
+
+    if (!targetDir) {
+        result.error = 'LIBRARY_DIR is not configured';
+        return result;
+    }
+
     try {
+        await fs.promises.mkdir(targetDir, { recursive: true });
+        result.exists = true;
+    } catch (error) {
+        result.error = `Failed to create LIBRARY_DIR: ${error?.message || error}`;
+        return result;
+    }
+
+    const probePath = path.join(targetDir, `.myml-write-check-${process.pid}-${Date.now()}`);
+    try {
+        await fs.promises.writeFile(probePath, 'ok');
+        await fs.promises.unlink(probePath).catch(() => {});
+        result.writable = true;
+    } catch (error) {
+        result.error = `LIBRARY_DIR is not writable: ${error?.message || error}`;
+    }
+
+    return result;
+}
+
+export function logStartupSummary(options = {}) {
+    return (async () => {
         const imageModels = readImageModelSummary();
+        const libraryDir = safeValue(options.libraryDir || process.env.LIBRARY_DIR);
+        const libraryStatus = await checkLibraryDirStatus(libraryDir);
         const summary = {
             cwd: process.cwd(),
             nodeEnv: safeValue(process.env.NODE_ENV),
             host: safeValue(options.host || process.env.HOST),
             port: safeValue(options.port || process.env.PORT),
-            libraryDir: safeValue(options.libraryDir || process.env.LIBRARY_DIR),
+            libraryDir,
+            libraryExists: libraryStatus.exists,
+            libraryWritable: libraryStatus.writable,
             database: normalizeDatabaseLabel(options.dbLabel),
             taskWorkerEnabled: safeValue(process.env.TASK_WORKER_ENABLED, 'false'),
             enableAtlasProvider: safeValue(process.env.ENABLE_ATLAS_PROVIDER, 'false'),
@@ -67,7 +106,13 @@ export function logStartupSummary(options = {}) {
         };
 
         console.log('[Startup Summary]', summary);
-    } catch (error) {
+        if (!libraryStatus.writable) {
+            console.warn('[Startup Summary] LIBRARY_DIR is not writable', {
+                libraryDir,
+                error: libraryStatus.error
+            });
+        }
+    })().catch(error => {
         console.warn('[Startup Summary] Failed to print startup summary:', error?.message || error);
-    }
+    });
 }

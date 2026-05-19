@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview --port=10758 --host=0.0.0.0 ",
     "setup:local-models": "node -e \"require('child_process').execSync(process.platform === 'win32' ? 'setup-local-models.bat' : 'bash setup-local-models.sh', {stdio: 'inherit'})\"",
-    "seed:internal-users": "node server/seed-internal-users.js"
+    "seed:internal-users": "node server/seed-internal-users.js",
+    "check:provider-credentials": "node scripts/check-provider-credentials.js"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.0",

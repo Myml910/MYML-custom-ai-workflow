@@ -30,6 +30,7 @@ import {
 import generationRoutes from './routes/generation.js';
 import tasksRoutes from './routes/tasks.js';
 import modelsRoutes from './routes/models.js';
+import runtimeRoutes from './routes/runtime.js';
 import { getAiProviderConfig, isApimartTextConfigured } from './services/ai/aiProviderConfig.js';
 import { createTextResponse, extractResponseText } from './services/ai/providers/apimartProvider.js';
 import { resolveImageToBase64 } from './utils/imageHelpers.js';
@@ -392,6 +393,9 @@ app.use('/api', generationRoutes);
 
 // Mount model registry routes
 app.use('/api/models', modelsRoutes);
+
+// Mount runtime diagnostics routes
+app.use('/api/runtime', runtimeRoutes);
 
 // Mount task routes (queued generation task records; worker is not started in this step)
 app.use('/api/tasks', tasksRoutes);
