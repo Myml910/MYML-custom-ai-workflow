@@ -78,6 +78,14 @@ export interface GenerationTask {
   updatedAt?: string;
 }
 
+export interface WaitForImageTaskOptions {
+  intervalMs?: number;
+  onTaskUpdate?: (task: GenerationTask) => void;
+}
+
+const DEFAULT_TASK_POLL_INTERVAL_MS = 4000;
+const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
+
 async function readJsonResponse(response: Response): Promise<any> {
   return response.json().catch(() => ({}));
 }
@@ -159,9 +167,34 @@ export const cancelTask = async (taskId: string): Promise<{ task: GenerationTask
 };
 
 /**
- * Generates an image by calling the backend API
+ * Polls a queued image generation task until it reaches a terminal state.
  */
-export const generateImage = async (params: GenerateImageParams): Promise<string> => {
+export const waitForImageTaskCompletion = async (
+  taskId: string,
+  options: WaitForImageTaskOptions = {}
+): Promise<GenerationTask> => {
+  const intervalMs = options.intervalMs || DEFAULT_TASK_POLL_INTERVAL_MS;
+
+  while (true) {
+    const task = await getTask(taskId);
+    options.onTaskUpdate?.(task);
+
+    if (task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled') {
+      return task;
+    }
+
+    if (!ACTIVE_TASK_STATUSES.has(task.status)) {
+      throw new Error(`Unexpected image task status: ${task.status}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+};
+
+/**
+ * Legacy compatibility endpoint only. New image generation should use /api/tasks/image.
+ */
+export const generateImageLegacy = async (params: GenerateImageParams): Promise<string> => {
   try {
     const response = await fetch('/api/generate-image', {
       method: 'POST',

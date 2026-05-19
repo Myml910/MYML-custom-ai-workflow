@@ -10,7 +10,7 @@
  * - Uses GPT Image 2 by default.
  */
 
-import { generateImage } from './generationService';
+import { generateImageLegacy } from './generationService';
 
 // ============================================================================
 // TYPES
@@ -46,7 +46,7 @@ const DEFAULT_RESOLUTION = '2k';
 /**
  * Convert a URL / blob URL / data URL to a data URL base64 string.
  *
- * generationService.generateImage in this project already accepts imageBase64,
+ * The legacy image generation endpoint in this project already accepts imageBase64,
  * so we keep the data URL format instead of stripping the prefix.
  */
 async function urlToBase64(url: string): Promise<string> {
@@ -238,7 +238,7 @@ export async function generateCameraAngle(
     const imageBase64 = await urlToBase64(imageUrl);
 
     try {
-        const resultUrl = await generateImage({
+        const resultUrl = await generateImageLegacy({
             prompt,
             imageBase64,
             imageModel: DEFAULT_IMAGE_MODEL,

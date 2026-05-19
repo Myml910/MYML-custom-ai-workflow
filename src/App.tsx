@@ -13,7 +13,7 @@ import { CanvasNode } from './components/canvas/CanvasNode';
 import { ConnectionsLayer } from './components/canvas/ConnectionsLayer';
 import { ContextMenu } from './components/ContextMenu';
 import { ContextMenuState, NodeData, NodeStatus, NodeType } from './types';
-import { generateImage, generateVideo } from './services/generationService';
+import { createImageTask, generateVideo, waitForImageTaskCompletion } from './services/generationService';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useNodeManagement } from './hooks/useNodeManagement';
 import { useConnectionDragging } from './hooks/useConnectionDragging';
@@ -1739,16 +1739,58 @@ function CanvasApp({
 
           newNodes.forEach(async (node) => {
             try {
-              const resultUrl = await generateImage({
+              const task = await createImageTask({
+                nodeId: node.id,
+                workflowId,
                 prompt: node.prompt || '',
-                imageBase64: imageBase64,
-                imageModel: imageModel,
-                aspectRatio: aspectRatio,
-                resolution: resolution
+                imageModel,
+                aspectRatio,
+                resolution,
+                referenceImages: imageBase64 ? [imageBase64] : undefined
               });
-              updateNode(node.id, { status: NodeStatus.SUCCESS, resultUrl });
+
+              updateNode(node.id, {
+                status: NodeStatus.LOADING,
+                taskId: task.taskId,
+                generationStatus: task.status,
+                progress: 0,
+                errorMessage: undefined
+              });
+
+              const completedTask = await waitForImageTaskCompletion(task.taskId, {
+                onTaskUpdate: (nextTask) => {
+                  if (nextTask.status === 'queued' || nextTask.status === 'running' || nextTask.status === 'polling') {
+                    updateNode(node.id, {
+                      status: NodeStatus.LOADING,
+                      taskId: nextTask.taskId,
+                      generationStatus: nextTask.status,
+                      progress: nextTask.progress ?? 0,
+                      errorMessage: undefined
+                    });
+                  }
+                }
+              });
+
+              if (completedTask.status !== 'completed' || !completedTask.resultUrl) {
+                throw new Error(completedTask.errorMessage || `Image editor task ended with status: ${completedTask.status}`);
+              }
+
+              updateNode(node.id, {
+                status: NodeStatus.SUCCESS,
+                resultUrl: completedTask.resultUrl,
+                taskId: undefined,
+                generationStatus: undefined,
+                progress: undefined,
+                errorMessage: undefined
+              });
             } catch (error: any) {
-              updateNode(node.id, { status: NodeStatus.ERROR, errorMessage: error.message });
+              updateNode(node.id, {
+                status: NodeStatus.ERROR,
+                taskId: undefined,
+                generationStatus: 'failed',
+                progress: undefined,
+                errorMessage: error.message || 'Image editor generation failed'
+              });
             }
           });
         }}

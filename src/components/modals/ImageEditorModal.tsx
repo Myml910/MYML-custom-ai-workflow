@@ -24,6 +24,7 @@ import { useImageEditorSelection } from '../../hooks/useImageEditorSelection';
 import { useImageEditorText } from '../../hooks/useImageEditorText';
 import { useImageEditorCrop } from '../../hooks/useImageEditorCrop';
 import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEditorShapes';
+import { useImageModels } from '../../hooks/useImageModels';
 import { NodeStatus } from '../../types';
 import { EditorShell, EditorStatusBar, EditorTopBar, ToolButton } from '../ui';
 
@@ -69,12 +70,12 @@ const isRenderableElement = (element: EditorElement) => {
 
 const DEFAULT_IMAGE_MODEL_ID = 'custom-image-gpt-image-2';
 
-const getAvailableImageModelId = (modelId?: string) => {
-    if (modelId && IMAGE_MODELS.some(model => model.id === modelId)) {
+const getAvailableImageModelId = (modelId?: string, models = IMAGE_MODELS) => {
+    if (modelId && models.some(model => model.id === modelId)) {
         return modelId;
     }
 
-    return DEFAULT_IMAGE_MODEL_ID;
+    return models[0]?.id || DEFAULT_IMAGE_MODEL_ID;
 };
 
 export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
@@ -95,6 +96,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     onGenerate,
     onUpdate
 }) => {
+    const { models: imageModels } = useImageModels();
     // --- Prompt & Generation State ---
     const [prompt, setPrompt] = useState(initialPrompt || '');
     const [batchCount, setBatchCount] = useState(4);
@@ -635,7 +637,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         shapes.setIsShapeMode(nextActive);
     }, [arrows, clearPrimaryModes, shapes]);
 
-    const currentModel = IMAGE_MODELS.find(m => m.id === selectedModel) || IMAGE_MODELS[0];
+    const currentModel = imageModels.find(m => m.id === selectedModel) || imageModels[0];
     const hasInputImage = !!imageUrl;
 
     // --- Effects ---
@@ -661,7 +663,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Initialize state from props
         setPrompt(initialPrompt || '');
-        setSelectedModel(getAvailableImageModelId(initialModel));
+        setSelectedModel(getAvailableImageModelId(initialModel, imageModels));
         setSelectedAspectRatio(initialAspectRatio || 'Auto');
         setSelectedResolution(initialResolution || '1K');
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
@@ -672,7 +674,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
-    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl]);
+    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, imageModels]);
+
+    useEffect(() => {
+        if (!imageModels.some(model => model.id === selectedModel)) {
+            setSelectedModel(getAvailableImageModelId(undefined, imageModels));
+        }
+    }, [imageModels, selectedModel]);
 
     useEffect(() => {
         if (!isOpen || !imageRef.current) return;
@@ -900,7 +908,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     const handleModelChange = (modelId: string) => {
         setSelectedModel(modelId);
-        const newModel = IMAGE_MODELS.find(m => m.id === modelId);
+        const newModel = imageModels.find(m => m.id === modelId);
 
         if (newModel?.aspectRatios && !newModel.aspectRatios.includes(selectedAspectRatio)) {
             setSelectedAspectRatio('Auto');
@@ -1388,6 +1396,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     language={language}
                     prompt={prompt}
                     setPrompt={handlePromptChange}
+                    imageModels={imageModels}
                     selectedModel={selectedModel}
                     onModelChange={handleModelChange}
                     showModelDropdown={showModelDropdown}

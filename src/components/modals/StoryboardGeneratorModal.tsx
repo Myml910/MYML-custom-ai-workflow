@@ -12,16 +12,6 @@ import { StoryInput } from '../StoryInput';
 import { Language, t } from '../../i18n/translations';
 
 // ============================================================================
-// IMAGE MODELS (Copied from NodeControls.tsx for model selection)
-// ============================================================================
-
-const IMAGE_MODELS = [
-    { id: 'custom-image-gpt-image-2', name: 'T8star GPT Image 2', provider: 'custom' },
-    { id: 'custom-image-nano-banana-3-1-flash', name: 'Nano Banana 3.1 Flash', provider: 'custom' },
-    { id: 'custom-image-pikachu-gpt-image-2', name: 'Pikachu GPT-Image-2', provider: 'custom' },
-];
-
-// ============================================================================
 // TYPES
 // ============================================================================
 
