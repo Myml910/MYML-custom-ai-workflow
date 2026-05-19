@@ -91,6 +91,7 @@ USER_MAX_RUNNING_IMAGE_TASKS=2
 PROVIDER_MAX_RUNNING_APIMART=2
 PROVIDER_MAX_RUNNING_ATLAS=1
 
+REQUIRE_TEAM_PROVIDER_CREDENTIALS=false
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
 ENABLE_ATLAS_PROVIDER=false
@@ -109,6 +110,10 @@ Resolution order:
 2. Active user credential
 3. Active global credential
 4. `.env` fallback such as `APIMART_API_KEY`
+
+Set `REQUIRE_TEAM_PROVIDER_CREDENTIALS=true` for internal launches that require strong team isolation. In this mode, user tasks must resolve an active database credential from `provider_credentials`; `.env` provider keys are not used as fallback. Each team that uses a provider must have its own credential row, for example group1 and group2 should each have their own `atlas` credential before using Atlas.
+
+For local development, keep `REQUIRE_TEAM_PROVIDER_CREDENTIALS=false` so `.env` provider keys can still be used as fallback.
 
 The current seed maps existing internal users to teams when present:
 
