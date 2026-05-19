@@ -92,6 +92,7 @@ PROVIDER_MAX_RUNNING_APIMART=2
 PROVIDER_MAX_RUNNING_ATLAS=1
 
 REQUIRE_TEAM_PROVIDER_CREDENTIALS=false
+PROVIDER_CREDENTIAL_ENCRYPTION_KEY=
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
 ENABLE_ATLAS_PROVIDER=false
@@ -120,7 +121,24 @@ The current seed maps existing internal users to teams when present:
 - `group1.design@yxfa.cn` -> `team_group1_design`
 - `group2.design@yxfa.cn` -> `team_group2_design`
 
-The first implementation stores the key in `api_key_encrypted` as a centralized placeholder for future encryption. Do not expose these values to normal users, logs, or git. Replace the passthrough implementation with KMS/crypto before storing broadly distributed production keys.
+### Provider Credential Encryption
+
+`provider_credentials.api_key_encrypted` stores AES-256-GCM ciphertext in this format:
+
+```text
+v1:<iv_base64>:<tag_base64>:<ciphertext_base64>
+```
+
+Set `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` to a long random value or a base64-encoded 32-byte key. Back it up securely; if this key is lost, `v1:` provider credentials in the database cannot be decrypted.
+
+Legacy plaintext credentials that do not start with `v1:` remain readable for migration, but the server will warn. Before production launch, run:
+
+```bash
+node scripts/encrypt-provider-credentials.js --dry-run
+node scripts/encrypt-provider-credentials.js
+```
+
+Do not commit `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` or provider API keys to git. Normal users must never be able to read plaintext provider keys.
 
 Example manual SQL for group 1 APIMart:
 
@@ -179,6 +197,8 @@ INSERT INTO provider_credentials (
 )
 ON CONFLICT DO NOTHING;
 ```
+
+If a SQL example inserts a temporary plaintext key, run `scripts/encrypt-provider-credentials.js` immediately after. Prefer inserting a pre-encrypted `v1:` value for long-lived environments.
 
 Provider usage is recorded best-effort in `provider_usage_logs` with `task_id`, `user_id`, `team_id`, `credential_id`, provider, model, status, and provider task id. API keys are not written to usage logs.
 
@@ -270,7 +290,7 @@ INSERT INTO provider_credentials (
 ON CONFLICT DO NOTHING;
 ```
 
-`api_key_encrypted` is currently a passthrough placeholder in this branch. Do not store long-lived production keys there until proper encryption/KMS is wired in.
+`api_key_encrypted` should contain a `v1:` encrypted value for long-lived environments. If this example is inserted as temporary plaintext, run the encryption script before production use.
 
 ## 9. Troubleshooting
 

@@ -1,5 +1,11 @@
 import crypto from 'crypto';
 import { getDb } from './index.js';
+import {
+    decryptProviderApiKey as decryptProviderApiKeyValue,
+    encryptProviderApiKey,
+    getProviderCredentialEncryptionStatus,
+    isEncryptedProviderApiKey
+} from '../utils/providerCredentialCrypto.js';
 
 function serializeTeam(row) {
     if (!row) return null;
@@ -48,9 +54,10 @@ async function getTeamById(teamId) {
     return serializeTeam(result.rows[0]);
 }
 
+export { encryptProviderApiKey, getProviderCredentialEncryptionStatus, isEncryptedProviderApiKey };
+
 export function decryptProviderApiKey(value) {
-    // Centralized passthrough placeholder. Replace with KMS/crypto before storing real encrypted values.
-    return typeof value === 'string' ? value : '';
+    return decryptProviderApiKeyValue(value);
 }
 
 export async function getUserPrimaryTeam(userId) {
