@@ -3,6 +3,24 @@ import bcrypt from 'bcryptjs';
 import { getDb } from './index.js';
 
 const PASSWORD_HASH_ROUNDS = 12;
+const INTERNAL_TEAM_MAPPINGS = [
+    {
+        label: 'group1',
+        usernameEnv: 'MYML_GROUP1_USERNAME',
+        fallbackUsername: 'group1.design@yxfa.cn',
+        teamId: 'team_group1_design',
+        teamName: 'Group 1 Design',
+        teamSlug: 'group1-design'
+    },
+    {
+        label: 'group2',
+        usernameEnv: 'MYML_GROUP2_USERNAME',
+        fallbackUsername: 'group2.design@yxfa.cn',
+        teamId: 'team_group2_design',
+        teamName: 'Group 2 Design',
+        teamSlug: 'group2-design'
+    }
+];
 
 function toPublicUser(row) {
     if (!row) return null;
@@ -124,9 +142,46 @@ export async function seedInitialAdmin() {
     return { seeded: true, user };
 }
 
+export async function seedInternalTeamMappings() {
+    const db = getDb();
+    const results = [];
+
+    for (const mapping of INTERNAL_TEAM_MAPPINGS) {
+        const username = process.env[mapping.usernameEnv] || mapping.fallbackUsername;
+
+        await db.query(`
+            INSERT INTO teams (id, name, slug, status)
+            VALUES ($1, $2, $3, 'active')
+            ON CONFLICT (id) DO UPDATE
+            SET name = EXCLUDED.name,
+                slug = EXCLUDED.slug,
+                status = 'active',
+                updated_at = now()
+        `, [mapping.teamId, mapping.teamName, mapping.teamSlug]);
+
+        const user = await findUserByUsername(username);
+        if (!user) {
+            console.log(`[Auth] Skipped ${mapping.label} team mapping; user not found: ${username}`);
+            results.push({ label: mapping.label, teamId: mapping.teamId, mapped: false, reason: 'user_not_found' });
+            continue;
+        }
+
+        await db.query(`
+            INSERT INTO user_team_memberships (id, user_id, team_id, role)
+            VALUES ($1, $2, $3, 'member')
+            ON CONFLICT (user_id, team_id) DO NOTHING
+        `, [crypto.randomUUID(), user.id, mapping.teamId]);
+
+        results.push({ label: mapping.label, teamId: mapping.teamId, userId: user.id, mapped: true });
+    }
+
+    return results;
+}
+
 export async function seedInternalTestUsers(options = {}) {
     const shouldSeed = options.force === true || process.env.MYML_SEED_INTERNAL_USERS === 'true';
     if (!shouldSeed) {
+        await seedInternalTeamMappings();
         console.log('[Auth] Skipped internal group user seeding. Set MYML_SEED_INTERNAL_USERS=true to enable it during server startup.');
         return [];
     }
@@ -169,5 +224,6 @@ export async function seedInternalTestUsers(options = {}) {
         results.push(await createUserIfMissing(user));
     }
 
+    await seedInternalTeamMappings();
     return results;
 }
