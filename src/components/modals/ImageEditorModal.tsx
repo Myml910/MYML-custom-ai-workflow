@@ -642,9 +642,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         shapes.setIsShapeMode(nextActive);
     }, [arrows, clearPrimaryModes, shapes]);
 
+    const editorImageModels = React.useMemo(
+        () => imageModels.filter(model => model.supportsImageToImage || model.supportsMultiImage),
+        [imageModels]
+    );
     const imageModelOptions = React.useMemo(
-        () => withLegacyImageModelOption(imageModels, selectedModel),
-        [imageModels, selectedModel]
+        () => withLegacyImageModelOption(editorImageModels, selectedModel),
+        [editorImageModels, selectedModel]
     );
     const currentModel = imageModelOptions.find(m => m.id === selectedModel) || imageModelOptions[0];
     const hasInputImage = !!imageUrl;
@@ -672,7 +676,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         // Initialize state from props
         setPrompt(initialPrompt || '');
-        setSelectedModel(getInitialImageModelId(initialModel, imageModels));
+        setSelectedModel(getInitialImageModelId(initialModel, editorImageModels));
         setSelectedAspectRatio(initialAspectRatio || 'Auto');
         setSelectedResolution(initialResolution || '1K');
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
@@ -683,13 +687,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
-    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, imageModels]);
+    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, editorImageModels]);
 
     useEffect(() => {
         if (!selectedModel) {
-            setSelectedModel(getInitialImageModelId(undefined, imageModels));
+            setSelectedModel(getInitialImageModelId(undefined, editorImageModels));
         }
-    }, [imageModels, selectedModel]);
+    }, [editorImageModels, selectedModel]);
 
     useEffect(() => {
         if (!isOpen || !imageRef.current) return;
@@ -868,7 +872,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             return;
         }
 
-        if (!currentModel || isUnavailableLegacyImageModel(imageModels, selectedModel) || currentModel.disabled || currentModel.status === 'disabled' || currentModel.status === 'comingSoon') {
+        if (!currentModel || isUnavailableLegacyImageModel(editorImageModels, selectedModel) || currentModel.disabled || currentModel.status === 'disabled' || currentModel.status === 'comingSoon') {
             setPromptError(currentModel?.disabledReason || LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE);
             return;
         }

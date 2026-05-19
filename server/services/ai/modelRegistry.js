@@ -6,6 +6,7 @@ function isExperimentalProviderEnabled(provider) {
     if (isEnabledFlag(process.env.ENABLE_EXPERIMENTAL_PROVIDERS)) return true;
     if (provider === 'dataler') return isEnabledFlag(process.env.ENABLE_DATALER_PROVIDER);
     if (provider === 'pikachu') return isEnabledFlag(process.env.ENABLE_PIKACHU_PROVIDER);
+    if (provider === 'atlas') return isEnabledFlag(process.env.ENABLE_ATLAS_PROVIDER);
     return true;
 }
 
@@ -80,6 +81,58 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
             }
         ],
         defaultResolution: 'medium'
+    },
+    'custom-image-atlas-gpt-image-2-text': {
+        projectModelId: 'custom-image-atlas-gpt-image-2-text',
+        displayName: 'Atlas GPT Image 2 Text-to-Image',
+        description: 'Experimental Atlas Cloud GPT Image 2 text-to-image endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        resolutions: ['low', 'medium', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
+        providers: [
+            {
+                provider: 'atlas',
+                upstreamModel: 'openai/gpt-image-2/text-to-image',
+                priority: 1,
+                isAsync: true,
+                experimental: true,
+                enabled: isExperimentalProviderEnabled('atlas')
+            }
+        ],
+        defaultResolution: 'medium'
+    },
+    'custom-image-atlas-gpt-image-2-edit': {
+        projectModelId: 'custom-image-atlas-gpt-image-2-edit',
+        displayName: 'Atlas GPT Image 2 Edit',
+        description: 'Experimental Atlas Cloud GPT Image 2 image edit endpoint.',
+        capability: 'image-generation',
+        capabilities: ['image-to-image', 'multi-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: false,
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        enabled: true,
+        experimental: true,
+        resolutions: ['low', 'medium', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
+        providers: [
+            {
+                provider: 'atlas',
+                upstreamModel: 'openai/gpt-image-2/edit',
+                priority: 1,
+                isAsync: true,
+                experimental: true,
+                enabled: isExperimentalProviderEnabled('atlas')
+            }
+        ],
+        defaultResolution: 'medium'
     }
 });
 
@@ -113,6 +166,7 @@ export function getAvailableImageModels() {
                 providerChain: providers.map(provider => provider.provider),
                 enabled: true,
                 experimental: Boolean(modelConfig.experimental || providers.some(provider => provider.experimental)),
+                supportsTextToImage: modelConfig.supportsTextToImage ?? modelConfig.capabilities?.includes('text-to-image') ?? true,
                 supportsImageToImage: modelConfig.supportsImageToImage ?? modelConfig.capabilities?.includes('image-to-image') ?? true,
                 supportsMultiImage: modelConfig.supportsMultiImage ?? modelConfig.capabilities?.includes('multi-image') ?? true,
                 recommended: Boolean(modelConfig.recommended),

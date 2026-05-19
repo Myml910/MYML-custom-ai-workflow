@@ -8,6 +8,7 @@ export interface ImageModelOption {
     capabilities?: string[];
     experimental?: boolean;
     enabled?: boolean;
+    supportsTextToImage: boolean;
     supportsImageToImage: boolean;
     supportsMultiImage: boolean;
     recommended?: boolean;
@@ -26,6 +27,7 @@ export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
         provider: 'custom',
         providerChain: ['apimart'],
         capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
+        supportsTextToImage: true,
         supportsImageToImage: true,
         supportsMultiImage: true,
         recommended: true,
@@ -39,6 +41,7 @@ export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
         provider: 'custom',
         providerChain: ['apimart'],
         capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
+        supportsTextToImage: true,
         supportsImageToImage: true,
         supportsMultiImage: true,
         resolutions: ['Auto', '1K', '2K', '4K'],
@@ -62,6 +65,7 @@ export function createLegacyImageModelOption(modelId: string): ImageModelOption 
         capabilities: [],
         experimental: false,
         enabled: false,
+        supportsTextToImage: false,
         supportsImageToImage: true,
         supportsMultiImage: true,
         disabled: true,
@@ -105,6 +109,7 @@ export function normalizeImageModelOption(raw: any): ImageModelOption {
         capabilities,
         experimental: Boolean(raw?.experimental),
         enabled: raw?.enabled !== false,
+        supportsTextToImage: raw?.supportsTextToImage ?? (capabilities.length === 0 || capabilities.includes('text-to-image')),
         supportsImageToImage: raw?.supportsImageToImage ?? (capabilities.length === 0 || capabilities.includes('image-to-image')),
         supportsMultiImage: raw?.supportsMultiImage ?? (capabilities.length === 0 || capabilities.includes('multi-image')),
         recommended: Boolean(raw?.recommended),

@@ -1,4 +1,4 @@
-import { getAiProviderConfig, isApimartImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
 import { resolveProviderRuntimeConfig } from '../../services/ai/credentialResolver.js';
 import { recordProviderUsageLog } from '../../db/providerCredentials.js';
@@ -20,6 +20,12 @@ import {
     normalizeProviderError as normalizePikachuProviderError,
     submitImageTask as submitPikachuImageTask
 } from '../../services/ai/providers/pikachuProvider.js';
+import {
+    normalizeAtlasImageResult,
+    normalizeProviderError as normalizeAtlasProviderError,
+    pollImageTask as pollAtlasImageTask,
+    submitImageTask as submitAtlasImageTask
+} from '../../services/ai/providers/atlasProvider.js';
 import {
     addTaskEvent,
     heartbeatTask,
@@ -338,6 +344,19 @@ function buildDatalerInput(task, config, providerConfig, modelConfig) {
     };
 }
 
+function buildAtlasInput(task, config, providerConfig, modelConfig) {
+    const input = getTaskInput(task);
+    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+
+    return {
+        prompt: input.prompt || task.prompt || '',
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        size: input.aspectRatio || input.size || '1024x1024',
+        resolution: input.resolution || modelConfig.defaultResolution || 'medium',
+        model: providerConfig.upstreamModel
+    };
+}
+
 function normalizeWorkerError(error, providerConfig = null) {
     let normalized;
     if (providerConfig?.provider === 'apimart') {
@@ -346,6 +365,8 @@ function normalizeWorkerError(error, providerConfig = null) {
         normalized = normalizeDatalerProviderError(error, { model: providerConfig.upstreamModel });
     } else if (providerConfig?.provider === 'pikachu') {
         normalized = normalizePikachuProviderError(error, { model: providerConfig.upstreamModel });
+    } else if (providerConfig?.provider === 'atlas') {
+        normalized = normalizeAtlasProviderError(error, { model: providerConfig.upstreamModel });
     } else {
         normalized = classifyProviderError(error, {
             provider: providerConfig?.provider,
@@ -440,6 +461,9 @@ export async function executeImageTask(task, options = {}) {
         if (providerConfig.provider === 'pikachu' && !isPikachuImageConfigured(config)) {
             throw new Error('Pikachu image provider is not configured. Add PIKACHU_BASE_URL and PIKACHU_API_KEY to .env.');
         }
+        if (providerConfig.provider === 'atlas' && !isAtlasImageConfigured(config)) {
+            throw new Error('Atlas image provider is not configured. Add ATLAS_BASE_URL and ATLAS_API_KEY to .env, or configure a team provider credential.');
+        }
 
         if (providerConfig.provider === 'dataler') {
             const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig);
@@ -486,6 +510,45 @@ export async function executeImageTask(task, options = {}) {
                 usage: submitResult.usage || null,
                 raw: submitResult.raw || null,
                 credentialContext
+            });
+        }
+
+        if (providerConfig.provider === 'atlas') {
+            const providerInput = buildAtlasInput(task, config, providerConfig, resolved.modelConfig);
+            const submitResult = await submitAtlasImageTask(providerInput, {
+                config,
+                user: getTaskUser(task)
+            });
+
+            if (submitResult.status === 'completed') {
+                const normalizedResult = normalizeAtlasImageResult(submitResult.raw || submitResult);
+                return await completeImageTaskWithResult(task, normalizedResult, {
+                    provider: submitResult.provider,
+                    model: submitResult.model,
+                    rawStatus: submitResult.rawStatus || submitResult.status,
+                    progress: submitResult.progress ?? 100,
+                    providerTaskId: submitResult.taskId || null,
+                    usage: submitResult.usage || null,
+                    raw: submitResult.raw || null
+                });
+            }
+
+            if (submitResult.status === 'failed') {
+                throw new Error(submitResult.error || 'Atlas image task submit failed.');
+            }
+
+            if (!submitResult.taskId) {
+                throw new Error(submitResult.error || 'Atlas image task submit did not return prediction id.');
+            }
+
+            return await markTaskPolling(task.taskId, submitResult.taskId, {
+                workerId: options.workerId || null,
+                attemptCount: task.attemptCount,
+                provider: submitResult.provider,
+                model: submitResult.model,
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? null,
+                request: submitResult.request || null
             });
         }
 
@@ -563,14 +626,19 @@ export async function pollImageTaskStatus(task, options = {}) {
         const config = runtime.config;
         credentialContext = runtime.credentialContext;
 
-        if (providerConfig.provider !== 'apimart') {
+        if (!['apimart', 'atlas'].includes(providerConfig.provider)) {
             throw new Error(`Provider ${providerConfig.provider} does not support polling.`);
         }
 
-        const pollResult = await pollImageTask(task.providerTaskId, {
-            config,
-            model: providerConfig.upstreamModel
-        });
+        const pollResult = providerConfig.provider === 'atlas'
+            ? await pollAtlasImageTask(task.providerTaskId, {
+                config,
+                model: providerConfig.upstreamModel
+            })
+            : await pollImageTask(task.providerTaskId, {
+                config,
+                model: providerConfig.upstreamModel
+            });
 
         await recordProviderPolling(task.taskId, withCredentialPayload({
             workerId: options.workerId || null,
@@ -583,7 +651,9 @@ export async function pollImageTaskStatus(task, options = {}) {
         }, credentialContext));
 
         if (pollResult.status === 'completed') {
-            const normalizedResult = normalizeImageResult(pollResult.raw);
+            const normalizedResult = providerConfig.provider === 'atlas'
+                ? normalizeAtlasImageResult(pollResult.raw || pollResult)
+                : normalizeImageResult(pollResult.raw);
             return await completeImageTaskWithResult(task, normalizedResult, {
                 provider: pollResult.provider,
                 model: providerConfig.upstreamModel,
