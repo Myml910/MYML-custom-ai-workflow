@@ -35,6 +35,7 @@ docker compose config
 - `ENABLE_PIKACHU_PROVIDER`
 - `VITE_ENABLE_LEGACY_GENERATION_FALLBACK`
 - `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
+- `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`
 
 ## 2. 推荐启动方式
 
@@ -198,6 +199,14 @@ Team provider credential isolation:
 - group2 without active `atlas` credential -> task should fail with `CREDENTIAL_REQUIRED` and must not use group1 key or `.env ATLAS_API_KEY`.
 - After inserting group2's own active `atlas` credential -> group2 Atlas task should succeed.
 - Check `task_events` and `provider_usage_logs`: `credentialSource` should not be `env` when strict isolation is enabled.
+
+Provider credential encryption:
+
+- `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` is configured and backed up securely.
+- `provider_credentials.api_key_encrypted` values use the `v1:<iv>:<tag>:<ciphertext>` format before production launch.
+- `node scripts/encrypt-provider-credentials.js --dry-run` has been reviewed.
+- `node scripts/encrypt-provider-credentials.js` has been run for legacy plaintext credentials.
+- Logs, `task_events`, and `provider_usage_logs` do not contain full provider API keys.
 
 ## 8. 失败排查速查
 
