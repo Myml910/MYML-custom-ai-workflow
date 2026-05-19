@@ -33,6 +33,7 @@ const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
 // IMAGE GENERATION
 // ============================================================================
 
+// Legacy compatibility endpoint only. New image generation should use /api/tasks/image.
 router.post('/generate-image', async (req, res) => {
     try {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;

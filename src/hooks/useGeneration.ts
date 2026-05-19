@@ -10,7 +10,7 @@ import { NodeData, NodeType, NodeStatus } from '../types';
 import type { Language } from '../i18n/translations';
 import {
     createImageTask,
-    generateImage,
+    generateImageLegacy,
     generateVideo,
     getTask,
     type GenerationTask,
@@ -227,7 +227,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         combinedPrompt: string,
         imageBase64s: string[]
     ) => {
-        const rawResultUrl = await generateImage({
+        const rawResultUrl = await generateImageLegacy({
             prompt: combinedPrompt,
             aspectRatio: targetNode.aspectRatio,
             resolution: targetNode.resolution,

@@ -24,6 +24,7 @@ interface PromptBarProps {
     setPrompt: (prompt: string) => void;
 
     // Model state
+    imageModels?: ImageModel[];
     selectedModel: string;
     onModelChange: (modelId: string) => void;
     showModelDropdown: boolean;
@@ -63,6 +64,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     language = 'zh',
     prompt,
     setPrompt,
+    imageModels,
     selectedModel,
     onModelChange,
     showModelDropdown,
@@ -88,10 +90,11 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const resolutionDropdownRef = useRef<HTMLDivElement>(null);
 
     // --- Derived State ---
-    const currentModel = IMAGE_MODELS.find(m => m.id === selectedModel) || IMAGE_MODELS[0];
+    const modelOptions = imageModels && imageModels.length > 0 ? imageModels : IMAGE_MODELS;
+    const currentModel = modelOptions.find(m => m.id === selectedModel) || modelOptions[0];
     const availableModels = hasInputImage
-        ? IMAGE_MODELS.filter(m => m.supportsImageToImage)
-        : IMAGE_MODELS;
+        ? modelOptions.filter(m => m.supportsImageToImage)
+        : modelOptions;
 
     const text = {
         imageToImage: t(language, 'imageToImage'),

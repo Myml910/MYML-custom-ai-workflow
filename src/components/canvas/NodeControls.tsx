@@ -14,6 +14,7 @@ import { LocalModel, getLocalModels } from '../../services/localModelService';
 import { Language, t } from '../../i18n/translations';
 import { isImageReferenceType } from '../../utils/imageReferences';
 import { ActionRow, PanelSection, StatusDot } from '../ui';
+import { useImageModels } from '../../hooks/useImageModels';
 
 interface NodeControlsProps {
     data: NodeData;
@@ -62,38 +63,6 @@ const VIDEO_ASPECT_RATIOS = ["16:9", "9:16"];
 
 const VIDEO_MODELS = [
     { id: 'video-disabled', name: 'Video generation disabled', provider: 'custom', supportsTextToVideo: true, supportsImageToVideo: true, supportsMultiImage: true, durations: [5], resolutions: ['Auto'], aspectRatios: VIDEO_ASPECT_RATIOS, disabled: true, disabledReason: 'videoDisabled' },
-];
-
-// Image model versions with metadata.
-const IMAGE_MODELS = [
-    {
-    id: 'custom-image-gpt-image-2',
-    name: 'T8star GPT Image 2',
-    provider: 'custom',
-    supportsImageToImage: true,
-    supportsMultiImage: true,
-    recommended: true,
-    resolutions: ['Auto', '2k', '4k'],
-    aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
-    },
-    {
-        id: 'custom-image-nano-banana-3-1-flash',
-        name: 'Nano Banana 3.1 Flash',
-        provider: 'custom',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        resolutions: ['Auto', '1K', '2K', '4K'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
-    },
-    {
-        id: 'custom-image-pikachu-gpt-image-2',
-        name: 'Pikachu GPT-Image-2',
-        provider: 'custom',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        resolutions: ['medium', 'low', 'high'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
-    },
 ];
 
 const isModelDisabled = (model?: any) =>
@@ -173,6 +142,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     canvasTheme = 'dark',
     language = 'zh'
 }) => {
+    const { models: imageModels } = useImageModels();
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showSizeDropdown, setShowSizeDropdown] = useState(false);
     const [showAspectRatioDropdown, setShowAspectRatioDropdown] = useState(false);
@@ -337,7 +307,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         : (data.aspectRatio || "Auto");
 
     // For image nodes, use model-specific aspect ratios (sizeOptions for video computed later with availableResolutions)
-    const currentImageModelForRatios = IMAGE_MODELS.find(m => m.id === data.imageModel) || IMAGE_MODELS[0];
+    const currentImageModelForRatios = imageModels.find(m => m.id === data.imageModel) || imageModels[0];
     const imageAspectRatioOptions = currentImageModelForRatios.aspectRatios || IMAGE_RATIOS;
     const isVideoNode = data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL;
     const isImageNode = data.type === NodeType.IMAGE || data.type === NodeType.LOCAL_IMAGE_MODEL;
@@ -445,16 +415,16 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     };
 
     // Image model selection logic
-    const currentImageModel = IMAGE_MODELS.find(m => m.id === data.imageModel) || IMAGE_MODELS[0];
+    const currentImageModel = imageModels.find(m => m.id === data.imageModel) || imageModels[0];
 
     // Filter image models based on connected inputs
     // 0 inputs = all models, 1 input = needs supportsImageToImage, 2+ inputs = needs supportsMultiImage
     const inputCount = connectedImageNodes.length;
-    const availableImageModels = IMAGE_MODELS.filter(model => {
+    const availableImageModels = React.useMemo(() => imageModels.filter(model => {
         if (inputCount === 0) return true; // Text-to-image: all models work
         if (inputCount === 1) return model.supportsImageToImage; // Single ref: filter out V2.1
         return model.supportsMultiImage; // Multi-ref: filter out V1, V1.5, V2 New
-    });
+    }), [imageModels, inputCount]);
 
     // Auto-select first available model when current model is no longer valid for the mode
     useEffect(() => {
@@ -474,7 +444,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             : 'multi-image';
 
     const handleImageModelChange = (modelId: string) => {
-        const newModel = IMAGE_MODELS.find(m => m.id === modelId);
+        const newModel = imageModels.find(m => m.id === modelId);
         if (!newModel || isModelDisabled(newModel)) return;
 
         const updates: Partial<typeof data> = { imageModel: modelId };

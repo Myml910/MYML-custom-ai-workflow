@@ -5,6 +5,7 @@
  */
 
 import { Language } from '../../../i18n/translations';
+import { FALLBACK_IMAGE_MODELS } from '../../../config/imageModels';
 
 // ============================================================================
 // TYPES
@@ -113,7 +114,7 @@ export interface ImageEditorModalProps {
 export interface ImageModel {
     id: string;
     name: string;
-    provider: 'custom' | 'google' | 'kling' | 'openai';
+    provider: string;
     supportsImageToImage: boolean;
     supportsMultiImage: boolean;
     recommended?: boolean;
@@ -139,36 +140,7 @@ export interface ImageEditorThemeProps {
 /**
  * Available image generation models.
  */
-export const IMAGE_MODELS: ImageModel[] = [
-    {
-        id: 'custom-image-gpt-image-2',
-        name: 'T8star GPT Image 2',
-        provider: 'custom',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        recommended: true,
-        resolutions: ['Auto', '2k', '4k'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9']
-    },
-    {
-        id: 'custom-image-nano-banana-3-1-flash',
-        name: 'Nano Banana 3.1 Flash',
-        provider: 'custom',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        resolutions: ['Auto', '1K', '2K', '4K'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8']
-    },
-    {
-        id: 'custom-image-pikachu-gpt-image-2',
-        name: 'Pikachu GPT-Image-2',
-        provider: 'custom',
-        supportsImageToImage: true,
-        supportsMultiImage: true,
-        resolutions: ['medium', 'low', 'high'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
-    },
-];
+export const IMAGE_MODELS: ImageModel[] = FALLBACK_IMAGE_MODELS;
 
 /**
  * Preset brush colors

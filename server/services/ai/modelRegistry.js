@@ -13,7 +13,12 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
     'custom-image-gpt-image-2': {
         projectModelId: 'custom-image-gpt-image-2',
         displayName: 'T8star GPT Image 2',
+        description: 'Stable GPT Image 2 image generation through the default production provider chain.',
         capability: 'image-generation',
+        capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
+        recommended: true,
+        resolutions: ['Auto', '2k', '4k'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'],
         providers: [
             {
                 provider: 'apimart',
@@ -27,7 +32,11 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
     'custom-image-nano-banana-3-1-flash': {
         projectModelId: 'custom-image-nano-banana-3-1-flash',
         displayName: 'Nano Banana 3.1 Flash',
+        description: 'Nano Banana 3.1 Flash image generation. Experimental providers are hidden unless enabled.',
         capability: 'image-generation',
+        capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
+        resolutions: ['Auto', '1K', '2K', '4K'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8'],
         providers: [
             {
                 provider: 'dataler',
@@ -49,12 +58,17 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
     'custom-image-pikachu-gpt-image-2': {
         projectModelId: 'custom-image-pikachu-gpt-image-2',
         displayName: 'Pikachu GPT-Image-2',
+        description: 'Experimental Pikachu GPT-Image-2 endpoint.',
         capability: 'image-generation',
+        capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
         taskType: 'image_generation',
         supportsTextToImage: true,
         supportsImageToImage: true,
         supportsMultiImage: true,
         enabled: true,
+        experimental: true,
+        resolutions: ['medium', 'low', 'high'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
         providers: [
             {
                 provider: 'pikachu',
@@ -83,4 +97,28 @@ export function getImageProviders(projectModelId) {
     return [...modelConfig.providers]
         .filter(provider => provider.enabled !== false)
         .sort((a, b) => a.priority - b.priority);
+}
+
+export function getAvailableImageModels() {
+    return Object.values(IMAGE_MODEL_REGISTRY)
+        .map(modelConfig => {
+            const providers = getImageProviders(modelConfig.projectModelId);
+            if (providers.length === 0) return null;
+
+            return {
+                id: modelConfig.projectModelId,
+                label: modelConfig.displayName,
+                description: modelConfig.description || '',
+                capabilities: modelConfig.capabilities || [modelConfig.capability],
+                providerChain: providers.map(provider => provider.provider),
+                enabled: true,
+                experimental: Boolean(modelConfig.experimental || providers.some(provider => provider.experimental)),
+                supportsImageToImage: modelConfig.supportsImageToImage ?? modelConfig.capabilities?.includes('image-to-image') ?? true,
+                supportsMultiImage: modelConfig.supportsMultiImage ?? modelConfig.capabilities?.includes('multi-image') ?? true,
+                recommended: Boolean(modelConfig.recommended),
+                resolutions: modelConfig.resolutions || ['Auto'],
+                aspectRatios: modelConfig.aspectRatios || ['Auto', '1:1', '16:9', '9:16']
+            };
+        })
+        .filter(Boolean);
 }
