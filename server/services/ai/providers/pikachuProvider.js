@@ -20,6 +20,10 @@ function parsePositiveInteger(value, fallback) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function getPikachuRuntimeConfig(config = {}) {
+    return config.pikachu || config || {};
+}
+
 function createTimeoutError(context, timeoutMs, cause) {
     return new AiProviderError({
         type: AI_ERROR_TYPES.TIMEOUT,
@@ -334,8 +338,9 @@ async function createEditFormData(input, context) {
 
 export async function submitImageTask(input = {}, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey } = config.pikachu;
-    const model = input.model || config.pikachu.imageModel || PIKACHU_IMAGE_MODEL;
+    const pikachuConfig = getPikachuRuntimeConfig(config);
+    const { baseUrl, apiKey } = pikachuConfig;
+    const model = input.model || pikachuConfig.imageModel || PIKACHU_IMAGE_MODEL;
 
     if (!baseUrl || !apiKey) {
         throw new AiProviderError({
@@ -346,9 +351,9 @@ export async function submitImageTask(input = {}, options = {}) {
         });
     }
 
-    const timeoutMs = parsePositiveInteger(options.requestTimeoutMs || config.pikachu.requestTimeoutMs, DEFAULT_REQUEST_TIMEOUT_MS);
+    const timeoutMs = parsePositiveInteger(options.requestTimeoutMs || pikachuConfig.requestTimeoutMs, DEFAULT_REQUEST_TIMEOUT_MS);
     const size = resolvePikachuSize(input.size || input.aspectRatio, input.resolution);
-    const quality = resolvePikachuQuality(input.quality || input.resolution || config.pikachu.imageQuality);
+    const quality = resolvePikachuQuality(input.quality || input.resolution || pikachuConfig.imageQuality);
     const referenceImages = normalizeInputArray(input.referenceImages || input.imageUrls || input.image_urls).filter(Boolean);
     const isEdit = referenceImages.length > 0;
     const endpoint = `${baseUrl}${isEdit ? '/images/edits' : '/images/generations'}`;
@@ -415,10 +420,11 @@ export async function submitImageTask(input = {}, options = {}) {
 
 export async function pollImageTask(providerTaskId, options = {}) {
     const config = options.config || getAiProviderConfig();
+    const pikachuConfig = getPikachuRuntimeConfig(config);
     throw new AiProviderError({
         type: AI_ERROR_TYPES.PARAM_ERROR,
         provider: PIKACHU_PROVIDER,
-        model: options.model || config.pikachu.imageModel || PIKACHU_IMAGE_MODEL,
+        model: options.model || pikachuConfig.imageModel || PIKACHU_IMAGE_MODEL,
         message: `Pikachu provider does not support polling provider task ${providerTaskId || ''}.`
     });
 }

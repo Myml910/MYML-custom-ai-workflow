@@ -99,7 +99,85 @@ VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false
 
 Do not commit real secrets. `APIMART_BASE_URL` is the runtime variable used by the server for the APIMart API base URL.
 
-## 5. Docker Compose
+## 5. Team Provider Credentials
+
+MYML Canvas can resolve provider credentials from PostgreSQL before falling back to `.env`.
+
+Resolution order:
+
+1. Active team credential for the user's primary team
+2. Active user credential
+3. Active global credential
+4. `.env` fallback such as `APIMART_API_KEY`
+
+The current seed maps existing internal users to teams when present:
+
+- `group1.design@yxfa.cn` -> `team_group1_design`
+- `group2.design@yxfa.cn` -> `team_group2_design`
+
+The first implementation stores the key in `api_key_encrypted` as a centralized placeholder for future encryption. Do not expose these values to normal users, logs, or git. Replace the passthrough implementation with KMS/crypto before storing broadly distributed production keys.
+
+Example manual SQL for group 1 APIMart:
+
+```sql
+INSERT INTO provider_credentials (
+  id,
+  scope_type,
+  scope_id,
+  provider,
+  label,
+  base_url,
+  api_key_encrypted,
+  api_key_last4,
+  status,
+  priority
+) VALUES (
+  'cred_group1_apimart_primary',
+  'team',
+  'team_group1_design',
+  'apimart',
+  'Group 1 APIMart Primary',
+  'https://api.apimart.ai/v1',
+  '<ENCRYPTED_OR_PLACEHOLDER_API_KEY>',
+  'abcd',
+  'active',
+  1
+)
+ON CONFLICT DO NOTHING;
+```
+
+Example manual SQL for group 2 APIMart:
+
+```sql
+INSERT INTO provider_credentials (
+  id,
+  scope_type,
+  scope_id,
+  provider,
+  label,
+  base_url,
+  api_key_encrypted,
+  api_key_last4,
+  status,
+  priority
+) VALUES (
+  'cred_group2_apimart_primary',
+  'team',
+  'team_group2_design',
+  'apimart',
+  'Group 2 APIMart Primary',
+  'https://api.apimart.ai/v1',
+  '<ENCRYPTED_OR_PLACEHOLDER_API_KEY>',
+  'wxyz',
+  'active',
+  1
+)
+ON CONFLICT DO NOTHING;
+```
+
+Provider usage is recorded best-effort in `provider_usage_logs` with `task_id`, `user_id`, `team_id`, `credential_id`, provider, model, status, and provider task id. API keys are not written to usage logs.
+
+## 6. Docker Compose
 
 The included `docker-compose.yml` starts:
 
@@ -120,7 +198,7 @@ docker compose config
 
 Set real passwords and API keys through your shell environment or a local `.env` file before starting Compose.
 
-## 6. Legacy Generation Endpoint
+## 7. Legacy Generation Endpoint
 
 `/api/generate-image` is a legacy compatibility endpoint only. New image generation should use:
 
@@ -132,7 +210,7 @@ GET /api/tasks/by-node/:nodeId
 
 Keep `VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false` unless you are intentionally testing old behavior.
 
-## 7. Experimental Providers
+## 8. Experimental Providers
 
 Dataler, Pikachu, and Atlas are disabled by default:
 
@@ -189,7 +267,7 @@ ON CONFLICT DO NOTHING;
 
 `api_key_encrypted` is currently a passthrough placeholder in this branch. Do not store long-lived production keys there until proper encryption/KMS is wired in.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### APIMart 402 Payment Required / Insufficient balance
 

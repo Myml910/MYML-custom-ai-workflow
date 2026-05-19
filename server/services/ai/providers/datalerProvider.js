@@ -18,6 +18,10 @@ function parsePositiveInteger(value, fallback) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function getDatalerRuntimeConfig(config = {}) {
+    return config.dataler || config || {};
+}
+
 function hasNonAscii(value) {
     return /[^\x00-\x7F]/.test(String(value || ''));
 }
@@ -486,8 +490,9 @@ export function normalizeProviderError(error, context = {}) {
 
 export async function submitImageTask(input = {}, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey } = config.dataler;
-    const model = input.model || config.dataler.imageModel || DEFAULT_IMAGE_MODEL;
+    const datalerConfig = getDatalerRuntimeConfig(config);
+    const { baseUrl, apiKey } = datalerConfig;
+    const model = input.model || datalerConfig.imageModel || DEFAULT_IMAGE_MODEL;
 
     if (!baseUrl) {
         throw new AiProviderError({
@@ -499,9 +504,9 @@ export async function submitImageTask(input = {}, options = {}) {
     }
     assertAsciiSecret('DATALER_API_KEY', apiKey, model);
 
-    const timeoutMs = config.dataler.requestTimeoutMs;
-    const size = input.size || config.dataler.imageSize;
-    const resolution = input.resolution || config.dataler.imageResolution;
+    const timeoutMs = datalerConfig.requestTimeoutMs;
+    const size = input.size || datalerConfig.imageSize;
+    const resolution = input.resolution || datalerConfig.imageResolution;
     const imageUrls = await normalizeReferenceImages(input.imageUrls || input.image_urls || input.referenceImages, options.user, {
         model,
         timeoutMs
@@ -578,10 +583,11 @@ export async function submitImageTask(input = {}, options = {}) {
 
 export async function pollImageTask(providerTaskId, options = {}) {
     const config = options.config || getAiProviderConfig();
+    const datalerConfig = getDatalerRuntimeConfig(config);
     throw new AiProviderError({
         type: AI_ERROR_TYPES.PARAM_ERROR,
         provider: DATALER_PROVIDER,
-        model: options.model || config.dataler.imageModel || DEFAULT_IMAGE_MODEL,
+        model: options.model || datalerConfig.imageModel || DEFAULT_IMAGE_MODEL,
         message: `Dataler provider does not support polling provider task ${providerTaskId || ''}.`
     });
 }

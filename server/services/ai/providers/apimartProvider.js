@@ -36,6 +36,10 @@ function getRequestTimeoutMs(options = {}) {
     );
 }
 
+function getApimartRuntimeConfig(config = {}) {
+    return config.apimart || config || {};
+}
+
 function createRequestTimeoutError(context, timeoutMs, cause) {
     return new AiProviderError({
         type: AI_ERROR_TYPES.TIMEOUT,
@@ -372,7 +376,7 @@ export function resolveApimartImageModel(projectModelId, fallbackModel) {
 }
 
 function createImageGenerationRequestBody(input, config) {
-    const { imageModel, imageResolution, imageSize } = config.apimart;
+    const { imageModel, imageResolution, imageSize } = getApimartRuntimeConfig(config);
     const model = input.model || imageModel;
     const { maxReferenceImages } = getImageModelLimits(model);
     const imageUrls = normalizeInputArray(input.imageUrls || input.image_urls || [])
@@ -396,7 +400,7 @@ function createImageGenerationRequestBody(input, config) {
 
 export async function createTextResponse(input, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey, textModel } = config.apimart;
+    const { baseUrl, apiKey, textModel } = getApimartRuntimeConfig(config);
 
     if (!baseUrl || !apiKey) {
         throw new Error('APIMart text API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
@@ -436,7 +440,7 @@ export function extractResponseText(data) {
 
 export async function submitImageTask(input, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey } = config.apimart;
+    const { baseUrl, apiKey } = getApimartRuntimeConfig(config);
 
     if (!baseUrl || !apiKey) {
         throw new Error('APIMart image API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
@@ -519,7 +523,7 @@ export async function submitImageTask(input, options = {}) {
 
 export async function pollImageTask(providerTaskId, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { baseUrl, apiKey } = config.apimart;
+    const { baseUrl, apiKey } = getApimartRuntimeConfig(config);
 
     if (!baseUrl || !apiKey) {
         throw new Error('APIMart image API is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
@@ -577,7 +581,7 @@ export function normalizeProviderError(error, context = {}) {
 
 export async function generateImage(input, options = {}) {
     const config = options.config || getAiProviderConfig();
-    const { imagePollIntervalMs, imagePollTimeoutMs } = config.apimart;
+    const { imagePollIntervalMs, imagePollTimeoutMs } = getApimartRuntimeConfig(config);
     const submitResult = await submitImageTask(input, options);
     const model = submitResult.model;
 

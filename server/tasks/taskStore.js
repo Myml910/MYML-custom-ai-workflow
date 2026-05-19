@@ -8,6 +8,8 @@ const TASK_SELECT = `
         id,
         user_id,
         username,
+        team_id,
+        credential_id,
         workflow_id,
         node_id,
         task_type,
@@ -90,6 +92,24 @@ export async function markTaskRunning(taskId) {
     });
 }
 
+export async function updateTaskCredentialContext(taskId, credentialContext = {}) {
+    const db = getDb();
+    const result = await db.query(`
+        UPDATE generation_tasks
+        SET team_id = COALESCE($2, team_id),
+            credential_id = COALESCE($3, credential_id),
+            updated_at = now()
+        WHERE id = $1
+        RETURNING *
+    `, [
+        taskId,
+        credentialContext.teamId || null,
+        credentialContext.credentialId || null
+    ]);
+
+    return serializeTask(result.rows[0]);
+}
+
 export async function markTaskPolling(taskId, providerTaskId, payload = null) {
     return updateTaskWithEvent({
         taskId,
@@ -166,7 +186,11 @@ export async function markTaskCompleted(taskId, resultUrl, output = null) {
         eventType: 'task_completed',
         message: 'Image generation task completed',
         payload: {
-            resultUrl
+            resultUrl,
+            credentialId: output?.credentialId || null,
+            credentialSource: output?.credentialSource || null,
+            teamId: output?.teamId || null,
+            apiKeyLast4: output?.apiKeyLast4 || null
         }
     });
 }
