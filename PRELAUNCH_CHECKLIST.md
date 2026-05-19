@@ -198,6 +198,11 @@ Team provider credential isolation:
 - group2 without active `atlas` credential -> task should fail with `CREDENTIAL_REQUIRED` and must not use group1 key or `.env ATLAS_API_KEY`.
 - After inserting group2's own active `atlas` credential -> group2 Atlas task should succeed.
 - Check `task_events` and `provider_usage_logs`: `credentialSource` should not be `env` when strict isolation is enabled.
+- Atlas Nano Banana 2 is optional experimental and hidden unless both `ENABLE_ATLAS_PROVIDER=true` and `ENABLE_ATLAS_NANO_BANANA_2=true`.
+- Atlas Nano Banana 2 uses the same `provider = atlas` team credential; no separate Nano Banana key is needed.
+- With `ENABLE_ATLAS_PROVIDER=true`, ordinary Image nodes should show Atlas text-to-image models only, and Image Editor should show Atlas edit/image-to-image models only.
+- Optional only: smoke test `Atlas Nano Banana 2 Text-to-Image` on an Image node and `Atlas Nano Banana 2 Edit` in Image Editor when the Atlas account/route is confirmed. This is not a launch Go/No-Go requirement.
+- For encrypted provider credentials, configure `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` before storing long-lived team keys.
 
 ## 8. 失败排查速查
 

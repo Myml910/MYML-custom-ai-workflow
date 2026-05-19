@@ -10,6 +10,15 @@ function isExperimentalProviderEnabled(provider) {
     return true;
 }
 
+function isAtlasNanoBanana2Enabled() {
+    return isEnabledFlag(process.env.ENABLE_ATLAS_NANO_BANANA_2);
+}
+
+function envString(name, fallback) {
+    const value = process.env[name];
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
 export const IMAGE_MODEL_REGISTRY = Object.freeze({
     'custom-image-gpt-image-2': {
         projectModelId: 'custom-image-gpt-image-2',
@@ -133,6 +142,58 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
             }
         ],
         defaultResolution: 'medium'
+    },
+    'custom-image-atlas-nano-banana-2-text': {
+        projectModelId: 'custom-image-atlas-nano-banana-2-text',
+        displayName: 'Atlas Nano Banana 2 Text-to-Image',
+        description: 'Experimental Atlas Cloud Nano Banana 2 text-to-image endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        resolutions: ['1k', '2k', '4k'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'],
+        providers: [
+            {
+                provider: 'atlas',
+                upstreamModel: envString('ATLAS_NANO_BANANA_2_TEXT_MODEL', 'google/nano-banana-2/text-to-image'),
+                priority: 1,
+                isAsync: true,
+                experimental: true,
+                enabled: isExperimentalProviderEnabled('atlas') && isAtlasNanoBanana2Enabled()
+            }
+        ],
+        defaultResolution: '2k'
+    },
+    'custom-image-atlas-nano-banana-2-edit': {
+        projectModelId: 'custom-image-atlas-nano-banana-2-edit',
+        displayName: 'Atlas Nano Banana 2 Edit',
+        description: 'Experimental Atlas Cloud Nano Banana 2 image edit endpoint.',
+        capability: 'image-generation',
+        capabilities: ['image-to-image', 'multi-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: false,
+        supportsImageToImage: true,
+        supportsMultiImage: true,
+        enabled: true,
+        experimental: true,
+        resolutions: ['1k', '2k', '4k'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'],
+        providers: [
+            {
+                provider: 'atlas',
+                upstreamModel: envString('ATLAS_NANO_BANANA_2_EDIT_MODEL', 'google/nano-banana-2/edit'),
+                priority: 1,
+                isAsync: true,
+                experimental: true,
+                enabled: isExperimentalProviderEnabled('atlas') && isAtlasNanoBanana2Enabled()
+            }
+        ],
+        defaultResolution: '2k'
     }
 });
 
