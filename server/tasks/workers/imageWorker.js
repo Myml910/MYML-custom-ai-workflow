@@ -1,5 +1,7 @@
 import { getAiProviderConfig, isApimartImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
+import { resolveProviderRuntimeConfig } from '../../services/ai/credentialResolver.js';
+import { recordProviderUsageLog } from '../../db/providerCredentials.js';
 import { getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
 import {
     normalizeImageResult,
@@ -26,6 +28,7 @@ import {
     markTaskPolling,
     recordProviderPollError,
     recordProviderPolling,
+    updateTaskCredentialContext,
     updateTaskProgress
 } from '../taskStore.js';
 import { saveGeneratedImage } from '../../utils/saveGeneratedImage.js';
@@ -105,6 +108,69 @@ function getTaskUser(task) {
     };
 }
 
+function withCredentialPayload(payload = {}, credentialContext = null) {
+    return {
+        ...payload,
+        credentialId: credentialContext?.credentialId || null,
+        credentialSource: credentialContext?.source || 'env',
+        teamId: credentialContext?.teamId || null,
+        apiKeyLast4: credentialContext?.apiKeyLast4 || null
+    };
+}
+
+async function resolveTaskRuntimeConfig(task, providerConfig, baseConfig) {
+    const { config: providerRuntimeConfig, credentialContext } = await resolveProviderRuntimeConfig({
+        userId: task.userId,
+        provider: providerConfig.provider,
+        baseConfig: baseConfig?.[providerConfig.provider] || {},
+        credentialId: task.credentialId || null
+    });
+
+    if (credentialContext?.credentialId || credentialContext?.teamId) {
+        try {
+            await updateTaskCredentialContext(task.taskId, credentialContext);
+            task.credentialId = credentialContext.credentialId || task.credentialId || null;
+            task.teamId = credentialContext.teamId || task.teamId || null;
+        } catch (error) {
+            console.warn('[ImageWorker] Failed to persist task credential context:', {
+                taskId: task.taskId,
+                credentialId: credentialContext.credentialId,
+                teamId: credentialContext.teamId,
+                error: error?.message || error
+            });
+        }
+    }
+
+    return {
+        config: {
+            ...baseConfig,
+            [providerConfig.provider]: providerRuntimeConfig
+        },
+        credentialContext
+    };
+}
+
+async function recordTaskProviderUsage(task, details = {}, status, error = {}) {
+    await recordProviderUsageLog({
+        taskId: task.taskId,
+        userId: task.userId,
+        teamId: details.credentialContext?.teamId || task.teamId || null,
+        credentialId: details.credentialContext?.credentialId || task.credentialId || null,
+        provider: details.provider || task.provider,
+        upstreamModel: details.model || null,
+        providerTaskId: details.providerTaskId || task.providerTaskId || null,
+        requestId: details.requestId || null,
+        status,
+        errorType: error.errorType || null,
+        errorMessage: error.errorMessage || null,
+        imageCount: details.imageCount || null,
+        durationMs: details.durationMs || null,
+        providerCost: details.providerCost || null,
+        currency: details.currency || 'USD',
+        rawUsage: details.usage || null
+    });
+}
+
 async function completeImageTaskWithResult(task, imageResult, details) {
     const providerResultUrl = getFirstImageResultUrl(imageResult.images);
     if (!providerResultUrl) {
@@ -121,6 +187,10 @@ async function completeImageTaskWithResult(task, imageResult, details) {
         progress: details.progress,
         providerTaskId,
         providerRemoteUrl,
+        credentialId: details.credentialContext?.credentialId || null,
+        credentialSource: details.credentialContext?.source || 'env',
+        teamId: details.credentialContext?.teamId || null,
+        apiKeyLast4: details.credentialContext?.apiKeyLast4 || null,
         usage: details.usage || undefined,
         raw: details.raw ? sanitizeRawForOutput(details.raw) : undefined
     };
@@ -140,11 +210,16 @@ async function completeImageTaskWithResult(task, imageResult, details) {
             remoteUrl: providerRemoteUrl || undefined
         });
 
-        return await markTaskCompleted(task.taskId, saved.resultUrl, {
+        const completed = await markTaskCompleted(task.taskId, saved.resultUrl, {
             ...output,
             localResultUrl: saved.resultUrl,
             localFilename: saved.filename
         });
+        await recordTaskProviderUsage(task, {
+            ...details,
+            imageCount: imageResult.images?.length || 1
+        }, 'completed');
+        return completed;
     } catch (error) {
         await addTaskEvent(
             task.taskId,
@@ -156,10 +231,15 @@ async function completeImageTaskWithResult(task, imageResult, details) {
             }
         );
 
-        return await markTaskCompleted(task.taskId, providerResultUrl, {
+        const completed = await markTaskCompleted(task.taskId, providerResultUrl, {
             ...output,
             localSaveError: error?.message || 'Local save failed'
         });
+        await recordTaskProviderUsage(task, {
+            ...details,
+            imageCount: imageResult.images?.length || 1
+        }, 'completed');
+        return completed;
     }
 }
 
@@ -340,12 +420,16 @@ export async function executeImageTask(task, options = {}) {
     }
 
     let providerConfig = null;
+    let credentialContext = null;
     const stopHeartbeat = startTaskHeartbeat(task, options, 'submit');
 
     try {
-        const config = options.config || getAiProviderConfig();
+        const baseConfig = options.config || getAiProviderConfig();
         const resolved = getTaskProviderConfig(task);
         providerConfig = resolved.providerConfig;
+        const runtime = await resolveTaskRuntimeConfig(task, providerConfig, baseConfig);
+        const config = runtime.config;
+        credentialContext = runtime.credentialContext;
 
         if (providerConfig.provider === 'apimart' && !isApimartImageConfigured(config)) {
             throw new Error('APIMart image provider is not configured. Add APIMART_BASE_URL and APIMART_API_KEY to .env.');
@@ -376,7 +460,8 @@ export async function executeImageTask(task, options = {}) {
                 progress: submitResult.progress ?? 100,
                 providerTaskId: submitResult.taskId || null,
                 usage: submitResult.usage || null,
-                raw: submitResult.raw || null
+                raw: submitResult.raw || null,
+                credentialContext
             });
         }
 
@@ -399,7 +484,8 @@ export async function executeImageTask(task, options = {}) {
                 progress: submitResult.progress ?? 100,
                 providerTaskId: submitResult.taskId || null,
                 usage: submitResult.usage || null,
-                raw: submitResult.raw || null
+                raw: submitResult.raw || null,
+                credentialContext
             });
         }
 
@@ -416,7 +502,8 @@ export async function executeImageTask(task, options = {}) {
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,
                 progress: submitResult.progress ?? 100,
-                providerTaskId: submitResult.taskId || null
+                providerTaskId: submitResult.taskId || null,
+                credentialContext
             });
         }
 
@@ -428,7 +515,7 @@ export async function executeImageTask(task, options = {}) {
             throw new Error(submitResult.error || 'APIMart image task submit failed.');
         }
 
-        return await markTaskPolling(task.taskId, submitResult.taskId, {
+        return await markTaskPolling(task.taskId, submitResult.taskId, withCredentialPayload({
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
             provider: submitResult.provider,
@@ -436,15 +523,24 @@ export async function executeImageTask(task, options = {}) {
             rawStatus: submitResult.rawStatus || submitResult.status,
             progress: submitResult.progress ?? null,
             request: submitResult.request || null
-        });
+        }, credentialContext));
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
-        return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
+        const failed = await markTaskFailed(task.taskId, normalized.type, normalized.message, withCredentialPayload({
             phase: 'submit',
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
             provider: providerConfig?.provider || task.provider
+        }, credentialContext));
+        await recordTaskProviderUsage(task, {
+            provider: providerConfig?.provider || task.provider,
+            model: providerConfig?.upstreamModel || null,
+            credentialContext
+        }, 'failed', {
+            errorType: normalized.type,
+            errorMessage: normalized.message
         });
+        return failed;
     } finally {
         stopHeartbeat();
     }
@@ -452,6 +548,7 @@ export async function executeImageTask(task, options = {}) {
 
 export async function pollImageTaskStatus(task, options = {}) {
     let providerConfig = null;
+    let credentialContext = null;
     const stopHeartbeat = startTaskHeartbeat(task, options, 'poll');
 
     try {
@@ -459,9 +556,12 @@ export async function pollImageTaskStatus(task, options = {}) {
             throw new Error('Polling task is missing provider_task_id.');
         }
 
-        const config = options.config || getAiProviderConfig();
+        const baseConfig = options.config || getAiProviderConfig();
         const resolved = getTaskProviderConfig(task);
         providerConfig = resolved.providerConfig;
+        const runtime = await resolveTaskRuntimeConfig(task, providerConfig, baseConfig);
+        const config = runtime.config;
+        credentialContext = runtime.credentialContext;
 
         if (providerConfig.provider !== 'apimart') {
             throw new Error(`Provider ${providerConfig.provider} does not support polling.`);
@@ -472,7 +572,7 @@ export async function pollImageTaskStatus(task, options = {}) {
             model: providerConfig.upstreamModel
         });
 
-        await recordProviderPolling(task.taskId, {
+        await recordProviderPolling(task.taskId, withCredentialPayload({
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
             providerTaskId: task.providerTaskId,
@@ -480,7 +580,7 @@ export async function pollImageTaskStatus(task, options = {}) {
             model: providerConfig.upstreamModel,
             providerStatus: pollResult.rawStatus || pollResult.status,
             progress: pollResult.progress ?? null
-        });
+        }, credentialContext));
 
         if (pollResult.status === 'completed') {
             const normalizedResult = normalizeImageResult(pollResult.raw);
@@ -489,7 +589,8 @@ export async function pollImageTaskStatus(task, options = {}) {
                 model: providerConfig.upstreamModel,
                 rawStatus: pollResult.rawStatus || pollResult.status,
                 progress: pollResult.progress ?? 100,
-                providerTaskId: task.providerTaskId || pollResult.taskId || null
+                providerTaskId: task.providerTaskId || pollResult.taskId || null,
+                credentialContext
             });
         }
 
@@ -498,42 +599,62 @@ export async function pollImageTaskStatus(task, options = {}) {
                 new Error(pollResult.error || 'APIMart image task failed.'),
                 providerConfig
             );
-            return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
+            const failed = await markTaskFailed(task.taskId, normalized.type, normalized.message, withCredentialPayload({
                 phase: 'poll',
                 workerId: options.workerId || null,
                 attemptCount: task.attemptCount,
                 providerTaskId: task.providerTaskId || null,
                 providerStatus: pollResult.rawStatus || pollResult.status
+            }, credentialContext));
+            await recordTaskProviderUsage(task, {
+                provider: pollResult.provider,
+                model: providerConfig.upstreamModel,
+                providerTaskId: task.providerTaskId || pollResult.taskId || null,
+                credentialContext
+            }, 'failed', {
+                errorType: normalized.type,
+                errorMessage: normalized.message
             });
+            return failed;
         }
 
-        return await updateTaskProgress(task.taskId, pollResult.progress, {
+        return await updateTaskProgress(task.taskId, pollResult.progress, withCredentialPayload({
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
             provider: pollResult.provider,
             model: providerConfig.upstreamModel,
             rawStatus: pollResult.rawStatus || pollResult.status,
             progress: pollResult.progress ?? null
-        });
+        }, credentialContext));
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
         if (task.providerTaskId && isRecoverablePollError(normalized)) {
-            await recordProviderPollError(task.taskId, {
+            await recordProviderPollError(task.taskId, withCredentialPayload({
                 workerId: options.workerId || null,
                 attemptCount: task.attemptCount,
                 providerTaskId: task.providerTaskId,
                 errorType: normalized.type,
                 errorMessage: normalized.message
-            });
+            }, credentialContext));
             return task;
         }
 
-        return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
+        const failed = await markTaskFailed(task.taskId, normalized.type, normalized.message, withCredentialPayload({
             phase: 'poll',
             workerId: options.workerId || null,
             attemptCount: task.attemptCount,
             providerTaskId: task.providerTaskId || null
+        }, credentialContext));
+        await recordTaskProviderUsage(task, {
+            provider: providerConfig?.provider || task.provider,
+            model: providerConfig?.upstreamModel || null,
+            providerTaskId: task.providerTaskId || null,
+            credentialContext
+        }, 'failed', {
+            errorType: normalized.type,
+            errorMessage: normalized.message
         });
+        return failed;
     } finally {
         stopHeartbeat();
     }
