@@ -20,6 +20,7 @@ import {
 } from '../../services/ai/providers/pikachuProvider.js';
 import {
     addTaskEvent,
+    heartbeatTask,
     markTaskCompleted,
     markTaskFailed,
     markTaskPolling,
@@ -35,6 +36,47 @@ const RECOVERABLE_POLL_ERROR_TYPES = new Set([
     AI_ERROR_TYPES.RATE_LIMIT,
     AI_ERROR_TYPES.NO_CHANNEL
 ]);
+
+const DEFAULT_TASK_LEASE_MS = 120000;
+const DEFAULT_TASK_HEARTBEAT_MS = 30000;
+
+function startTaskHeartbeat(task, options = {}, phase = 'worker') {
+    const workerId = options.workerId;
+    if (!workerId) {
+        return () => {};
+    }
+
+    const leaseMs = Math.max(1000, Number(options.leaseMs) || DEFAULT_TASK_LEASE_MS);
+    const heartbeatMs = Math.max(1000, Number(options.heartbeatMs) || DEFAULT_TASK_HEARTBEAT_MS);
+    let stopped = false;
+
+    const beat = async () => {
+        if (stopped) return;
+        try {
+            await heartbeatTask(task.taskId, workerId, leaseMs, {
+                phase,
+                provider: task.provider
+            });
+        } catch (error) {
+            console.warn('[ImageWorker] Failed to write task heartbeat:', {
+                taskId: task.taskId,
+                workerId,
+                error: error?.message || error
+            });
+        }
+    };
+
+    const timer = setInterval(() => {
+        void beat();
+    }, heartbeatMs);
+
+    void beat();
+
+    return () => {
+        stopped = true;
+        clearInterval(timer);
+    };
+}
 
 function normalizeInputArray(input) {
     if (!input) return [];
@@ -267,7 +309,38 @@ function isRecoverablePollError(normalizedError) {
 }
 
 export async function executeImageTask(task, options = {}) {
+    if (task.providerTaskId || task.provider_task_id) {
+        try {
+            await addTaskEvent(
+                task.taskId,
+                'task_resume_polling',
+                'Task already has provider task id; skipping provider submit',
+                {
+                    workerId: options.workerId || null,
+                    attemptCount: task.attemptCount,
+                    provider: task.provider,
+                    providerTaskId: task.providerTaskId || task.provider_task_id
+                }
+            );
+        } catch (error) {
+            console.warn('[ImageWorker] Failed to write task_resume_polling event:', {
+                taskId: task.taskId,
+                error: error?.message || error
+            });
+        }
+
+        return await pollImageTaskStatus(
+            {
+                ...task,
+                providerTaskId: task.providerTaskId || task.provider_task_id,
+                status: 'polling'
+            },
+            options
+        );
+    }
+
     let providerConfig = null;
+    const stopHeartbeat = startTaskHeartbeat(task, options, 'submit');
 
     try {
         const config = options.config || getAiProviderConfig();
@@ -356,6 +429,8 @@ export async function executeImageTask(task, options = {}) {
         }
 
         return await markTaskPolling(task.taskId, submitResult.taskId, {
+            workerId: options.workerId || null,
+            attemptCount: task.attemptCount,
             provider: submitResult.provider,
             model: submitResult.model,
             rawStatus: submitResult.rawStatus || submitResult.status,
@@ -365,13 +440,19 @@ export async function executeImageTask(task, options = {}) {
     } catch (error) {
         const normalized = normalizeWorkerError(error, providerConfig);
         return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
-            phase: 'submit'
+            phase: 'submit',
+            workerId: options.workerId || null,
+            attemptCount: task.attemptCount,
+            provider: providerConfig?.provider || task.provider
         });
+    } finally {
+        stopHeartbeat();
     }
 }
 
 export async function pollImageTaskStatus(task, options = {}) {
     let providerConfig = null;
+    const stopHeartbeat = startTaskHeartbeat(task, options, 'poll');
 
     try {
         if (!task.providerTaskId) {
@@ -392,6 +473,8 @@ export async function pollImageTaskStatus(task, options = {}) {
         });
 
         await recordProviderPolling(task.taskId, {
+            workerId: options.workerId || null,
+            attemptCount: task.attemptCount,
             providerTaskId: task.providerTaskId,
             provider: pollResult.provider,
             model: providerConfig.upstreamModel,
@@ -417,12 +500,16 @@ export async function pollImageTaskStatus(task, options = {}) {
             );
             return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
                 phase: 'poll',
+                workerId: options.workerId || null,
+                attemptCount: task.attemptCount,
                 providerTaskId: task.providerTaskId || null,
                 providerStatus: pollResult.rawStatus || pollResult.status
             });
         }
 
         return await updateTaskProgress(task.taskId, pollResult.progress, {
+            workerId: options.workerId || null,
+            attemptCount: task.attemptCount,
             provider: pollResult.provider,
             model: providerConfig.upstreamModel,
             rawStatus: pollResult.rawStatus || pollResult.status,
@@ -432,6 +519,8 @@ export async function pollImageTaskStatus(task, options = {}) {
         const normalized = normalizeWorkerError(error, providerConfig);
         if (task.providerTaskId && isRecoverablePollError(normalized)) {
             await recordProviderPollError(task.taskId, {
+                workerId: options.workerId || null,
+                attemptCount: task.attemptCount,
                 providerTaskId: task.providerTaskId,
                 errorType: normalized.type,
                 errorMessage: normalized.message
@@ -441,7 +530,11 @@ export async function pollImageTaskStatus(task, options = {}) {
 
         return await markTaskFailed(task.taskId, normalized.type, normalized.message, {
             phase: 'poll',
+            workerId: options.workerId || null,
+            attemptCount: task.attemptCount,
             providerTaskId: task.providerTaskId || null
         });
+    } finally {
+        stopHeartbeat();
     }
 }

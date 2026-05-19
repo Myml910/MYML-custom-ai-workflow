@@ -25,6 +25,13 @@ const TASK_SELECT = `
         completed_at,
         failed_at,
         duration_ms,
+        locked_by,
+        locked_at,
+        lease_expires_at,
+        heartbeat_at,
+        attempt_count,
+        max_attempts,
+        last_error,
         created_at,
         updated_at
     FROM generation_tasks
@@ -64,6 +71,13 @@ export function serializeTask(row) {
         completedAt: row.completed_at,
         failedAt: row.failed_at,
         durationMs: row.duration_ms,
+        lockedBy: row.locked_by,
+        lockedAt: row.locked_at,
+        leaseExpiresAt: row.lease_expires_at,
+        heartbeatAt: row.heartbeat_at,
+        attemptCount: row.attempt_count,
+        maxAttempts: row.max_attempts,
+        lastError: row.last_error,
         createdAt: row.created_at,
         updatedAt: row.updated_at
     };
