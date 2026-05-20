@@ -360,6 +360,7 @@ async function completeImageTaskWithResult(task, imageResult, details) {
                 provider: details.provider,
                 model: details.model,
                 providerTaskId,
+                workerId: details.workerId || null,
                 localResultUrl: saved.resultUrl,
                 localFilename: saved.filename,
                 localFileSize: saved.fileSize,
@@ -375,7 +376,12 @@ async function completeImageTaskWithResult(task, imageResult, details) {
             localFilename: saved.filename,
             localFileSize: saved.fileSize,
             localSaveAttempts: saved.localSaveAttempts || 1
+        }, {
+            workerId: details.workerId || null
         });
+        if (!completed) {
+            return null;
+        }
         await recordTaskProviderUsage(task, {
             ...details,
             imageCount: imageResult.images?.length || 1
@@ -404,6 +410,7 @@ async function completeImageTaskWithResult(task, imageResult, details) {
                 provider: details.provider,
                 model: details.model,
                 providerTaskId,
+                workerId: details.workerId || null,
                 hasProviderRemoteUrl: Boolean(providerRemoteUrl),
                 providerRemoteUrlPreview: previewUrl(providerRemoteUrl)
             }
@@ -411,6 +418,7 @@ async function completeImageTaskWithResult(task, imageResult, details) {
 
         const failed = await markTaskFailed(task.taskId, AI_ERROR_TYPES.RESULT_DOWNLOAD_FAILED, errorMessage, {
             errorMessage,
+            workerId: details.workerId || null,
             localSaveError: error?.message || 'Local save failed',
             localSaveAttempts,
             hasProviderRemoteUrl: Boolean(providerRemoteUrl),
@@ -424,6 +432,9 @@ async function completeImageTaskWithResult(task, imageResult, details) {
             apiKeyLast4: details.credentialContext?.apiKeyLast4 || null,
             taskOutput: failedOutput
         });
+        if (!failed) {
+            return null;
+        }
         await recordTaskProviderUsage(task, {
             ...details,
             imageCount: imageResult.images?.length || 1
@@ -759,6 +770,7 @@ export async function executeImageTask(task, options = {}) {
                 providerTaskId: submitResult.taskId || null,
                 usage: submitResult.usage || null,
                 raw: submitResult.raw || null,
+                workerId: options.workerId || null,
                 credentialContext
             });
         }
@@ -783,6 +795,7 @@ export async function executeImageTask(task, options = {}) {
                 providerTaskId: submitResult.taskId || null,
                 usage: submitResult.usage || null,
                 raw: submitResult.raw || null,
+                workerId: options.workerId || null,
                 credentialContext
             });
         }
@@ -804,6 +817,7 @@ export async function executeImageTask(task, options = {}) {
                     providerTaskId: submitResult.taskId || null,
                     usage: submitResult.usage || null,
                     raw: submitResult.raw || null,
+                    workerId: options.workerId || null,
                     credentialContext
                 });
             }
@@ -841,6 +855,7 @@ export async function executeImageTask(task, options = {}) {
                 rawStatus: submitResult.rawStatus || submitResult.status,
                 progress: submitResult.progress ?? 100,
                 providerTaskId: submitResult.taskId || null,
+                workerId: options.workerId || null,
                 credentialContext
             });
         }
@@ -874,6 +889,9 @@ export async function executeImageTask(task, options = {}) {
             userId: task.userId || null,
             username: task.username || null
         }, failureCredentialContext));
+        if (!failed) {
+            return null;
+        }
         await recordTaskProviderUsage(task, {
             provider: providerConfig?.provider || task.provider,
             model: providerConfig?.upstreamModel || null,
@@ -939,6 +957,7 @@ export async function pollImageTaskStatus(task, options = {}) {
                 rawStatus: pollResult.rawStatus || pollResult.status,
                 progress: pollResult.progress ?? 100,
                 providerTaskId: task.providerTaskId || pollResult.taskId || null,
+                workerId: options.workerId || null,
                 credentialContext
             });
         }
@@ -955,6 +974,9 @@ export async function pollImageTaskStatus(task, options = {}) {
                 providerTaskId: task.providerTaskId || null,
                 providerStatus: pollResult.rawStatus || pollResult.status
             }, credentialContext));
+            if (!failed) {
+                return null;
+            }
             await recordTaskProviderUsage(task, {
                 provider: pollResult.provider,
                 model: providerConfig.upstreamModel,
@@ -999,6 +1021,9 @@ export async function pollImageTaskStatus(task, options = {}) {
             userId: task.userId || null,
             username: task.username || null
         }, failureCredentialContext));
+        if (!failed) {
+            return null;
+        }
         await recordTaskProviderUsage(task, {
             provider: providerConfig?.provider || task.provider,
             model: providerConfig?.upstreamModel || null,

@@ -39,6 +39,33 @@ const TASK_SELECT = `
     FROM generation_tasks
 `;
 
+const DEFAULT_IMAGE_TASK_MAX_ATTEMPTS = 2;
+const MAX_IMAGE_TASK_MAX_ATTEMPTS = 100;
+
+function parsePositiveInteger(value) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseNonNegativeInteger(value) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+export function getImageTaskMaxAttempts(env = process.env) {
+    const explicitAttempts = parsePositiveInteger(env.IMAGE_TASK_MAX_ATTEMPTS);
+    if (explicitAttempts !== null) {
+        return Math.min(explicitAttempts, MAX_IMAGE_TASK_MAX_ATTEMPTS);
+    }
+
+    const retries = parseNonNegativeInteger(env.IMAGE_TASK_MAX_RETRIES);
+    if (retries !== null) {
+        return Math.min(retries + 1, MAX_IMAGE_TASK_MAX_ATTEMPTS);
+    }
+
+    return DEFAULT_IMAGE_TASK_MAX_ATTEMPTS;
+}
+
 function requireUserContext(userContext) {
     if (!userContext?.id) {
         throw new Error('Authenticated user context is required');
@@ -113,6 +140,7 @@ export async function createTask(input) {
     const eventId = crypto.randomUUID();
     const status = 'queued';
     const progress = 0;
+    const maxAttempts = getImageTaskMaxAttempts();
 
     const taskInput = {
         nodeId: input.nodeId,
@@ -140,9 +168,10 @@ export async function createTask(input) {
                 status,
                 prompt,
                 input,
-                progress
+                progress,
+                max_attempts
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
         `, [
             taskId,
@@ -156,7 +185,8 @@ export async function createTask(input) {
             status,
             input.prompt,
             taskInput,
-            progress
+            progress,
+            maxAttempts
         ]);
 
         await client.query(`
@@ -171,7 +201,8 @@ export async function createTask(input) {
                 nodeId: input.nodeId,
                 workflowId: input.workflowId || null,
                 model: input.imageModel,
-                provider: input.provider || 'apimart'
+                provider: input.provider || 'apimart',
+                maxAttempts
             }
         ]);
 

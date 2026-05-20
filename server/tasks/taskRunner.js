@@ -7,6 +7,7 @@ import {
 } from './taskStore.js';
 import { getImageTaskConcurrencyOptions } from './taskQueue.js';
 import { executeImageTask, pollImageTaskStatus } from './workers/imageWorker.js';
+import { getImageTaskMaxAttempts } from '../db/tasks.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 5000;
 const DEFAULT_TASK_TIMEOUT_MS = 600000;
@@ -25,6 +26,11 @@ function parsePositiveInteger(value, fallback) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function parseNonNegativeInteger(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 export function getImageTaskRunnerConfig(env = process.env) {
     if (!defaultWorkerId) {
         defaultWorkerId = env.TASK_WORKER_ID || `worker-${process.pid}-${Date.now()}`;
@@ -34,7 +40,8 @@ export function getImageTaskRunnerConfig(env = process.env) {
         workerId: env.TASK_WORKER_ID || defaultWorkerId,
         pollIntervalMs: parsePositiveInteger(env.IMAGE_TASK_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS),
         taskTimeoutMs: parsePositiveInteger(env.IMAGE_TASK_TIMEOUT_MS, DEFAULT_TASK_TIMEOUT_MS),
-        maxRetries: parsePositiveInteger(env.IMAGE_TASK_MAX_RETRIES, DEFAULT_MAX_RETRIES),
+        maxRetries: parseNonNegativeInteger(env.IMAGE_TASK_MAX_RETRIES, DEFAULT_MAX_RETRIES),
+        maxAttempts: getImageTaskMaxAttempts(env),
         workerConcurrency: parsePositiveInteger(env.TASK_WORKER_CONCURRENCY, DEFAULT_TASK_WORKER_CONCURRENCY),
         leaseMs: parsePositiveInteger(env.TASK_LEASE_MS, DEFAULT_TASK_LEASE_MS),
         heartbeatMs: parsePositiveInteger(env.TASK_HEARTBEAT_MS, DEFAULT_TASK_HEARTBEAT_MS),
@@ -169,6 +176,7 @@ export async function startTaskRunner() {
         pollIntervalMs: config.pollIntervalMs,
         taskTimeoutMs: config.taskTimeoutMs,
         maxRetries: config.maxRetries,
+        maxAttempts: config.maxAttempts,
         workerConcurrency: config.workerConcurrency,
         leaseMs: config.leaseMs,
         heartbeatMs: config.heartbeatMs,

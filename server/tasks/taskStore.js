@@ -45,7 +45,76 @@ function jsonOrNull(value) {
     return value === undefined ? null : value;
 }
 
-async function updateTaskWithEvent({ taskId, updateSql, updateParams, eventType, message, payload }) {
+function getPayloadWorkerId(payload) {
+    return payload && typeof payload === 'object' && typeof payload.workerId === 'string'
+        ? payload.workerId
+        : null;
+}
+
+function buildStateUpdateSkippedPayload(taskId, details = {}, current = null) {
+    return {
+        taskId,
+        wantedTransition: details.wantedTransition || null,
+        workerId: details.workerId || null,
+        reason: details.reason || 'state_or_worker_guard_mismatch',
+        expectedStatuses: details.expectedStatuses || null,
+        currentStatus: current?.status || null,
+        currentWorkerId: current?.locked_by || null,
+        currentLeaseExpiresAt: current?.lease_expires_at || null,
+        currentAttemptCount: current?.attempt_count ?? null,
+        currentMaxAttempts: current?.max_attempts ?? null,
+        providerTaskId: current?.provider_task_id || null,
+        ...(details.extra && typeof details.extra === 'object' ? details.extra : {})
+    };
+}
+
+async function insertTaskStateUpdateSkippedEvent(client, taskId, details = {}) {
+    const current = await client.query(`
+        SELECT status,
+               locked_by,
+               lease_expires_at,
+               attempt_count,
+               max_attempts,
+               provider_task_id
+        FROM generation_tasks
+        WHERE id = $1
+        LIMIT 1
+    `, [taskId]);
+
+    if (!current.rows[0]) {
+        return;
+    }
+
+    await client.query(`
+        INSERT INTO task_events (id, task_id, event_type, message, payload)
+        VALUES ($1, $2, $3, $4, $5)
+    `, [
+        crypto.randomUUID(),
+        taskId,
+        'task_state_update_skipped',
+        'Task state update skipped by guard',
+        buildStateUpdateSkippedPayload(taskId, details, current.rows[0])
+    ]);
+}
+
+async function addTaskStateUpdateSkippedBestEffort(taskId, details = {}) {
+    const db = getDb();
+    const client = await db.connect();
+
+    try {
+        await insertTaskStateUpdateSkippedEvent(client, taskId, details);
+    } catch (error) {
+        console.warn('[TaskStore] Failed to write skipped task state event:', {
+            taskId,
+            wantedTransition: details.wantedTransition || null,
+            error: error?.message || error
+        });
+    } finally {
+        client.release();
+    }
+}
+
+async function updateTaskWithEvent({ taskId, updateSql, updateParams, eventType, message, payload, skipPayload }) {
     const db = getDb();
     const client = await db.connect();
 
@@ -58,6 +127,8 @@ async function updateTaskWithEvent({ taskId, updateSql, updateParams, eventType,
                 INSERT INTO task_events (id, task_id, event_type, message, payload)
                 VALUES ($1, $2, $3, $4, $5)
             `, [crypto.randomUUID(), taskId, eventType, message, jsonOrNull(payload)]);
+        } else if (skipPayload) {
+            await insertTaskStateUpdateSkippedEvent(client, taskId, skipPayload);
         }
 
         await client.query('COMMIT');
@@ -111,6 +182,7 @@ export async function updateTaskCredentialContext(taskId, credentialContext = {}
 }
 
 export async function markTaskPolling(taskId, providerTaskId, payload = null) {
+    const workerId = getPayloadWorkerId(payload);
     return updateTaskWithEvent({
         taskId,
         updateSql: `
@@ -121,12 +193,22 @@ export async function markTaskPolling(taskId, providerTaskId, payload = null) {
                 heartbeat_at = now(),
                 updated_at = now()
             WHERE id = $1
+              AND status = 'running'
+              AND (locked_by IS NULL OR locked_by = $3)
+              AND (lease_expires_at IS NULL OR lease_expires_at >= now())
             RETURNING *
         `,
-        updateParams: [taskId, providerTaskId],
+        updateParams: [taskId, providerTaskId, workerId],
         eventType: 'provider_submitted',
         message: 'Image generation task submitted to provider',
-        payload
+        payload,
+        skipPayload: {
+            wantedTransition: 'running->polling',
+            workerId,
+            reason: 'Task was not running under the current worker lease',
+            expectedStatuses: ['running'],
+            extra: { providerTaskId }
+        }
     });
 }
 
@@ -134,6 +216,7 @@ export async function updateTaskProgress(taskId, progress, payload = null) {
     const normalizedProgress = Number.isFinite(Number(progress))
         ? Math.max(0, Math.min(100, Math.round(Number(progress))))
         : null;
+    const workerId = getPayloadWorkerId(payload);
 
     return updateTaskWithEvent({
         taskId,
@@ -142,12 +225,22 @@ export async function updateTaskProgress(taskId, progress, payload = null) {
             SET progress = COALESCE($2, progress),
                 updated_at = now()
             WHERE id = $1
+              AND status = 'polling'
+              AND (locked_by IS NULL OR locked_by = $3)
+              AND (lease_expires_at IS NULL OR lease_expires_at >= now())
             RETURNING *
         `,
-        updateParams: [taskId, normalizedProgress],
+        updateParams: [taskId, normalizedProgress, workerId],
         eventType: 'task_progress',
         message: 'Image generation task progress updated',
-        payload
+        payload,
+        skipPayload: {
+            wantedTransition: 'polling->polling',
+            workerId,
+            reason: 'Task was not polling under the current worker lease',
+            expectedStatuses: ['polling'],
+            extra: { progress: normalizedProgress }
+        }
     });
 }
 
@@ -159,7 +252,8 @@ export async function recordProviderPollError(taskId, payload = null) {
     return addDbTaskEvent(taskId, 'provider_poll_error', 'Provider poll failed; will retry on next worker tick', payload);
 }
 
-export async function markTaskCompleted(taskId, resultUrl, output = null) {
+export async function markTaskCompleted(taskId, resultUrl, output = null, options = {}) {
+    const workerId = options.workerId || null;
     return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
@@ -180,17 +274,28 @@ export async function markTaskCompleted(taskId, resultUrl, output = null) {
                 END,
                 updated_at = now()
             WHERE id = $1
+              AND status IN ('running', 'polling')
+              AND (locked_by IS NULL OR locked_by = $4)
+              AND (lease_expires_at IS NULL OR lease_expires_at >= now())
             RETURNING *
         `,
-        updateParams: [taskId, resultUrl, jsonOrNull(output)],
+        updateParams: [taskId, resultUrl, jsonOrNull(output), workerId],
         eventType: 'task_completed',
         message: 'Image generation task completed',
         payload: {
             resultUrl,
+            workerId,
             credentialId: output?.credentialId || null,
             credentialSource: output?.credentialSource || null,
             teamId: output?.teamId || null,
             apiKeyLast4: output?.apiKeyLast4 || null
+        },
+        skipPayload: {
+            wantedTransition: 'running|polling->completed',
+            workerId,
+            reason: 'Task was not active under the current worker lease',
+            expectedStatuses: ['running', 'polling'],
+            extra: { resultUrl }
         }
     });
 }
@@ -200,6 +305,7 @@ export async function markTaskFailed(taskId, errorType, errorMessage, payload = 
     const eventPayload = payload && taskOutput !== undefined
         ? Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'taskOutput'))
         : payload;
+    const workerId = getPayloadWorkerId(payload);
 
     return updateTerminalTaskWithBestEffortEvent({
         taskId,
@@ -221,16 +327,27 @@ export async function markTaskFailed(taskId, errorType, errorMessage, payload = 
                 END,
                 updated_at = now()
             WHERE id = $1
+              AND status IN ('running', 'polling')
+              AND (locked_by IS NULL OR locked_by = $5)
+              AND (lease_expires_at IS NULL OR lease_expires_at >= now())
             RETURNING *
         `,
-        updateParams: [taskId, errorType, errorMessage, jsonOrNull(taskOutput)],
+        updateParams: [taskId, errorType, errorMessage, jsonOrNull(taskOutput), workerId],
         eventType: 'task_failed',
         message: errorMessage || 'Image generation task failed',
-        payload: eventPayload
+        payload: eventPayload,
+        skipPayload: {
+            wantedTransition: 'running|polling->failed',
+            workerId,
+            reason: 'Task was not active under the current worker lease',
+            expectedStatuses: ['running', 'polling'],
+            extra: { errorType, errorMessage }
+        }
     });
 }
 
 export async function markTaskTimeout(taskId, payload = null) {
+    const workerId = getPayloadWorkerId(payload);
     return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
@@ -250,12 +367,21 @@ export async function markTaskTimeout(taskId, payload = null) {
                 END,
                 updated_at = now()
             WHERE id = $1
+              AND status IN ('running', 'polling')
+              AND (locked_by IS NULL OR locked_by = $2)
+              AND (lease_expires_at IS NULL OR lease_expires_at >= now())
             RETURNING *
         `,
-        updateParams: [taskId],
+        updateParams: [taskId, workerId],
         eventType: 'task_timeout',
         message: 'Image generation task timed out',
-        payload
+        payload,
+        skipPayload: {
+            wantedTransition: 'running|polling->timeout',
+            workerId,
+            reason: 'Task was not active under the current worker lease',
+            expectedStatuses: ['running', 'polling']
+        }
     });
 }
 
@@ -384,13 +510,15 @@ async function addTaskEventBestEffort(taskId, eventType, message = null, payload
     }
 }
 
-async function updateTerminalTaskWithBestEffortEvent({ taskId, updateSql, updateParams, eventType, message, payload }) {
+async function updateTerminalTaskWithBestEffortEvent({ taskId, updateSql, updateParams, eventType, message, payload, skipPayload }) {
     const db = getDb();
     const result = await db.query(updateSql, updateParams);
     const task = serializeTask(result.rows[0]);
 
     if (task) {
         await addTaskEventBestEffort(taskId, eventType, message, payload);
+    } else if (skipPayload) {
+        await addTaskStateUpdateSkippedBestEffort(taskId, skipPayload);
     }
 
     return task;
@@ -431,8 +559,26 @@ export async function sweepExpiredRunningLeases(options = {}) {
                         last_error = 'Lease expired after provider submission; resumed polling',
                         updated_at = now()
                     WHERE id = $1
+                      AND status = 'running'
+                      AND locked_by IS NOT DISTINCT FROM $2
+                      AND lease_expires_at IS NOT NULL
+                      AND lease_expires_at < now()
                     RETURNING *
-                `, [row.id]);
+                `, [row.id, row.locked_by]);
+
+                if (!result.rows[0]) {
+                    await insertTaskStateUpdateSkippedEvent(client, row.id, {
+                        wantedTransition: 'running->polling',
+                        workerId,
+                        reason: 'Expired lease sweep guard did not match current task state',
+                        expectedStatuses: ['running'],
+                        extra: {
+                            previousWorkerId: row.locked_by,
+                            providerTaskId: row.provider_task_id
+                        }
+                    });
+                    continue;
+                }
 
                 await client.query(`
                     INSERT INTO task_events (id, task_id, event_type, message, payload)
@@ -469,8 +615,27 @@ export async function sweepExpiredRunningLeases(options = {}) {
                         last_error = 'Worker lease expired before task completed',
                         updated_at = now()
                     WHERE id = $1
+                      AND status = 'running'
+                      AND locked_by IS NOT DISTINCT FROM $2
+                      AND lease_expires_at IS NOT NULL
+                      AND lease_expires_at < now()
                     RETURNING *
-                `, [row.id]);
+                `, [row.id, row.locked_by]);
+
+                if (!result.rows[0]) {
+                    await insertTaskStateUpdateSkippedEvent(client, row.id, {
+                        wantedTransition: 'running->queued',
+                        workerId,
+                        reason: 'Expired lease sweep guard did not match current task state',
+                        expectedStatuses: ['running'],
+                        extra: {
+                            previousWorkerId: row.locked_by,
+                            attemptCount: attempts,
+                            maxAttempts
+                        }
+                    });
+                    continue;
+                }
 
                 const payload = {
                     workerId,
@@ -519,8 +684,27 @@ export async function sweepExpiredRunningLeases(options = {}) {
                         heartbeat_at = NULL,
                         updated_at = now()
                     WHERE id = $1
+                      AND status = 'running'
+                      AND locked_by IS NOT DISTINCT FROM $2
+                      AND lease_expires_at IS NOT NULL
+                      AND lease_expires_at < now()
                     RETURNING *
-                `, [row.id]);
+                `, [row.id, row.locked_by]);
+
+                if (!result.rows[0]) {
+                    await insertTaskStateUpdateSkippedEvent(client, row.id, {
+                        wantedTransition: 'running->timeout',
+                        workerId,
+                        reason: 'Expired lease sweep guard did not match current task state',
+                        expectedStatuses: ['running'],
+                        extra: {
+                            previousWorkerId: row.locked_by,
+                            attemptCount: attempts,
+                            maxAttempts
+                        }
+                    });
+                    continue;
+                }
 
                 await client.query(`
                     INSERT INTO task_events (id, task_id, event_type, message, payload)
