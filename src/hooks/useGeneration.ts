@@ -296,6 +296,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             imageBase64: imageBase64s.length > 0 ? imageBase64s : undefined,
             imageModel: targetNode.imageModel,
             nodeId: targetNode.id,
+            legacySource: 'explicit-fallback',
             klingReferenceMode: targetNode.klingReferenceMode,
             klingFaceIntensity: targetNode.klingFaceIntensity,
             klingSubjectIntensity: targetNode.klingSubjectIntensity
@@ -355,12 +356,16 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             }
 
             if (ENABLE_LEGACY_GENERATION_FALLBACK) {
-                console.warn('[Generation] Falling back to legacy /api/generate-image:', error);
-                await generateImageViaLegacyFallback(targetNode, combinedPrompt, imageBase64s);
+                console.warn('[Generation] Explicit legacy fallback enabled; using /api/generate-image after task creation failed:', error);
+                try {
+                    await generateImageViaLegacyFallback(targetNode, combinedPrompt, imageBase64s);
+                } catch (legacyError) {
+                    throw new Error(`Legacy /api/generate-image fallback failed after image task creation failed: ${getGenerationErrorMessage(legacyError)}`);
+                }
                 return;
             }
 
-            throw new Error(`Failed to create image generation task: ${getGenerationErrorMessage(error)}`);
+            throw new Error(`Failed to create image generation task. Legacy /api/generate-image fallback is disabled by default; set VITE_ENABLE_LEGACY_GENERATION_FALLBACK=true only for intentional compatibility testing. Original error: ${getGenerationErrorMessage(error)}`);
         }
     };
 

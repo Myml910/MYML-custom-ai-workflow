@@ -14,6 +14,7 @@ export interface GenerateImageParams {
   imageBase64?: string | string[]; // Supports single image or array of images
   imageModel?: string; // Project image model id
   nodeId?: string; // ID of the node initiating generation
+  legacySource: 'camera-angle' | 'explicit-fallback';
   // Kling V1.5 reference settings
   klingReferenceMode?: 'subject' | 'face';
   klingFaceIntensity?: number; // 0-100
@@ -256,9 +257,16 @@ export const waitForImageTaskCompletion = async (
  */
 export const generateImageLegacy = async (params: GenerateImageParams): Promise<string> => {
   try {
+    if (!params.legacySource) {
+      throw new Error('Legacy image generation requires an explicit legacySource.');
+    }
+
     const response = await fetch('/api/generate-image', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-MYML-Legacy-Generation-Source': params.legacySource
+      },
       credentials: 'include',
       body: JSON.stringify(params)
     });

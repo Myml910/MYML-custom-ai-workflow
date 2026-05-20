@@ -81,6 +81,7 @@ POST /api/generate-image legacy
 - 默认情况下 Dataler/Pikachu 不应出现在 `providerChain`，除非 env 显式开启。
 - 新图片生成默认走 `/api/tasks/image`。
 - `/api/generate-image` 仅用于 legacy compatibility，不是新生成入口。
+- `/api/generate-image` must include `legacySource=camera-angle` or `legacySource=explicit-fallback`; unscoped calls should be rejected.
 - `/api/tasks/image` 创建成功后应返回 `taskId`、`nodeId`、`status`。
 - `/api/tasks/:id` 可以查询当前登录用户自己的 task。
 
@@ -92,6 +93,7 @@ POST /api/generate-image legacy
 
 - Network 应看到 `/api/tasks/image`。
 - 不应默认请求 `/api/generate-image`。
+- `/api/tasks/image` failures must not silently fallback unless `VITE_ENABLE_LEGACY_GENERATION_FALLBACK=true`.
 - 节点状态能从 `queued` / `running` / `polling` 进入 `completed` 或 `failed`。
 - `completed` 后节点缩略图和查看原图都显示新结果。
 - `failed` 后显示明确错误，不应无限 loading。

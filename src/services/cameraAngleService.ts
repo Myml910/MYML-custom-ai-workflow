@@ -243,7 +243,8 @@ export async function generateCameraAngle(
             imageBase64,
             imageModel: DEFAULT_IMAGE_MODEL,
             aspectRatio: DEFAULT_ASPECT_RATIO,
-            resolution: DEFAULT_RESOLUTION
+            resolution: DEFAULT_RESOLUTION,
+            legacySource: 'camera-angle'
         });
 
         const inferenceTimeMs = Date.now() - startTime;

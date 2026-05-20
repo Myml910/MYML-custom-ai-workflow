@@ -393,6 +393,8 @@ GET /api/tasks/by-node/:nodeId
 
 Keep `VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false` unless you are intentionally testing old behavior.
 
+The legacy endpoint rejects unscoped calls. Requests must include `legacySource=camera-angle` for Camera Angle or `legacySource=explicit-fallback` for an intentionally enabled fallback path.
+
 ## 8. Experimental Providers
 
 Dataler, Pikachu, and Atlas are disabled by default:

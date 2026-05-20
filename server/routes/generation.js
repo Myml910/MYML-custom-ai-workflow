@@ -16,7 +16,7 @@ import { generateCustomVideo } from '../services/customApi.js';
 import { generateSeedanceVideo } from '../services/seedance.js';
 import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
 import { aiRouter } from '../services/ai/router.js';
-import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
+import { getImageProviders, getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
 import {
     canUseLegacyRootLibrary,
@@ -34,10 +34,22 @@ const MAX_IMAGE_REFERENCES = 6;
 const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
 const SUPPORTED_IMAGE_MODELS = new Set(getSupportedImageModelIds());
 const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
+const LEGACY_GENERATE_IMAGE_SOURCES = new Set(['camera-angle', 'explicit-fallback']);
 
 // ============================================================================
 // IMAGE GENERATION
 // ============================================================================
+
+function getLegacyGenerateImageSource(req) {
+    const source = String(
+        req.body?.legacySource ||
+        req.body?.legacyReason ||
+        req.get('x-myml-legacy-generation-source') ||
+        ''
+    ).trim();
+
+    return LEGACY_GENERATE_IMAGE_SOURCES.has(source) ? source : null;
+}
 
 // Legacy compatibility endpoint only. New image generation should use /api/tasks/image.
 router.post('/generate-image', async (req, res) => {
@@ -51,12 +63,39 @@ router.post('/generate-image', async (req, res) => {
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY } = req.app.locals;
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         const effectiveImageModel = imageModel || DEFAULT_IMAGE_MODEL;
+        const legacySource = getLegacyGenerateImageSource(req);
 
         if (!SUPPORTED_IMAGE_MODELS.has(effectiveImageModel)) {
             return res.status(400).json({
                 error: `Image model unavailable: ${effectiveImageModel}. Available models: ${Array.from(SUPPORTED_IMAGE_MODELS).join(', ')}`
             });
         }
+
+        const providerChain = getImageProviders(effectiveImageModel).map(provider => provider.provider);
+        if (!legacySource) {
+            return res.status(409).json({
+                error: 'Legacy /api/generate-image requires an explicit legacySource. New image generation must use /api/tasks/image.',
+                legacy: true,
+                requiredEndpoint: '/api/tasks/image',
+                allowedLegacySources: Array.from(LEGACY_GENERATE_IMAGE_SOURCES)
+            });
+        }
+
+        if (legacySource === 'camera-angle' && effectiveImageModel !== DEFAULT_IMAGE_MODEL) {
+            return res.status(400).json({
+                error: `Camera Angle legacy generation only supports ${DEFAULT_IMAGE_MODEL}.`,
+                legacy: true,
+                legacySource
+            });
+        }
+
+        console.warn('[Generation][Legacy] /api/generate-image invoked', {
+            legacySource,
+            nodeId: safeNodeId,
+            projectModelId: effectiveImageModel,
+            providerChain,
+            referenceCount: Array.isArray(rawImageBase64) ? rawImageBase64.length : (rawImageBase64 ? 1 : 0)
+        });
 
         // Determine provider
         const isKlingModel = effectiveImageModel && effectiveImageModel.startsWith('kling-');
@@ -230,7 +269,7 @@ router.post('/generate-image', async (req, res) => {
         });
 
         console.log(`Image saved: ${saved.resultUrl} (model: ${effectiveImageModel})`);
-        return res.json({ resultUrl: saved.resultUrl });
+        return res.json({ resultUrl: saved.resultUrl, legacy: true, legacySource });
 
     } catch (error) {
         console.error("Server Image Gen Error:", error);
