@@ -72,6 +72,68 @@ Recommended defaults:
 - Staging: `TASK_WORKER_ENABLED=true`, low provider limits
 - Production: `TASK_WORKER_ENABLED=true`, provider limits set to purchased quota
 
+## 3.0 Local Environment Isolation
+
+Do not debug Atlas or Nano Banana 2 from a local frontend/backend while pointing `DATABASE_URL` at the shared server database. That creates a split-brain setup:
+
+```text
+localhost:4246 frontend
+localhost:3001 backend
+local library directory
+shared PostgreSQL task rows
+server worker and server library directory
+```
+
+In that setup, a task can be marked `completed` in the shared database while the result file exists only on the server filesystem. The local browser then requests `localhost/library/...` and receives `404` even though the shared database row looks successful.
+
+For local provider debugging, use an isolated local database, local worker, local library, and a local provider key:
+
+```env
+DATABASE_URL=postgres://postgres:<LOCAL_POSTGRES_PASSWORD>@127.0.0.1:5432/myml_canvas_local
+REQUIRE_TEAM_PROVIDER_CREDENTIALS=false
+ATLAS_API_KEY=<YOUR_MYML_LOCAL_DEV_ATLAS_KEY>
+ENABLE_ATLAS_PROVIDER=true
+ENABLE_ATLAS_NANO_BANANA_2=true
+TASK_WORKER_ENABLED=true
+```
+
+Copy `.env.local.example` to `.env` for this mode, then adjust local secrets. Keep the shared test server running on its own `.env` and its own `library`.
+
+Local PostgreSQL bootstrap example:
+
+```bash
+createdb myml_canvas_local
+npm install
+npm run check:env:safety
+npm run server
+```
+
+Windows `psql` example:
+
+```bat
+createdb -h 127.0.0.1 -U postgres myml_canvas_local
+npm run check:env:safety
+npm run server
+```
+
+The first local server start runs migrations and seeds the admin user from:
+
+```env
+MYML_SEED_ADMIN_USERNAME=myml
+MYML_SEED_ADMIN_PASSWORD=<LOCAL_DEV_ADMIN_PASSWORD>
+```
+
+The seed password is only guaranteed for first creation on an empty local database. If the `myml` user already exists, reset it intentionally in that local database before testing.
+
+Use:
+
+```bash
+npm run check:env:safety
+node scripts/check-env-safety.js --strict
+```
+
+`--strict` blocks known unsafe local-development combinations, such as using the shared `10.0.0.30/design_system_db`.
+
 ## 3.1 Migration / Prelaunch Instance Checks
 
 Before switching traffic, verify that the browser is talking to the intended directory, process, and ports. This is especially important when an older checkout is still running.

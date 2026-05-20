@@ -13,7 +13,8 @@
     "setup:local-models": "node -e \"require('child_process').execSync(process.platform === 'win32' ? 'setup-local-models.bat' : 'bash setup-local-models.sh', {stdio: 'inherit'})\"",
     "seed:internal-users": "node server/seed-internal-users.js",
     "check:provider-credentials": "node scripts/check-provider-credentials.js",
-    "check:production": "node scripts/production-smoke-check.js"
+    "check:production": "node scripts/production-smoke-check.js",
+    "check:env:safety": "node scripts/check-env-safety.js"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.0",

@@ -25,6 +25,8 @@ dist-ssr
 
 #env
 .env
+.env.cloud-test.backup
+.env.cloud-test.*.backup
 
 
 # data
