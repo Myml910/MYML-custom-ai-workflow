@@ -25,6 +25,12 @@ import {
     getLibraryUrlFromPath,
     getSafeUsername,
     listMediaMetadata,
+    normalizeAssetCategory,
+    normalizeLibraryRecordId,
+    normalizePublicWorkflowId,
+    normalizeSafeFilename,
+    normalizeWorkflowId,
+    resolvePathInside,
     resolveLibraryUrlToPath
 } from './utils/userLibrary.js';
 import generationRoutes from './routes/generation.js';
@@ -136,19 +142,17 @@ app.use('/library', requireAuth, (req, res) => {
             if (segments[1] !== safeUsername) {
                 return res.status(403).json({ error: 'Forbidden' });
             }
-            filePath = path.resolve(LIBRARY_DIR, cleanPath);
-            const userRoot = path.resolve(LIBRARY_DIR, 'users', safeUsername);
-            if (filePath !== userRoot && !filePath.startsWith(userRoot + path.sep)) {
+            filePath = resolvePathInside(path.join(LIBRARY_DIR, 'users', safeUsername), segments.slice(2).join('/'));
+            if (!filePath) {
                 return res.status(400).json({ error: 'Invalid library path' });
             }
         } else if (canUseLegacyRootLibrary(req.user)) {
-            filePath = path.resolve(LIBRARY_DIR, cleanPath);
+            filePath = resolvePathInside(LIBRARY_DIR, cleanPath);
         } else {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
-        const libraryRoot = path.resolve(LIBRARY_DIR);
-        if (!filePath.startsWith(libraryRoot + path.sep)) {
+        if (!filePath) {
             return res.status(400).json({ error: 'Invalid library path' });
         }
 
@@ -306,7 +310,10 @@ function saveBase64ToFile(dataUrl, libraryDirs) {
             urlType = 'images';
         }
 
-        const filePath = path.join(targetDir, filename);
+        const filePath = resolvePathInside(targetDir, filename);
+        if (!filePath) {
+            throw new Error('Workflow asset path is outside the user library');
+        }
         fs.writeFileSync(filePath, buffer);
         console.log(`  [Workflow Sanitize] Saved base64 → /library/${urlType}/${filename}`);
 
@@ -378,13 +385,26 @@ function sanitizeWorkflowNodes(nodes, libraryDirs) {
 }
 
 function getWorkflowPath(req, workflowId, { allowLegacy = true } = {}) {
+    const safeWorkflowId = normalizeWorkflowId(workflowId);
+    if (!safeWorkflowId) {
+        throw createRouteError('Invalid workflow id', 400);
+    }
+
     const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-    const primaryPath = path.join(libraryDirs.workflowsDir, `${workflowId}.json`);
+    const primaryPath = resolvePathInside(libraryDirs.workflowsDir, `${safeWorkflowId}.json`);
+    if (!primaryPath) {
+        throw createRouteError('Workflow path is outside the user library', 403);
+    }
+
     if (fs.existsSync(primaryPath) || !allowLegacy || !canUseLegacyRootLibrary(req.user)) {
         return primaryPath;
     }
 
-    const legacyPath = path.join(WORKFLOWS_DIR, `${workflowId}.json`);
+    const legacyPath = resolvePathInside(WORKFLOWS_DIR, `${safeWorkflowId}.json`);
+    if (!legacyPath) {
+        throw createRouteError('Workflow path is outside the legacy library', 403);
+    }
+
     return fs.existsSync(legacyPath) ? legacyPath : primaryPath;
 }
 
@@ -470,7 +490,11 @@ function createUniqueAssetFilename(destDir, baseName, ext) {
     for (let attempt = 0; attempt < 8; attempt++) {
         const shortId = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
         const filename = `${baseName}_${shortId}${ext}`;
-        const filePath = path.join(destDir, filename);
+        const filePath = resolvePathInside(destDir, filename);
+
+        if (!filePath) {
+            throw new Error('Asset filename resolved outside the destination directory');
+        }
 
         if (!fs.existsSync(filePath)) {
             return { filename, filePath };
@@ -522,18 +546,41 @@ function normalizeAssetUrlForCompare(url) {
     return typeof url === 'string' ? url.split('?')[0] : '';
 }
 
+function createRouteError(message, statusCode = 400) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+}
+
+function sendRouteError(res, error, fallbackStatus = 500) {
+    const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : fallbackStatus;
+    return res.status(statusCode).json({ error: error.message });
+}
+
+function normalizeAssetHistoryType(type) {
+    return type === 'images' || type === 'videos' ? type : null;
+}
+
 // Save curated asset to library
 app.post('/api/library', async (req, res) => {
     try {
         const { sourceUrl, name, category, meta } = req.body;
 
-        if (!sourceUrl || !name || !category) {
+        if (typeof sourceUrl !== 'string' || typeof name !== 'string' || typeof category !== 'string' || !sourceUrl || !name || !category) {
             return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const safeCategory = normalizeAssetCategory(category);
+        if (!safeCategory) {
+            return res.status(400).json({ error: "Invalid asset category" });
         }
 
         // Determine destination directory
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-        const destDir = path.join(libraryDirs.assetsDir, category);
+        const destDir = resolvePathInside(libraryDirs.assetsDir, safeCategory);
+        if (!destDir) {
+            return res.status(403).json({ error: "Asset category path is outside the user library" });
+        }
         if (!fs.existsSync(destDir)) {
             fs.mkdirSync(destDir, { recursive: true });
         }
@@ -587,14 +634,18 @@ app.post('/api/library', async (req, res) => {
             if (!cleanUrl.startsWith('/')) cleanUrl = '/' + cleanUrl;
 
             // Handle URL decoding (e.g. %20 -> space)
-            cleanUrl = decodeURIComponent(cleanUrl);
+            try {
+                cleanUrl = decodeURIComponent(cleanUrl);
+            } catch {
+                return res.status(400).json({ error: "Invalid source URL encoding" });
+            }
 
             if (cleanUrl.startsWith('/library/')) {
                 sourcePath = resolveLibraryUrlToPath(cleanUrl, req.user);
             } else if (cleanUrl.startsWith('/assets/images/')) { // Legacy support
-                sourcePath = path.join(IMAGES_DIR, cleanUrl.replace('/assets/images/', ''));
+                sourcePath = resolvePathInside(IMAGES_DIR, cleanUrl.replace('/assets/images/', ''));
             } else if (cleanUrl.startsWith('/assets/videos/')) { // Legacy support
-                sourcePath = path.join(VIDEOS_DIR, cleanUrl.replace('/assets/videos/', ''));
+                sourcePath = resolvePathInside(VIDEOS_DIR, cleanUrl.replace('/assets/videos/', ''));
             }
 
             if (!sourcePath || !fs.existsSync(sourcePath)) {
@@ -612,17 +663,21 @@ app.post('/api/library', async (req, res) => {
         }
 
         // Update assets.json
-        const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
+        const libraryJsonPath = resolvePathInside(libraryDirs.assetsDir, 'assets.json');
+        if (!libraryJsonPath) {
+            return res.status(403).json({ error: "Asset metadata path is outside the user library" });
+        }
         const libraryData = readAssetLibraryData(libraryJsonPath);
+        const safeMeta = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
 
         const newEntry = {
+            ...safeMeta,
             id: crypto.randomUUID(),
             name: name,
-            category: category,
+            category: safeCategory,
             url: getLibraryUrlFromPath(destPath),
             type: sourceUrl.includes('video') || (sourceUrl.startsWith('data:video')) ? 'video' : 'image',
-            createdAt: new Date().toISOString(),
-            ...meta
+            createdAt: new Date().toISOString()
         };
 
         libraryData.push(newEntry);
@@ -639,11 +694,14 @@ app.post('/api/library', async (req, res) => {
 app.get('/api/library', async (req, res) => {
     try {
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-        const libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
+        const libraryJsonPath = resolvePathInside(libraryDirs.assetsDir, 'assets.json');
+        if (!libraryJsonPath) {
+            return res.status(403).json({ error: "Asset metadata path is outside the user library" });
+        }
         let libraryData = readAssetLibraryData(libraryJsonPath);
 
         if (canUseLegacyRootLibrary(req.user)) {
-            const legacyJsonPath = path.join(ASSETS_DIR, 'assets.json');
+            const legacyJsonPath = resolvePathInside(ASSETS_DIR, 'assets.json');
             if (fs.existsSync(legacyJsonPath)) {
                 libraryData = [
                     ...libraryData,
@@ -664,11 +722,18 @@ app.get('/api/library', async (req, res) => {
 // Delete library asset
 app.delete('/api/library/:id', async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = normalizeLibraryRecordId(req.params.id);
+        if (!id) {
+            return res.status(400).json({ error: "Invalid asset id" });
+        }
+
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-        let libraryJsonPath = path.join(libraryDirs.assetsDir, 'assets.json');
+        let libraryJsonPath = resolvePathInside(libraryDirs.assetsDir, 'assets.json');
+        if (!libraryJsonPath) {
+            return res.status(403).json({ error: "Asset metadata path is outside the user library" });
+        }
         if (!fs.existsSync(libraryJsonPath) && canUseLegacyRootLibrary(req.user)) {
-            const legacyJsonPath = path.join(ASSETS_DIR, 'assets.json');
+            const legacyJsonPath = resolvePathInside(ASSETS_DIR, 'assets.json');
             if (fs.existsSync(legacyJsonPath)) {
                 libraryJsonPath = legacyJsonPath;
             }
@@ -716,9 +781,15 @@ app.delete('/api/library/:id', async (req, res) => {
 app.post('/api/workflows', async (req, res) => {
     try {
         const workflow = req.body;
-        if (!workflow.id) {
-            workflow.id = crypto.randomUUID();
+        if (!workflow || typeof workflow !== 'object' || Array.isArray(workflow)) {
+            return res.status(400).json({ error: "Invalid workflow payload" });
         }
+
+        const workflowId = workflow.id ? normalizeWorkflowId(workflow.id) : crypto.randomUUID();
+        if (!workflowId) {
+            return res.status(400).json({ error: "Invalid workflow id" });
+        }
+        workflow.id = workflowId;
         workflow.updatedAt = new Date().toISOString();
         if (!workflow.createdAt) {
             workflow.createdAt = workflow.updatedAt;
@@ -726,7 +797,10 @@ app.post('/api/workflows', async (req, res) => {
 
 
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-        const filePath = path.join(libraryDirs.workflowsDir, `${workflow.id}.json`);
+        const filePath = resolvePathInside(libraryDirs.workflowsDir, `${workflow.id}.json`);
+        if (!filePath) {
+            return res.status(403).json({ error: "Workflow path is outside the user library" });
+        }
 
         // Preserve existing coverUrl if it exists
         if (fs.existsSync(filePath)) {
@@ -751,7 +825,7 @@ app.post('/api/workflows', async (req, res) => {
         res.json({ success: true, id: workflow.id });
     } catch (error) {
         console.error("Save workflow error:", error);
-        res.status(500).json({ error: error.message });
+        sendRouteError(res, error);
     }
 });
 
@@ -769,11 +843,15 @@ app.get('/api/public-workflows', async (req, res) => {
 
         // Scan all .json files except index.json
         const files = fs.readdirSync(publicWorkflowsDir)
-            .filter(f => f.endsWith('.json') && f !== 'index.json');
+            .filter(f => f.endsWith('.json') && f !== 'index.json')
+            .map(f => normalizeSafeFilename(f, { allowedExtensions: ['.json'] }))
+            .filter(Boolean);
 
         const workflows = files.map(file => {
             try {
-                const content = fs.readFileSync(path.join(publicWorkflowsDir, file), 'utf8');
+                const filePath = resolvePathInside(publicWorkflowsDir, file);
+                if (!filePath) return null;
+                const content = fs.readFileSync(filePath, 'utf8');
                 const workflow = JSON.parse(content);
 
                 // Generate description from workflow content
@@ -814,7 +892,15 @@ app.get('/api/public-workflows', async (req, res) => {
 app.get('/api/public-workflows/:id', async (req, res) => {
     try {
         const publicWorkflowsDir = path.join(__dirname, '..', 'public', 'workflows');
-        const filePath = path.join(publicWorkflowsDir, `${req.params.id}.json`);
+        const publicWorkflowId = normalizePublicWorkflowId(req.params.id);
+        if (!publicWorkflowId) {
+            return res.status(400).json({ error: "Invalid public workflow id" });
+        }
+
+        const filePath = resolvePathInside(publicWorkflowsDir, `${publicWorkflowId}.json`);
+        if (!filePath) {
+            return res.status(403).json({ error: "Public workflow path is outside the workflow directory" });
+        }
 
         if (!fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Public workflow not found" });
@@ -841,19 +927,24 @@ app.get('/api/workflows', async (req, res) => {
 
         const workflows = workflowDirs.flatMap(workflowsDir => {
             if (!fs.existsSync(workflowsDir)) return [];
-            const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+            const files = fs.readdirSync(workflowsDir)
+                .filter(f => f.endsWith('.json'))
+                .map(f => normalizeSafeFilename(f, { allowedExtensions: ['.json'] }))
+                .filter(Boolean);
             return files.map(file => {
-                const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
-            const workflow = JSON.parse(content);
-            return {
-                id: workflow.id,
-                title: workflow.title,
-                createdAt: workflow.createdAt,
-                updatedAt: workflow.updatedAt,
-                nodeCount: workflow.nodes?.length || 0,
-                coverUrl: workflow.coverUrl
-            };
-            });
+                const filePath = resolvePathInside(workflowsDir, file);
+                if (!filePath) return null;
+                const content = fs.readFileSync(filePath, 'utf8');
+                const workflow = JSON.parse(content);
+                return {
+                    id: workflow.id,
+                    title: workflow.title,
+                    createdAt: workflow.createdAt,
+                    updatedAt: workflow.updatedAt,
+                    nodeCount: workflow.nodes?.length || 0,
+                    coverUrl: workflow.coverUrl
+                };
+            }).filter(Boolean);
         });
         workflows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         res.json(workflows);
@@ -874,7 +965,7 @@ app.get('/api/workflows/:id', async (req, res) => {
         res.json(JSON.parse(content));
     } catch (error) {
         console.error("Load workflow error:", error);
-        res.status(500).json({ error: error.message });
+        sendRouteError(res, error);
     }
 });
 
@@ -889,7 +980,7 @@ app.delete('/api/workflows/:id', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error("Delete workflow error:", error);
-        res.status(500).json({ error: error.message });
+        sendRouteError(res, error);
     }
 });
 
@@ -910,7 +1001,7 @@ app.put('/api/workflows/:id/cover', async (req, res) => {
         res.json({ success: true, coverUrl });
     } catch (error) {
         console.error("Update cover error:", error);
-        res.status(500).json({ error: error.message });
+        sendRouteError(res, error);
     }
 });
 
@@ -1146,10 +1237,10 @@ app.post('/api/gemini/optimize-prompt', async (req, res) => {
 // Save an asset (image or video)
 app.post('/api/assets/:type', async (req, res) => {
     try {
-        const { type } = req.params;
+        const type = normalizeAssetHistoryType(req.params.type);
         const { data, prompt } = req.body;
 
-        if (!['images', 'videos'].includes(type)) {
+        if (!type) {
             return res.status(400).json({ error: 'Invalid asset type' });
         }
 
@@ -1162,7 +1253,11 @@ app.post('/api/assets/:type', async (req, res) => {
 
         // Save the asset file
         const base64Data = data.replace(/^data:[^;]+;base64,/, '');
-        const assetPath = path.join(targetDir, filename);
+        const assetPath = resolvePathInside(targetDir, filename);
+        const metaPath = resolvePathInside(targetDir, metaFilename);
+        if (!assetPath || !metaPath) {
+            return res.status(403).json({ error: 'Asset path is outside the user library' });
+        }
         fs.writeFileSync(assetPath, base64Data, 'base64');
 
         // Save metadata
@@ -1173,7 +1268,7 @@ app.post('/api/assets/:type', async (req, res) => {
             createdAt: new Date().toISOString(),
             type
         };
-        fs.writeFileSync(path.join(targetDir, metaFilename), JSON.stringify(metadata, null, 2));
+        fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
 
         res.json({ success: true, id, filename, url: getLibraryUrlFromPath(assetPath) });
     } catch (error) {
@@ -1185,11 +1280,11 @@ app.post('/api/assets/:type', async (req, res) => {
 // List all assets of a type (with pagination support)
 app.get('/api/assets/:type', async (req, res) => {
     try {
-        const { type } = req.params;
+        const type = normalizeAssetHistoryType(req.params.type);
         const limit = parseInt(req.query.limit) || 0; // 0 = no limit (backward compatible)
         const offset = parseInt(req.query.offset) || 0;
 
-        if (!['images', 'videos'].includes(type)) {
+        if (!type) {
             return res.status(400).json({ error: 'Invalid asset type' });
         }
 
@@ -1222,18 +1317,25 @@ app.get('/api/assets/:type', async (req, res) => {
 // Delete an asset
 app.delete('/api/assets/:type/:id', async (req, res) => {
     try {
-        const { type, id } = req.params;
+        const type = normalizeAssetHistoryType(req.params.type);
+        const id = normalizeLibraryRecordId(req.params.id);
 
-        if (!['images', 'videos'].includes(type)) {
+        if (!type) {
             return res.status(400).json({ error: 'Invalid asset type' });
+        }
+        if (!id) {
+            return res.status(400).json({ error: 'Invalid asset id' });
         }
 
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
         const targetDir = type === 'images' ? libraryDirs.imagesDir : libraryDirs.videosDir;
-        let metaPath = path.join(targetDir, `${id}.json`);
+        let metaPath = resolvePathInside(targetDir, `${id}.json`);
+        if (!metaPath) {
+            return res.status(403).json({ error: 'Asset metadata path is outside the user library' });
+        }
         if (!fs.existsSync(metaPath) && canUseLegacyRootLibrary(req.user)) {
             const legacyDir = type === 'images' ? IMAGES_DIR : VIDEOS_DIR;
-            const legacyMetaPath = path.join(legacyDir, `${id}.json`);
+            const legacyMetaPath = resolvePathInside(legacyDir, `${id}.json`);
             if (fs.existsSync(legacyMetaPath)) {
                 metaPath = legacyMetaPath;
             }
@@ -1245,7 +1347,10 @@ app.delete('/api/assets/:type/:id', async (req, res) => {
         if (fs.existsSync(metaPath)) {
             try {
                 const metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-                assetFilename = metadata.filename;
+                assetFilename = normalizeSafeFilename(metadata.filename);
+                if (!assetFilename) {
+                    console.warn(`Invalid metadata filename for ${id}; media file delete skipped`);
+                }
             } catch (e) {
                 console.warn(`Could not read metadata for ${id}:`, e.message);
             }
@@ -1253,8 +1358,8 @@ app.delete('/api/assets/:type/:id', async (req, res) => {
 
         // Delete the media file using filename from metadata
         if (assetFilename) {
-            const assetPath = path.join(assetDir, assetFilename);
-            if (fs.existsSync(assetPath)) {
+            const assetPath = resolvePathInside(assetDir, assetFilename);
+            if (assetPath && fs.existsSync(assetPath)) {
                 fs.unlinkSync(assetPath);
                 console.log(`Deleted asset file: ${assetPath}`);
             }
@@ -1440,7 +1545,10 @@ app.post('/api/trim-video', async (req, res) => {
         const hash = crypto.randomBytes(4).toString('hex');
         const outputFilename = `trimmed_${timestamp}_${hash}.mp4`;
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
-        const outputPath = path.join(libraryDirs.videosDir, outputFilename);
+        const outputPath = resolvePathInside(libraryDirs.videosDir, outputFilename);
+        if (!outputPath) {
+            return res.status(403).json({ error: 'Trimmed video path is outside the user library' });
+        }
 
         // Trim the video
         await trimVideoWithFFmpeg(inputPath, outputPath, startTime, endTime);
@@ -1459,7 +1567,11 @@ app.post('/api/trim-video', async (req, res) => {
             createdAt: new Date().toISOString(),
             type: 'videos'
         };
-        fs.writeFileSync(path.join(libraryDirs.videosDir, metaFilename), JSON.stringify(metadata, null, 2));
+        const metaPath = resolvePathInside(libraryDirs.videosDir, metaFilename);
+        if (!metaPath) {
+            return res.status(403).json({ error: 'Trimmed video metadata path is outside the user library' });
+        }
+        fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
 
         const resultUrl = getLibraryUrlFromPath(outputPath);
         console.log(`[Video Trim] Saved: ${resultUrl}`);

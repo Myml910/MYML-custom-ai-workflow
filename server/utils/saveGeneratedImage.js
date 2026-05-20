@@ -2,7 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { imageResultToBuffer } from '../services/ai/providers/apimartProvider.js';
 import { saveBufferToFile } from './imageHelpers.js';
-import { ensureUserLibraryDirs, resolveLibraryUrlToPath } from './userLibrary.js';
+import {
+    ensureUserLibraryDirs,
+    normalizeLibraryRecordId,
+    resolveLibraryUrlToPath,
+    resolvePathInside
+} from './userLibrary.js';
 
 function normalizeExtension(extension, fallback = 'png') {
     const value = String(extension || fallback || 'png')
@@ -116,7 +121,8 @@ export async function saveGeneratedImage(options = {}) {
         resultUrl: saved.url,
         user
     });
-    const savedMetadataId = metadataId || nodeId || saved.id;
+    const requestedMetadataId = normalizeLibraryRecordId(metadataId) || normalizeLibraryRecordId(nodeId);
+    const savedMetadataId = requestedMetadataId || saved.id;
     const metadataRemoteUrl = providerRemoteUrl && !providerRemoteUrl.startsWith('data:')
         ? providerRemoteUrl
         : undefined;
@@ -137,10 +143,12 @@ export async function saveGeneratedImage(options = {}) {
         remoteUrl: metadataRemoteUrl
     };
 
-    fs.writeFileSync(
-        path.join(libraryDirs.imagesDir, `${savedMetadataId}.json`),
-        JSON.stringify(metadata, null, 2)
-    );
+    const metadataPath = resolvePathInside(libraryDirs.imagesDir, `${savedMetadataId}.json`);
+    if (!metadataPath) {
+        throw new Error('Generated image metadata path is outside the user library');
+    }
+
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
     return {
         resultUrl: saved.url,

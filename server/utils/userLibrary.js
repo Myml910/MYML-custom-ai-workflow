@@ -3,7 +3,13 @@ import path from 'path';
 import { LIBRARY_DIR } from '../config/paths.js';
 
 const USER_LIBRARY_TYPES = ['assets', 'images', 'videos', 'workflows', 'chats'];
+const LIBRARY_ASSET_CATEGORIES = ['Character', 'Scene', 'Item', 'Style', 'Sound Effect', 'Others'];
 const LEGACY_ROOT_USERNAMES = new Set(['myml']);
+const WINDOWS_RESERVED_FILENAMES = new Set([
+    'con', 'prn', 'aux', 'nul',
+    'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+    'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'
+]);
 
 export function getSafeUsername(username) {
     return String(username || 'anonymous')
@@ -53,13 +59,68 @@ export function getLibraryUrlFromPath(filePath) {
     return `/library/${relativePath.split(path.sep).map(encodePathSegment).join('/')}`;
 }
 
-function resolveInside(root, relativePath) {
+function isPathInside(root, targetPath) {
     const resolvedRoot = path.resolve(root);
-    const resolvedPath = path.resolve(root, relativePath);
-    if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(resolvedRoot + path.sep)) {
-        return null;
+    const resolvedPath = path.resolve(targetPath);
+    const relativePath = path.relative(resolvedRoot, resolvedPath);
+    return relativePath === '' || (!!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
+export function resolvePathInside(root, ...segments) {
+    if (!root) return null;
+    const resolvedRoot = path.resolve(root);
+    const resolvedPath = path.resolve(resolvedRoot, ...segments);
+    return isPathInside(resolvedRoot, resolvedPath) ? resolvedPath : null;
+}
+
+function hasUnsafePathSeparator(value) {
+    return /[\\/]/.test(value) || value.includes('\0');
+}
+
+export function normalizeAssetCategory(category) {
+    if (typeof category !== 'string') return null;
+    const normalizedKey = category.trim().toLowerCase().replace(/[\s_-]+/g, '');
+    return LIBRARY_ASSET_CATEGORIES.find(item =>
+        item.toLowerCase().replace(/[\s_-]+/g, '') === normalizedKey
+    ) || null;
+}
+
+export function normalizeLibraryRecordId(id) {
+    if (typeof id !== 'string' && typeof id !== 'number') return null;
+    const value = String(id).trim();
+    return /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value) ? value : null;
+}
+
+export function normalizeWorkflowId(id) {
+    return normalizeLibraryRecordId(id);
+}
+
+export function normalizePublicWorkflowId(id) {
+    if (typeof id !== 'string') return null;
+    const value = id.trim();
+    if (!value || value.length > 160 || hasUnsafePathSeparator(value)) return null;
+    if (value === '.' || value === '..' || value.includes('\0')) return null;
+    return /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,159}$/.test(value) ? value : null;
+}
+
+export function normalizeSafeFilename(filename, options = {}) {
+    if (typeof filename !== 'string') return null;
+    const value = filename.trim();
+    if (!value || value.length > 255 || hasUnsafePathSeparator(value)) return null;
+    if (/[<>:"|?*\x00-\x1F]/.test(value)) return null;
+    if (value === '.' || value === '..' || value.includes('\0')) return null;
+
+    const ext = path.extname(value).toLowerCase();
+    const basename = path.basename(value, path.extname(value)).toLowerCase();
+    if (!basename || WINDOWS_RESERVED_FILENAMES.has(basename)) return null;
+
+    const allowedExtensions = options.allowedExtensions;
+    if (Array.isArray(allowedExtensions)) {
+        const allowed = allowedExtensions.map(item => String(item).toLowerCase());
+        if (!allowed.includes(ext)) return null;
     }
-    return resolvedPath;
+
+    return value;
 }
 
 export function resolveLibraryUrlToPath(input, user, options = {}) {
@@ -96,9 +157,9 @@ export function resolveLibraryUrlToPath(input, user, options = {}) {
         if (!requestedUsername || requestedUsername !== safeUsername) {
             return null;
         }
-        resolvedPath = resolveInside(path.join(LIBRARY_DIR, 'users', requestedUsername), segments.slice(2).join('/'));
+        resolvedPath = resolvePathInside(path.join(LIBRARY_DIR, 'users', requestedUsername), segments.slice(2).join('/'));
     } else if (allowLegacyForMyml && canUseLegacyRootLibrary(user)) {
-        resolvedPath = resolveInside(LIBRARY_DIR, relativePath);
+        resolvedPath = resolvePathInside(LIBRARY_DIR, relativePath);
     }
 
     if (!resolvedPath) return null;
@@ -114,10 +175,15 @@ export function listMediaMetadata({ user, type, primaryDir, legacyDir }) {
         for (const file of files) {
             if (!file.endsWith('.json')) continue;
             try {
-                const filePath = path.join(dir, file);
+                const filePath = resolvePathInside(dir, file);
+                if (!filePath) continue;
                 const content = fs.readFileSync(filePath, 'utf8');
                 const metadata = JSON.parse(content);
-                metadata.url = getLibraryUrlFromPath(path.join(dir, metadata.filename));
+                const safeFilename = normalizeSafeFilename(metadata.filename);
+                if (!safeFilename) continue;
+                const mediaPath = resolvePathInside(dir, safeFilename);
+                if (!mediaPath) continue;
+                metadata.url = getLibraryUrlFromPath(mediaPath);
                 metadata.type = metadata.type || type;
                 entries.push(metadata);
             } catch {
@@ -134,4 +200,4 @@ export function listMediaMetadata({ user, type, primaryDir, legacyDir }) {
     return entries;
 }
 
-export { USER_LIBRARY_TYPES };
+export { LIBRARY_ASSET_CATEGORIES, USER_LIBRARY_TYPES };

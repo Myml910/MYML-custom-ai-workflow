@@ -6,7 +6,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getLibraryUrlFromPath, resolveLibraryUrlToPath } from './userLibrary.js';
+import {
+    getLibraryUrlFromPath,
+    normalizeLibraryRecordId,
+    resolveLibraryUrlToPath,
+    resolvePathInside
+} from './userLibrary.js';
 
 // ============================================================================
 // BASE64 HELPERS
@@ -127,9 +132,26 @@ export function mapAspectRatio(ratio) {
  * @returns {{ id: string, path: string, url: string }}
  */
 export function saveBufferToFile(buffer, dir, prefix, extension, customId) {
-    const id = customId || `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const filename = `${id}.${extension}`;
-    const filePath = path.join(dir, filename);
+    const id = customId
+        ? normalizeLibraryRecordId(customId)
+        : `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    if (!id) {
+        throw new Error('Invalid custom file id');
+    }
+
+    const safeExtension = String(extension || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^\./, '');
+    if (!/^[a-z0-9]{1,12}$/.test(safeExtension)) {
+        throw new Error('Invalid file extension');
+    }
+
+    const filename = `${id}.${safeExtension}`;
+    const filePath = resolvePathInside(dir, filename);
+    if (!filePath) {
+        throw new Error('File path resolved outside the destination directory');
+    }
 
     fs.writeFileSync(filePath, buffer);
 

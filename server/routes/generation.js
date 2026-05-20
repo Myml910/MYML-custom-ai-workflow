@@ -18,7 +18,13 @@ import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
 import { aiRouter } from '../services/ai/router.js';
 import { getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 import { resolveImageToBase64, saveBufferToFile } from '../utils/imageHelpers.js';
-import { canUseLegacyRootLibrary, getLibraryUrlFromPath } from '../utils/userLibrary.js';
+import {
+    canUseLegacyRootLibrary,
+    getLibraryUrlFromPath,
+    normalizeLibraryRecordId,
+    normalizeSafeFilename,
+    resolvePathInside
+} from '../utils/userLibrary.js';
 import { saveGeneratedImage } from '../utils/saveGeneratedImage.js';
 import { safeFetchImageUrl } from '../utils/safeFetchImage.js';
 import { IMAGES_DIR, VIDEOS_DIR } from '../config/paths.js';
@@ -37,6 +43,11 @@ const VIDEO_DISABLED_ERROR = 'Video generation is currently disabled.';
 router.post('/generate-image', async (req, res) => {
     try {
         const { nodeId, prompt, aspectRatio, resolution, imageBase64: rawImageBase64, imageModel, klingReferenceMode, klingFaceIntensity, klingSubjectIntensity } = req.body;
+        const safeNodeId = nodeId ? normalizeLibraryRecordId(nodeId) : null;
+        if (nodeId && !safeNodeId) {
+            return res.status(400).json({ error: 'Invalid nodeId' });
+        }
+
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, OPENAI_API_KEY } = req.app.locals;
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         const effectiveImageModel = imageModel || DEFAULT_IMAGE_MODEL;
@@ -74,7 +85,7 @@ router.post('/generate-image', async (req, res) => {
             });
 
             aiResult = await aiRouter.generateImage({
-                nodeId,
+                nodeId: safeNodeId,
                 projectModelId: effectiveImageModel,
                 prompt,
                 imageUrls: resolvedImages && resolvedImages.length > 0 ? resolvedImages : undefined,
@@ -212,8 +223,8 @@ router.post('/generate-image', async (req, res) => {
             provider: aiResult?.provider,
             providerTaskId: aiResult?.taskId,
             taskId: aiResult?.requestId,
-            nodeId,
-            metadataId: nodeId || undefined,
+            nodeId: safeNodeId,
+            metadataId: safeNodeId || undefined,
             remoteUrl: aiResult?.images?.[0]?.url,
             imageFormat
         });
@@ -236,6 +247,11 @@ router.post('/generate-video', async (req, res) => {
 
     try {
         const { nodeId, prompt, imageBase64: rawImageBase64, lastFrameBase64: rawLastFrameBase64, motionReferenceUrl: rawMotionReferenceUrl, aspectRatio, resolution, duration, videoModel, generateAudio } = req.body;
+        const safeNodeId = nodeId ? normalizeLibraryRecordId(nodeId) : null;
+        if (nodeId && !safeNodeId) {
+            return res.status(400).json({ error: 'Invalid nodeId' });
+        }
+
         const { GEMINI_API_KEY, KLING_ACCESS_KEY, KLING_SECRET_KEY, HAILUO_API_KEY, CUSTOM_API_BASE_URL, CUSTOM_API_KEY } = req.app.locals;
         const videosDir = req.library?.videosDir || req.app.locals.VIDEOS_DIR;
 
@@ -425,7 +441,7 @@ router.post('/generate-video', async (req, res) => {
         const saved = saveBufferToFile(videoBuffer, videosDir, 'vid', 'mp4');
 
         // Determine metadata ID: use nodeId for recovery if available, otherwise use file ID
-        const metadataId = nodeId || saved.id;
+        const metadataId = safeNodeId || saved.id;
 
         // Save metadata (id must match the metadata filename for delete to work)
         const metadata = {
@@ -438,7 +454,11 @@ router.post('/generate-video', async (req, res) => {
             createdAt: new Date().toISOString(),
             type: 'videos'
         };
-        fs.writeFileSync(path.join(videosDir, `${metadataId}.json`), JSON.stringify(metadata, null, 2));
+        const metadataPath = resolvePathInside(videosDir, `${metadataId}.json`);
+        if (!metadataPath) {
+            return res.status(403).json({ error: 'Video metadata path is outside the user library' });
+        }
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
         if (isSeedanceModel) {
             console.log('[Seedance][saved]', {
@@ -460,40 +480,66 @@ router.post('/generate-video', async (req, res) => {
 // GENERATION STATUS / RECOVERY
 // ============================================================================
 
+function getMetadataResultUrl(metaPath, metadata) {
+    const safeFilename = normalizeSafeFilename(metadata?.filename);
+    if (!safeFilename) return null;
+
+    const mediaPath = resolvePathInside(path.dirname(metaPath), safeFilename);
+    return mediaPath ? getLibraryUrlFromPath(mediaPath) : null;
+}
+
 /**
  * Check if a generation has finished for a specific nodeId.
  * Returns the resultUrl if it exists.
  */
 router.get('/generation-status/:nodeId', async (req, res) => {
     try {
-        const { nodeId } = req.params;
+        const nodeId = normalizeLibraryRecordId(req.params.nodeId);
+        if (!nodeId) {
+            return res.status(400).json({ error: 'Invalid nodeId' });
+        }
+
         const imagesDir = req.library?.imagesDir || req.app.locals.IMAGES_DIR;
         const videosDir = req.library?.videosDir || req.app.locals.VIDEOS_DIR;
 
         // Check images metadata
-        let imageMetaPath = path.join(imagesDir, `${nodeId}.json`);
+        let imageMetaPath = resolvePathInside(imagesDir, `${nodeId}.json`);
+        if (!imageMetaPath) {
+            return res.status(403).json({ error: 'Image metadata path is outside the user library' });
+        }
         if (!fs.existsSync(imageMetaPath) && canUseLegacyRootLibrary(req.user)) {
-            const legacyImageMetaPath = path.join(IMAGES_DIR, `${nodeId}.json`);
+            const legacyImageMetaPath = resolvePathInside(IMAGES_DIR, `${nodeId}.json`);
             if (fs.existsSync(legacyImageMetaPath)) {
                 imageMetaPath = legacyImageMetaPath;
             }
         }
         if (fs.existsSync(imageMetaPath)) {
             const meta = JSON.parse(fs.readFileSync(imageMetaPath, 'utf8'));
-            return res.json({ status: 'success', resultUrl: getLibraryUrlFromPath(path.join(path.dirname(imageMetaPath), meta.filename)), type: 'image', createdAt: meta.createdAt });
+            const resultUrl = getMetadataResultUrl(imageMetaPath, meta);
+            if (!resultUrl) {
+                return res.status(500).json({ error: 'Invalid image metadata filename' });
+            }
+            return res.json({ status: 'success', resultUrl, type: 'image', createdAt: meta.createdAt });
         }
 
         // Check videos metadata
-        let videoMetaPath = path.join(videosDir, `${nodeId}.json`);
+        let videoMetaPath = resolvePathInside(videosDir, `${nodeId}.json`);
+        if (!videoMetaPath) {
+            return res.status(403).json({ error: 'Video metadata path is outside the user library' });
+        }
         if (!fs.existsSync(videoMetaPath) && canUseLegacyRootLibrary(req.user)) {
-            const legacyVideoMetaPath = path.join(VIDEOS_DIR, `${nodeId}.json`);
+            const legacyVideoMetaPath = resolvePathInside(VIDEOS_DIR, `${nodeId}.json`);
             if (fs.existsSync(legacyVideoMetaPath)) {
                 videoMetaPath = legacyVideoMetaPath;
             }
         }
         if (fs.existsSync(videoMetaPath)) {
             const meta = JSON.parse(fs.readFileSync(videoMetaPath, 'utf8'));
-            return res.json({ status: 'success', resultUrl: getLibraryUrlFromPath(path.join(path.dirname(videoMetaPath), meta.filename)), type: 'video', createdAt: meta.createdAt });
+            const resultUrl = getMetadataResultUrl(videoMetaPath, meta);
+            if (!resultUrl) {
+                return res.status(500).json({ error: 'Invalid video metadata filename' });
+            }
+            return res.json({ status: 'success', resultUrl, type: 'video', createdAt: meta.createdAt });
         }
 
         res.json({ status: 'pending' });
