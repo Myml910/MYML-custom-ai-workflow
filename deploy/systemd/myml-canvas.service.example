@@ -1,0 +1,20 @@
+[Unit]
+Description=MYML Canvas
+After=network.target
+
+[Service]
+Type=simple
+User=dg
+WorkingDirectory=/opt/1panel/MYML-CANVAS/apps/MYML-Canvas
+Environment=NODE_ENV=production
+# Example only. In production, run `which npm` on the server and replace
+# /usr/bin/env npm with the absolute npm path if systemd cannot find npm.
+ExecStart=/usr/bin/env npm start
+Restart=always
+RestartSec=5
+
+# Keep secrets in the project .env file or a protected systemd EnvironmentFile.
+# Do not place provider API keys, database passwords, or encryption keys here.
+
+[Install]
+WantedBy=multi-user.target

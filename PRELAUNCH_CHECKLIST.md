@@ -293,3 +293,57 @@ NODE_ENV=production npm start
   - `PROVIDER_MAX_RUNNING_ATLAS`
   - `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
   - `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`
+
+## 12. Production Node 上线前检查
+
+Production Node 模式用于正式或准正式部署：Node/Express 在 `PORT`（默认 `3001`）同时提供 `dist`、`/api` 和 `/library`。这个模式不使用 Vite `4246` 端口。
+
+上线前必须确认：
+
+- 当前 git commit 是预期版本。
+- `git status --short` 干净。
+- `npm run build` 通过。
+- `npm run check:provider-credentials` 通过。
+- `NODE_ENV=production npm run check:production` 通过。
+- `dist/index.html` 存在。
+- `LIBRARY_DIR` 存在并可写。
+- `TASK_WORKER_ENABLED=true`。
+- 登录后 `/api/runtime` 可访问，并显示正确的 git commit、provider gates、image model ids、libraryWritable。
+- production node 模式访问 `PORT`（默认 `3001`），不要访问 `4246`。
+- 如果使用 Nginx dist 模式，必须反代 `/api` 和 `/library` 到 Node backend。
+- `MYML_COOKIE_SECURE` 与实际访问协议匹配：HTTP 内测通常为 `false`，HTTPS 部署才设置为 `true`。
+
+推荐上线命令：
+
+```bash
+git pull origin test
+npm install
+npm run build
+npm run check:provider-credentials
+NODE_ENV=production npm run check:production
+NODE_ENV=production npm start
+```
+
+systemd 示例位于：
+
+```text
+deploy/systemd/myml-canvas.service.example
+```
+
+常用命令：
+
+```bash
+sudo cp deploy/systemd/myml-canvas.service.example /etc/systemd/system/myml-canvas.service
+sudo systemctl daemon-reload
+sudo systemctl enable myml-canvas
+sudo systemctl start myml-canvas
+sudo systemctl status myml-canvas
+sudo journalctl -u myml-canvas -f
+```
+
+注意：
+
+- systemd 示例只是模板，不会自动安装。
+- 生产环境建议用 `which npm` 查到绝对路径后替换 `ExecStart`。
+- 不要把真实 API key、数据库密码或 `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` 写进 systemd unit。
+- 如果 4246 被占用，不要让 Vite 自动换端口；先排查旧进程。

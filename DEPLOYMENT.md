@@ -35,10 +35,11 @@ For production Node mode:
 
 ```bash
 npm run build
+NODE_ENV=production npm run check:production
 NODE_ENV=production npm start
 ```
 
-In production Node mode, the Node process on `3001` serves the built `dist`, `/api`, and `/library`.
+In production Node mode, the Node process on `PORT` (default `3001`) serves the built `dist`, `/api`, and `/library`. Production Node mode does not use the Vite `4246` port.
 
 ## 3. Worker-Enabled Development
 
@@ -95,6 +96,52 @@ Operational notes:
 - If the model dropdown shows the old fallback list, inspect the browser Network request for `/api/models/image` before judging the UI.
 - Vite is configured with `--strictPort`; if `4246` is occupied, fix the old process instead of allowing Vite to switch to `4247`.
 - Prefer separate backend and Vite terminals for worker tests; avoid multiple old `npm run dev` processes.
+
+## 3.2 Production Node and systemd
+
+For a production-style Node deployment, build the frontend first, run the non-sensitive checks, then start the bootstrap entrypoint:
+
+```bash
+git pull origin test
+npm install
+npm run build
+npm run check:provider-credentials
+NODE_ENV=production npm run check:production
+NODE_ENV=production npm start
+```
+
+The production smoke check verifies `dist/index.html`, `LIBRARY_DIR` writability, image model visibility, provider gates, worker environment, git commit, and a safe database label. It never prints API keys, cookies, passwords, the full `DATABASE_URL`, provider credentials, or `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`.
+
+Short-term test environments may use:
+
+```bash
+nohup npm run dev > app.log 2>&1 &
+```
+
+This is convenient for internal testing, but it runs Vite plus the backend and is not the preferred long-running production mode. In dev mode the browser uses `4246`; in production Node mode the browser uses `PORT` (default `3001`).
+
+If `MYML_COOKIE_SECURE=true`, the browser must reach the app over HTTPS. For plain HTTP internal tests, keep `MYML_COOKIE_SECURE=false`.
+
+A systemd example is provided at:
+
+```text
+deploy/systemd/myml-canvas.service.example
+```
+
+Install it manually only after reviewing paths, the Linux user, and the npm executable:
+
+```bash
+sudo cp deploy/systemd/myml-canvas.service.example /etc/systemd/system/myml-canvas.service
+sudo systemctl daemon-reload
+sudo systemctl enable myml-canvas
+sudo systemctl start myml-canvas
+sudo systemctl status myml-canvas
+sudo journalctl -u myml-canvas -f
+```
+
+The example uses `ExecStart=/usr/bin/env npm start` for portability. On a real server, run `which npm` and replace it with the absolute path if systemd cannot find npm. Do not put provider API keys, database passwords, or encryption keys in the unit file; keep them in the project `.env` or a protected `EnvironmentFile`.
+
+If you serve `dist` through Nginx instead of Node, Nginx must reverse proxy both `/api` and `/library` to the Node backend. Serving `dist` alone is not enough.
 
 ## 4. Core Environment
 
