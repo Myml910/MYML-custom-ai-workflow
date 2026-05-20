@@ -347,3 +347,39 @@ sudo journalctl -u myml-canvas -f
 - 生产环境建议用 `which npm` 查到绝对路径后替换 `ExecStart`。
 - 不要把真实 API key、数据库密码或 `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` 写进 systemd unit。
 - 如果 4246 被占用，不要让 Vite 自动换端口；先排查旧进程。
+
+## 13. 本地开发环境隔离检查
+
+Atlas / Nano Banana 2 本地调试必须使用本地 DB、本地 worker、本地 library、本地 provider key。不要用本地前端/后端连接服务器共享数据库调试生成链路。
+
+推荐本地 `.env` 从 `.env.local.example` 复制，并保持：
+
+```env
+DATABASE_URL=postgres://postgres:<LOCAL_POSTGRES_PASSWORD>@127.0.0.1:5432/myml_canvas_local
+REQUIRE_TEAM_PROVIDER_CREDENTIALS=false
+ATLAS_API_KEY=<YOUR_MYML_LOCAL_DEV_ATLAS_KEY>
+ENABLE_ATLAS_PROVIDER=true
+ENABLE_ATLAS_NANO_BANANA_2=true
+TASK_WORKER_ENABLED=true
+```
+
+上线/测试前必须确认：
+
+- 本地 `DATABASE_URL` 不指向 `10.0.0.30:15432/design_system_db`。
+- 本地 `TASK_WORKER_ENABLED=true` 时，没有同时连接共享测试库。
+- 服务器测试环境保持 `ENABLE_ATLAS_NANO_BANANA_2=false`，只测稳定的 Atlas GPT Image 2 Text/Edit。
+- 本地测试成功任务必须满足：
+  - task `status=completed`
+  - `result_url` 为 `/library/...`
+  - `output.localFileSize > 0`
+  - 浏览器能直接打开 `/library/...` 图片
+- 如果看到 `/library/... 404`，优先检查是否本地连了共享 DB 或被远端 worker 抢任务。
+
+建议命令：
+
+```bash
+npm run check:env:safety
+node scripts/check-env-safety.js --strict
+```
+
+`--strict` 应阻止本地 development 连接已知共享测试库。
