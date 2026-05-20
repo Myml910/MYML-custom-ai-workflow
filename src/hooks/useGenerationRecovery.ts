@@ -23,6 +23,14 @@ function hasActiveTaskState(node?: NodeData | null): node is NodeData & { taskId
         ACTIVE_TASK_STATUSES.has(node?.generationStatus as GenerationTaskStatus);
 }
 
+function getRecoveredResultWarning(resultUrl?: string | null): string | undefined {
+    if (!resultUrl || resultUrl.startsWith('/library/') || resultUrl.startsWith('data:')) {
+        return undefined;
+    }
+
+    return 'Recovered legacy result URL may be unavailable. Regenerate if the image does not load.';
+}
+
 export const useGenerationRecovery = ({
     nodes,
     updateNode,
@@ -57,7 +65,7 @@ export const useGenerationRecovery = ({
                 taskId: undefined,
                 generationStatus: undefined,
                 progress: undefined,
-                errorMessage: undefined,
+                errorMessage: getRecoveredResultWarning(task.resultUrl),
                 generationStartTime: undefined
             });
             return true;
@@ -121,7 +129,7 @@ export const useGenerationRecovery = ({
                     const updates: Partial<NodeData> = {
                         status: NodeStatus.SUCCESS,
                         resultUrl: data.resultUrl,
-                        errorMessage: undefined,
+                        errorMessage: getRecoveredResultWarning(data.resultUrl),
                         generationStartTime: undefined // Clear the timestamp after successful recovery
                     };
 

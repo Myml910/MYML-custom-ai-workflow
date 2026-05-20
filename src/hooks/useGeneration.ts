@@ -5,14 +5,14 @@
  * Manages generation state, API calls, and error handling.
  */
 
-import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { NodeData, NodeType, NodeStatus } from '../types';
 import type { Language } from '../i18n/translations';
 import {
     createImageTask,
     generateImageLegacy,
     generateVideo,
-    getTask,
+    waitForImageTaskCompletion,
     type GenerationTask,
     type GenerationTaskStatus
 } from '../services/generationService';
@@ -27,6 +27,8 @@ const MAX_IMAGE_GENERATION_COUNT = 4;
 const CANDIDATE_X_OFFSET = 500;
 const CANDIDATE_Y_STEP = 460;
 const TASK_POLL_INTERVAL_MS = 4000;
+const TASK_MAX_WAIT_MS = 10 * 60 * 1000;
+const IMAGE_LOAD_TIMEOUT_MS = 30000;
 const ACTIVE_TASK_STATUSES = new Set<GenerationTaskStatus>(['queued', 'running', 'polling']);
 const ENABLE_LEGACY_GENERATION_FALLBACK =
     ((import.meta as ImportMeta & { env?: { VITE_ENABLE_LEGACY_GENERATION_FALLBACK?: string } }).env?.VITE_ENABLE_LEGACY_GENERATION_FALLBACK) === 'true';
@@ -41,6 +43,15 @@ interface UseGenerationProps {
 }
 
 export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds, language = 'en', workflowId = null }: UseGenerationProps) => {
+    const activeImageTaskControllersRef = useRef<Map<string, AbortController>>(new Map());
+
+    useEffect(() => {
+        return () => {
+            activeImageTaskControllersRef.current.forEach(controller => controller.abort());
+            activeImageTaskControllersRef.current.clear();
+        };
+    }, []);
+
     // ============================================================================
     // HELPERS
     // ============================================================================
@@ -83,15 +94,23 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
      * @returns Promise with resultAspectRatio (exact) and aspectRatio (closest standard)
      */
     const getImageAspectRatio = (imageUrl: string): Promise<{ resultAspectRatio: string; aspectRatio: string }> => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const img = new Image();
+            const timeoutId = window.setTimeout(() => {
+                img.onload = null;
+                img.onerror = null;
+                reject(new Error('Generated image could not be loaded before timeout.'));
+            }, IMAGE_LOAD_TIMEOUT_MS);
+
             img.onload = () => {
+                window.clearTimeout(timeoutId);
                 const resultAspectRatio = `${img.naturalWidth}/${img.naturalHeight}`;
                 const aspectRatio = getClosestAspectRatio(img.naturalWidth, img.naturalHeight);
                 resolve({ resultAspectRatio, aspectRatio });
             };
             img.onerror = () => {
-                resolve({ resultAspectRatio: '16/9', aspectRatio: '16:9' });
+                window.clearTimeout(timeoutId);
+                reject(new Error('Generated image file is unavailable or could not be loaded.'));
             };
             img.src = imageUrl;
         });
@@ -149,17 +168,40 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         return imageBase64s;
     };
 
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
     const withCacheBusting = (url: string): string => {
         if (!url || url.startsWith('data:')) return url;
         return `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
     };
 
     const getTaskErrorMessage = (task: GenerationTask): string => {
+        if (task.errorType === 'RESULT_DOWNLOAD_FAILED') {
+            return 'The provider returned an image, but the result could not be downloaded and saved. Please retry.';
+        }
+        if (task.errorType === 'POLICY_BLOCKED' || task.errorType === 'CONTENT_POLICY_BLOCKED') {
+            return 'The request was blocked by the provider content policy. Please adjust the prompt or input image.';
+        }
+        if (task.errorType === 'CREDENTIAL_REQUIRED' || task.errorType === 'CREDENTIAL_DECRYPT_FAILED') {
+            return 'Provider credentials are not available for this account. Please contact an administrator.';
+        }
+        if (task.errorType === 'RATE_LIMIT') {
+            return 'The provider is rate limited or busy. Please wait and retry.';
+        }
+        if (task.errorType === 'PROVIDER_UNAVAILABLE') {
+            return 'The selected provider is currently unavailable. Please retry later or choose another model.';
+        }
         if (task.errorMessage) return task.errorMessage;
         if (task.status === 'timeout') return 'Image generation timed out.';
         return 'Image generation failed.';
+    };
+
+    const isImagePollingAbortError = (error: unknown): boolean => {
+        const message = error instanceof Error ? error.message : String(error || '');
+        return message.toLowerCase().includes('image task polling aborted');
+    };
+
+    const isImagePollingTimeoutError = (error: unknown): boolean => {
+        const message = error instanceof Error ? error.message : String(error || '');
+        return message.toLowerCase().includes('image task polling timed out');
     };
 
     const applyCompletedImageTask = async (targetNodeId: string, task: GenerationTask) => {
@@ -182,20 +224,26 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
     };
 
     const waitForImageTask = async (targetNodeId: string, taskId: string) => {
-        while (true) {
-            const task = await getTask(taskId);
+        activeImageTaskControllersRef.current.get(targetNodeId)?.abort();
+        const controller = new AbortController();
+        activeImageTaskControllersRef.current.set(targetNodeId, controller);
 
-            if (ACTIVE_TASK_STATUSES.has(task.status)) {
-                updateNode(targetNodeId, {
-                    status: NodeStatus.LOADING,
-                    taskId: task.taskId,
-                    generationStatus: task.status,
-                    progress: task.progress ?? undefined,
-                    errorMessage: undefined
-                });
-                await sleep(TASK_POLL_INTERVAL_MS);
-                continue;
-            }
+        try {
+            const task = await waitForImageTaskCompletion(taskId, {
+                pollIntervalMs: TASK_POLL_INTERVAL_MS,
+                maxWaitMs: TASK_MAX_WAIT_MS,
+                signal: controller.signal,
+                onTaskUpdate: (updatedTask) => {
+                    if (!ACTIVE_TASK_STATUSES.has(updatedTask.status)) return;
+                    updateNode(targetNodeId, {
+                        status: NodeStatus.LOADING,
+                        taskId: updatedTask.taskId,
+                        generationStatus: updatedTask.status,
+                        progress: updatedTask.progress ?? undefined,
+                        errorMessage: undefined
+                    });
+                }
+            });
 
             if (task.status === 'completed') {
                 await applyCompletedImageTask(targetNodeId, task);
@@ -219,6 +267,20 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
             }
 
             throw new Error(`Unexpected image task status: ${task.status}`);
+        } catch (error) {
+            if (isImagePollingAbortError(error)) {
+                return;
+            }
+
+            if (isImagePollingTimeoutError(error)) {
+                throw new Error('Task is still processing on the server. Please refresh later or check history.');
+            }
+
+            throw error;
+        } finally {
+            if (activeImageTaskControllersRef.current.get(targetNodeId) === controller) {
+                activeImageTaskControllersRef.current.delete(targetNodeId);
+            }
         }
     };
 
@@ -341,7 +403,19 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         const msg = error.toString().toLowerCase();
         let errorMessage = error.message || 'Generation failed';
 
-        if (msg.includes('permission_denied') || msg.includes('403')) {
+        if (msg.includes('result_download_failed') || msg.includes('could not be downloaded and saved')) {
+            errorMessage = 'The provider returned an image, but the result could not be downloaded and saved. Please retry.';
+        } else if (msg.includes('policy') || msg.includes('moderation') || msg.includes('blocked')) {
+            errorMessage = 'The request was blocked by the provider content policy. Please adjust the prompt or input image.';
+        } else if (msg.includes('credential') && (msg.includes('required') || msg.includes('decrypt') || msg.includes('missing'))) {
+            errorMessage = 'Provider credentials are not available for this account. Please contact an administrator.';
+        } else if (msg.includes('rate limit') || msg.includes('429')) {
+            errorMessage = 'The provider is rate limited or busy. Please wait and retry.';
+        } else if (msg.includes('quota') || msg.includes('insufficient balance') || msg.includes('402')) {
+            errorMessage = 'The provider quota or balance is insufficient. Please contact an administrator.';
+        } else if (msg.includes('task is still processing') || msg.includes('polling timed out')) {
+            errorMessage = 'Task is still processing on the server. Please refresh later or check history.';
+        } else if (msg.includes('permission_denied') || msg.includes('403')) {
             errorMessage = 'Permission denied. Check API Key configuration.';
         } else if (msg.includes('unable to process input image') || msg.includes('invalid_argument')) {
             errorMessage = 'Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
@@ -394,6 +468,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 try {
                     await generateSingleImageNode(generationNode, [...nodes, ...candidateNodes], nodesById);
                 } catch (error: any) {
+                    if (isImagePollingAbortError(error)) return;
                     const errorMessage = getGenerationErrorMessage(error);
                     updateNode(generationNode.id, {
                         status: NodeStatus.ERROR,
@@ -615,15 +690,8 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
 
             }
         } catch (error: any) {
-            // Handle errors
-            const msg = error.toString().toLowerCase();
-            let errorMessage = error.message || 'Generation failed';
-
-            if (msg.includes('permission_denied') || msg.includes('403')) {
-                errorMessage = 'Permission denied. Check API Key configuration.';
-            } else if (msg.includes('unable to process input image') || msg.includes('invalid_argument')) {
-                errorMessage = 'Input image incompatible. Veo requires: JPEG format, 16:9 or 9:16 aspect ratio. Try a different image or generate without input.';
-            }
+            if (isImagePollingAbortError(error)) return;
+            const errorMessage = getGenerationErrorMessage(error);
 
             updateNode(id, {
                 status: NodeStatus.ERROR,

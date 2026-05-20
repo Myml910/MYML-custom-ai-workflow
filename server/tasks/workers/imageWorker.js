@@ -5,7 +5,7 @@ import {
     resolveProviderRuntimeConfig
 } from '../../services/ai/credentialResolver.js';
 import { recordProviderUsageLog } from '../../db/providerCredentials.js';
-import { getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
+import { getAvailableImageModels, getImageModelConfig, getImageProviders } from '../../services/ai/modelRegistry.js';
 import {
     normalizeImageResult,
     normalizeProviderError,
@@ -51,6 +51,57 @@ const RECOVERABLE_POLL_ERROR_TYPES = new Set([
 
 const DEFAULT_TASK_LEASE_MS = 120000;
 const DEFAULT_TASK_HEARTBEAT_MS = 30000;
+const DEFAULT_IMAGE_TASK_TIMEOUT_MS = 600000;
+const ATLAS_RESULT_SAVE_RETRY_COUNT = 6;
+const ATLAS_RESULT_SAVE_RETRY_DELAY_MS = 5000;
+
+function parsePositiveInteger(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getTaskElapsedMs(task) {
+    const createdAt = task?.createdAt ? new Date(task.createdAt).getTime() : null;
+    return Number.isFinite(createdAt) ? Math.max(0, Date.now() - createdAt) : 0;
+}
+
+function hasTimeForRetry(task, retryDelayMs) {
+    const timeoutMs = parsePositiveInteger(process.env.IMAGE_TASK_TIMEOUT_MS, DEFAULT_IMAGE_TASK_TIMEOUT_MS);
+    return getTaskElapsedMs(task) + retryDelayMs + 1000 < timeoutMs;
+}
+
+function previewUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+
+    try {
+        const parsed = new URL(url);
+        const tail = `${parsed.pathname || ''}${parsed.search || ''}`.slice(-80);
+        return {
+            host: parsed.host,
+            tail
+        };
+    } catch {
+        return {
+            tail: String(url).slice(-80)
+        };
+    }
+}
+
+async function addTaskEventSafe(taskId, eventType, message = null, payload = null) {
+    try {
+        await addTaskEvent(taskId, eventType, message, payload);
+    } catch (error) {
+        console.warn('[ImageWorker] Failed to write task event:', {
+            taskId,
+            eventType,
+            error: error?.message || error
+        });
+    }
+}
 
 function startTaskHeartbeat(task, options = {}, phase = 'worker') {
     const workerId = options.workerId;
@@ -202,6 +253,62 @@ async function recordTaskProviderUsage(task, details = {}, status, error = {}) {
     });
 }
 
+async function saveGeneratedImageWithAtlasRetry(task, imageResult, saveOptions, providerRemoteUrl) {
+    const maxAttempts = ATLAS_RESULT_SAVE_RETRY_COUNT + 1;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            const saved = await saveGeneratedImage(saveOptions);
+            return {
+                ...saved,
+                localSaveAttempts: attempt
+            };
+        } catch (error) {
+            lastError = error;
+            const canRetry = attempt < maxAttempts && hasTimeForRetry(task, ATLAS_RESULT_SAVE_RETRY_DELAY_MS);
+            const payload = {
+                attempt,
+                maxAttempts,
+                errorMessage: error?.message || 'Local save failed',
+                hasProviderRemoteUrl: Boolean(providerRemoteUrl),
+                providerRemoteUrlPreview: previewUrl(providerRemoteUrl),
+                retryDelayMs: canRetry ? ATLAS_RESULT_SAVE_RETRY_DELAY_MS : 0
+            };
+
+            await addTaskEventSafe(
+                task.taskId,
+                canRetry ? 'result_save_retry' : 'result_save_failed',
+                canRetry
+                    ? 'Provider result save failed; will retry'
+                    : 'Provider result could not be downloaded and saved locally',
+                {
+                    ...payload,
+                    provider: 'atlas'
+                }
+            );
+
+            await addTaskEventSafe(
+                task.taskId,
+                canRetry ? 'atlas_result_save_retry' : 'atlas_result_save_failed',
+                canRetry
+                    ? 'Atlas result save failed; will retry'
+                    : 'Atlas result URL could not be downloaded and saved locally',
+                payload
+            );
+
+            if (!canRetry) break;
+            await sleep(ATLAS_RESULT_SAVE_RETRY_DELAY_MS);
+        }
+    }
+
+    const finalError = lastError instanceof Error
+        ? lastError
+        : new Error(String(lastError || 'Atlas result URL could not be downloaded and saved locally.'));
+    finalError.localSaveAttempts = finalError.localSaveAttempts || maxAttempts;
+    throw finalError;
+}
+
 async function completeImageTaskWithResult(task, imageResult, details) {
     const providerResultUrl = getFirstImageResultUrl(imageResult.images);
     if (!providerResultUrl) {
@@ -227,7 +334,7 @@ async function completeImageTaskWithResult(task, imageResult, details) {
     };
 
     try {
-        const saved = await saveGeneratedImage({
+        const saveOptions = {
             user: getTaskUser(task),
             imageResult,
             prompt: task.prompt,
@@ -239,12 +346,35 @@ async function completeImageTaskWithResult(task, imageResult, details) {
             workflowId: task.workflowId,
             metadataId: task.nodeId || task.taskId,
             remoteUrl: providerRemoteUrl || undefined
-        });
+        };
+        const isAtlasProvider = details.provider === 'atlas';
+        const saved = isAtlasProvider
+            ? await saveGeneratedImageWithAtlasRetry(task, imageResult, saveOptions, providerRemoteUrl)
+            : await saveGeneratedImage(saveOptions);
+
+        await addTaskEventSafe(
+            task.taskId,
+            'result_save_completed',
+            'Provider result saved to local library',
+            {
+                provider: details.provider,
+                model: details.model,
+                providerTaskId,
+                localResultUrl: saved.resultUrl,
+                localFilename: saved.filename,
+                localFileSize: saved.fileSize,
+                localSaveAttempts: saved.localSaveAttempts || 1,
+                hasProviderRemoteUrl: Boolean(providerRemoteUrl),
+                providerRemoteUrlPreview: previewUrl(providerRemoteUrl)
+            }
+        );
 
         const completed = await markTaskCompleted(task.taskId, saved.resultUrl, {
             ...output,
             localResultUrl: saved.resultUrl,
-            localFilename: saved.filename
+            localFilename: saved.filename,
+            localFileSize: saved.fileSize,
+            localSaveAttempts: saved.localSaveAttempts || 1
         });
         await recordTaskProviderUsage(task, {
             ...details,
@@ -252,25 +382,56 @@ async function completeImageTaskWithResult(task, imageResult, details) {
         }, 'completed');
         return completed;
     } catch (error) {
-        await addTaskEvent(
+        const localSaveAttempts = error?.localSaveAttempts || (details.provider === 'atlas'
+            ? ATLAS_RESULT_SAVE_RETRY_COUNT + 1
+            : 1);
+        const errorMessage = details.provider === 'atlas'
+            ? 'Atlas result URL was returned but could not be downloaded and saved locally.'
+            : 'Provider result URL was returned but could not be downloaded and saved locally.';
+        const failedOutput = {
+            ...output,
+            localSaveError: error?.message || 'Local save failed',
+            localSaveAttempts
+        };
+
+        await addTaskEventSafe(
             task.taskId,
-            'local_save_failed',
-            'Local save failed; using provider remote URL fallback',
+            'result_save_failed',
+            'Provider result could not be downloaded and saved locally',
             {
                 errorMessage: error?.message || 'Local save failed',
-                providerRemoteUrl
+                localSaveAttempts,
+                provider: details.provider,
+                model: details.model,
+                providerTaskId,
+                hasProviderRemoteUrl: Boolean(providerRemoteUrl),
+                providerRemoteUrlPreview: previewUrl(providerRemoteUrl)
             }
         );
 
-        const completed = await markTaskCompleted(task.taskId, providerResultUrl, {
-            ...output,
-            localSaveError: error?.message || 'Local save failed'
+        const failed = await markTaskFailed(task.taskId, AI_ERROR_TYPES.RESULT_DOWNLOAD_FAILED, errorMessage, {
+            errorMessage,
+            localSaveError: error?.message || 'Local save failed',
+            localSaveAttempts,
+            hasProviderRemoteUrl: Boolean(providerRemoteUrl),
+            providerRemoteUrlPreview: previewUrl(providerRemoteUrl),
+            provider: details.provider,
+            model: details.model,
+            providerTaskId,
+            credentialId: details.credentialContext?.credentialId || null,
+            credentialSource: details.credentialContext?.source || 'env',
+            teamId: details.credentialContext?.teamId || null,
+            apiKeyLast4: details.credentialContext?.apiKeyLast4 || null,
+            taskOutput: failedOutput
         });
         await recordTaskProviderUsage(task, {
             ...details,
             imageCount: imageResult.images?.length || 1
-        }, 'completed');
-        return completed;
+        }, 'failed', {
+            errorType: AI_ERROR_TYPES.RESULT_DOWNLOAD_FAILED,
+            errorMessage
+        });
+        return failed;
     }
 }
 
@@ -314,12 +475,93 @@ function sanitizeRawForOutput(value, depth = 0) {
     );
 }
 
+function summarizeProviderConfig(providerConfig) {
+    if (!providerConfig) return null;
+    return {
+        provider: providerConfig.provider,
+        enabled: providerConfig.enabled,
+        upstreamModel: providerConfig.upstreamModel
+    };
+}
+
+function summarizeAvailableImageModel(modelId) {
+    try {
+        const availableModel = getAvailableImageModels().find(model => model.id === modelId);
+        if (!availableModel) return null;
+
+        return {
+            id: availableModel.id,
+            providerChain: availableModel.providerChain,
+            enabled: availableModel.enabled,
+            capabilities: availableModel.capabilities
+        };
+    } catch (error) {
+        return {
+            error: error?.message || 'Failed to read available image models'
+        };
+    }
+}
+
+function warnUnavailableTaskModel(task, modelConfig, providers) {
+    console.warn('[ImageWorker] Image model unavailable for task worker diagnostics', {
+        taskId: task.taskId || task.id || null,
+        taskRecordId: task.id || task.taskId || null,
+        model: task.model,
+        provider: task.provider || null,
+        hasModelConfig: Boolean(modelConfig),
+        modelConfigProviders: (modelConfig?.providers || []).map(summarizeProviderConfig),
+        enabledProviders: providers.map(summarizeProviderConfig),
+        availableModel: summarizeAvailableImageModel(task.model),
+        env: {
+            ENABLE_ATLAS_PROVIDER: process.env.ENABLE_ATLAS_PROVIDER,
+            ENABLE_ATLAS_NANO_BANANA_2: process.env.ENABLE_ATLAS_NANO_BANANA_2
+        }
+    });
+}
+
 function getTaskProviderConfig(task) {
     const modelConfig = getImageModelConfig(task.model);
     const providers = getImageProviders(task.model);
-    const providerConfig = providers.find(provider => provider.provider === task.provider) || providers[0];
+    let providerConfig = task.provider
+        ? providers.find(provider => provider.provider === task.provider) || null
+        : null;
+
+    if (!providerConfig && modelConfig?.providers?.length && task.provider) {
+        providerConfig = modelConfig.providers.find(provider => provider.provider === task.provider && provider.enabled !== false) || null;
+        if (providerConfig) {
+            console.warn('[ImageWorker] Resolved task provider from model registry metadata after enabled provider chain was empty.', {
+                taskId: task.taskId,
+                model: task.model,
+                provider: task.provider,
+                resolvedProvider: providerConfig.provider
+            });
+        }
+    }
+
+    if (!providerConfig && !task.provider && providers.length === 1) {
+        const [singleProvider] = providers;
+        providerConfig = singleProvider;
+        console.warn('[ImageWorker] Resolved missing task provider from sole enabled model provider.', {
+            taskId: task.taskId,
+            model: task.model,
+            resolvedProvider: providerConfig.provider
+        });
+    }
+
+    if (!providerConfig && !task.provider && providers.length === 0 && modelConfig?.providers?.length === 1) {
+        const [singleProvider] = modelConfig.providers;
+        if (singleProvider?.enabled !== false) {
+            providerConfig = singleProvider;
+            console.warn('[ImageWorker] Resolved missing task provider from sole enabled model provider.', {
+                taskId: task.taskId,
+                model: task.model,
+                resolvedProvider: providerConfig.provider
+            });
+        }
+    }
 
     if (!modelConfig || !providerConfig) {
+        warnUnavailableTaskModel(task, modelConfig, providers);
         throw new Error(`Image model unavailable for task worker: ${task.model}`);
     }
 

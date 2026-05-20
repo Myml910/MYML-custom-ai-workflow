@@ -196,6 +196,11 @@ export async function markTaskCompleted(taskId, resultUrl, output = null) {
 }
 
 export async function markTaskFailed(taskId, errorType, errorMessage, payload = null) {
+    const taskOutput = payload?.taskOutput;
+    const eventPayload = payload && taskOutput !== undefined
+        ? Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'taskOutput'))
+        : payload;
+
     return updateTerminalTaskWithBestEffortEvent({
         taskId,
         updateSql: `
@@ -203,6 +208,7 @@ export async function markTaskFailed(taskId, errorType, errorMessage, payload = 
             SET status = 'failed',
                 error_type = $2,
                 error_message = $3,
+                output = COALESCE($4, output),
                 last_error = $3,
                 failed_at = now(),
                 locked_by = NULL,
@@ -217,10 +223,10 @@ export async function markTaskFailed(taskId, errorType, errorMessage, payload = 
             WHERE id = $1
             RETURNING *
         `,
-        updateParams: [taskId, errorType, errorMessage],
+        updateParams: [taskId, errorType, errorMessage, jsonOrNull(taskOutput)],
         eventType: 'task_failed',
         message: errorMessage || 'Image generation task failed',
-        payload
+        payload: eventPayload
     });
 }
 

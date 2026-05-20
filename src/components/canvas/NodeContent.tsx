@@ -62,6 +62,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     // Local state for text node textarea to prevent lag
     const [localPrompt, setLocalPrompt] = useState(data.prompt || '');
     const [isCancellingQueuedTask, setIsCancellingQueuedTask] = useState(false);
+    const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSentPromptRef = useRef<string | undefined>(data.prompt); // Track what we sent
 
@@ -75,6 +76,10 @@ export const NodeContent: React.FC<NodeContentProps> = ({
         data.generationStatus === 'running' ||
         data.generationStatus === 'polling';
     const displayResultUrl = data.resultUrl;
+    const hasImageLoadError = Boolean(displayResultUrl && failedImageUrl === displayResultUrl);
+    const resultUrlTail = displayResultUrl
+        ? displayResultUrl.slice(Math.max(0, displayResultUrl.length - 72))
+        : '';
     const generationStatusLabel = (() => {
         if (language === 'zh') {
             if (data.generationStatus === 'queued') return '排队中';
@@ -101,6 +106,10 @@ export const NodeContent: React.FC<NodeContentProps> = ({
             lastSentPromptRef.current = data.prompt;
         }
     }, [data.prompt]);
+
+    useEffect(() => {
+        setFailedImageUrl(null);
+    }, [data.resultUrl]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -180,7 +189,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     className={`relative w-full ${data.hideGenerationControls ? 'bg-transparent' : 'bg-black'} group/image ${!selected ? '' : 'rounded-[var(--myml-radius-panel)] overflow-hidden'}`}
                     style={getAspectRatioStyle()}
                     onDoubleClick={(e) => {
-                        if (isVideoType || !data.resultUrl) return;
+                        if (isVideoType || !data.resultUrl || hasImageLoadError) return;
 
                         e.stopPropagation();
                         onExpand?.(data.resultUrl);
@@ -189,12 +198,31 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                 >
                     {isVideoType ? (
                         <video src={data.resultUrl} controls loop className="w-full h-full object-cover" />
+                    ) : hasImageLoadError ? (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--myml-surface-base)] px-4 text-center">
+                            <ImageIcon size={28} className="text-red-300" />
+                            <div className="text-xs font-semibold text-red-300">Image file unavailable</div>
+                            <div className="max-w-[90%] text-[11px] leading-snug text-[var(--myml-text-muted)]">
+                                Result file may be missing or was not saved successfully. Please regenerate or check task history.
+                            </div>
+                            {data.errorMessage && (
+                                <div className="max-w-[90%] text-[11px] leading-snug text-[var(--myml-text-muted)]">
+                                    {data.errorMessage}
+                                </div>
+                            )}
+                            {resultUrlTail && (
+                                <code className="max-w-[90%] truncate rounded bg-black/25 px-1.5 py-0.5 text-[10px] text-[var(--myml-text-faint)]">
+                                    ...{resultUrlTail}
+                                </code>
+                            )}
+                        </div>
                     ) : (
                         <img
                             key={`${data.id}-${data.resultUrl || ''}`}
                             src={displayResultUrl}
                             alt={t(language, 'generated')}
                             className="w-full h-full object-cover pointer-events-none"
+                            onError={() => setFailedImageUrl(displayResultUrl || null)}
                         />
                     )}
 

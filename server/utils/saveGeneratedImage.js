@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { imageResultToBuffer } from '../services/ai/providers/apimartProvider.js';
 import { saveBufferToFile } from './imageHelpers.js';
-import { ensureUserLibraryDirs } from './userLibrary.js';
+import { ensureUserLibraryDirs, resolveLibraryUrlToPath } from './userLibrary.js';
 
 function normalizeExtension(extension, fallback = 'png') {
     const value = String(extension || fallback || 'png')
@@ -64,6 +64,30 @@ function getImageExtension({ imageResult, imageFormat, remoteUrl }) {
     return normalizeExtension(getExtensionFromUrl(remoteUrl), 'png');
 }
 
+function validateSavedLocalImage({ filePath, resultUrl, user }) {
+    let stat;
+    try {
+        stat = fs.statSync(filePath);
+    } catch (error) {
+        throw new Error(`SAVED_FILE_MISSING: Saved image file is missing at ${filePath}`);
+    }
+
+    if (!stat.isFile()) {
+        throw new Error(`SAVED_FILE_MISSING: Saved image path is not a file at ${filePath}`);
+    }
+
+    if (stat.size <= 0) {
+        throw new Error(`SAVED_FILE_EMPTY: Saved image file is empty at ${filePath}`);
+    }
+
+    const resolvedUrlPath = resolveLibraryUrlToPath(resultUrl, user);
+    if (!resolvedUrlPath || path.resolve(resolvedUrlPath) !== path.resolve(filePath)) {
+        throw new Error('LIBRARY_URL_PATH_MISMATCH: Saved image URL does not resolve to the saved local file');
+    }
+
+    return stat;
+}
+
 export async function saveGeneratedImage(options = {}) {
     const {
         user,
@@ -87,6 +111,11 @@ export async function saveGeneratedImage(options = {}) {
     const libraryDirs = ensureUserLibraryDirs(user);
     const extension = getImageExtension({ imageResult, imageFormat, remoteUrl: providerRemoteUrl });
     const saved = saveBufferToFile(imageBuffer, libraryDirs.imagesDir, 'img', extension);
+    const savedStat = validateSavedLocalImage({
+        filePath: saved.path,
+        resultUrl: saved.url,
+        user
+    });
     const savedMetadataId = metadataId || nodeId || saved.id;
     const metadataRemoteUrl = providerRemoteUrl && !providerRemoteUrl.startsWith('data:')
         ? providerRemoteUrl
@@ -117,6 +146,7 @@ export async function saveGeneratedImage(options = {}) {
         resultUrl: saved.url,
         filename: saved.filename,
         filePath: saved.path,
+        fileSize: savedStat.size,
         metadata
     };
 }
