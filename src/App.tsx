@@ -1145,7 +1145,10 @@ function CanvasApp({
         setGroups(historyState.groups);
       }
     }
-  }, [groups, historyState, nodes, setGroups, setNodes]);
+    // Only react to history pointer changes. Including live nodes/groups here
+    // re-applies the old history snapshot after every drag update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyState]);
 
   // Simple wrapper for updateNode (sync code removed - TEXT node prompts are combined at generation time)
   const updateNodeWithSync = React.useCallback((id: string, updates: Partial<NodeData>) => {
