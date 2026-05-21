@@ -16,6 +16,7 @@ import { createChatGraph, generateTopicTitle } from "./graph/chatGraph.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { CHATS_DIR, IMAGES_DIR } from '../config/paths.js';
 import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
+import { sanitizeCanvasContext, summarizeCanvasContext } from './context/canvasContext.js';
 
 const SAFE_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const CHAT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -384,6 +385,8 @@ export function getSessionData(sessionId, options = {}) {
 export async function sendMessage(sessionId, content, media, apiKey, options = {}) {
     const session = getSession(sessionId, options);
     const graph = createChatGraph();
+    const sanitizedCanvasContext = sanitizeCanvasContext(options.canvasContext);
+    const canvasContextSummary = summarizeCanvasContext(sanitizedCanvasContext);
 
     // Debug: Log session state
     console.log(`[Chat] Session ${sessionId} has ${session.messages.length} existing messages`);
@@ -445,9 +448,14 @@ export async function sendMessage(sessionId, content, media, apiKey, options = {
     console.log(`[Chat] Sending ${session.messages.length} messages to LLM`);
 
     // Invoke the graph
+    const configurable = { apiKey };
+    if (canvasContextSummary) {
+        configurable.canvasContextSummary = canvasContextSummary;
+    }
+
     const result = await graph.invoke(
         { messages: session.messages },
-        { configurable: { apiKey } }
+        { configurable }
     );
 
     // Extract AI response from result

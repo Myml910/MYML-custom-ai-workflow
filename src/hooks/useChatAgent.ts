@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import type { AgentCanvasContext } from '../utils/agentCanvasContext';
 
 // ============================================================================
 // TYPES
@@ -38,7 +39,11 @@ interface UseChatAgentReturn {
     error: string | null;
     sessions: ChatSession[];
     isLoadingSessions: boolean;
-    sendMessage: (content: string, media?: { type: 'image' | 'video'; url: string; base64?: string }[]) => Promise<void>;
+    sendMessage: (
+        content: string,
+        media?: { type: 'image' | 'video'; url: string; base64?: string }[],
+        canvasContext?: AgentCanvasContext
+    ) => Promise<void>;
     startNewChat: () => void;
     loadSession: (sessionId: string) => Promise<void>;
     deleteSession: (sessionId: string) => Promise<void>;
@@ -205,7 +210,8 @@ export function useChatAgent(): UseChatAgentReturn {
      */
     const sendMessage = useCallback(async (
         content: string,
-        media?: { type: 'image' | 'video'; url: string; base64?: string }[]
+        media?: { type: 'image' | 'video'; url: string; base64?: string }[],
+        canvasContext?: AgentCanvasContext
     ) => {
         const currentSessionId = ensureSession();
         setError(null);
@@ -234,6 +240,7 @@ export function useChatAgent(): UseChatAgentReturn {
                         url: m.url,
                         base64: m.base64 || m.url, // Use base64 if available, otherwise URL
                     })) : undefined,
+                    canvasContext,
                 }),
             });
 

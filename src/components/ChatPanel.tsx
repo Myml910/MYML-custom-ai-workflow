@@ -12,6 +12,7 @@ import { X, History, Paperclip, Globe, Settings, Send, Sparkles, Plus, Loader2, 
 import { ChatMessage } from './ChatMessage';
 import { useChatAgent, ChatMessage as ChatMessageType, ChatSession } from '../hooks/useChatAgent';
 import { Language, t } from '../i18n/translations';
+import type { AgentCanvasContext } from '../utils/agentCanvasContext';
 
 // ============================================================================
 // TYPES
@@ -32,6 +33,7 @@ interface ChatPanelProps {
     onNodeDrop?: (nodeId: string, url: string, type: 'image' | 'video') => void;
     canvasTheme?: 'dark' | 'light';
     language?: Language;
+    getCanvasContext?: () => AgentCanvasContext;
 }
 
 const CHAT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
@@ -63,6 +65,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     isDraggingNode = false,
     canvasTheme = 'dark',
     language = 'zh',
+    getCanvasContext,
 }) => {
     // --- State ---
     const [message, setMessage] = useState('');
@@ -220,7 +223,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     url: m.url,
                     base64: m.base64,
                 }))
-                : undefined
+                : undefined,
+            getCanvasContext?.()
         );
     };
 

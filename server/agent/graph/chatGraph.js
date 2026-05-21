@@ -224,9 +224,24 @@ async function callTextModel({
 
 async function agentNode(state, config) {
     const chatConfig = getChatConfig(config.configurable?.apiKey);
+    const canvasContextSummary = config.configurable?.canvasContextSummary;
 
     const systemMessage = new SystemMessage(CHAT_AGENT_SYSTEM_PROMPT);
-    const allMessages = [systemMessage, ...state.messages];
+    const canvasContextMessage = canvasContextSummary
+        ? new SystemMessage(`Read-only canvas context for this turn:
+
+Canvas context is read-only.
+You may reason about node metadata, selection, prompts, statuses, groups, and parent-child links.
+You cannot inspect image pixels unless the user explicitly attached media in the chat message.
+Do not claim you saw image contents from result URLs or canvas thumbnails.
+Do not execute actions, create nodes, move nodes, delete nodes, run generation, save workflows, or modify workflows.
+If asked to act, explain that you can only analyze the current canvas and provide suggested steps.
+
+${canvasContextSummary}`)
+        : null;
+    const allMessages = canvasContextMessage
+        ? [systemMessage, canvasContextMessage, ...state.messages]
+        : [systemMessage, ...state.messages];
 
     const openAIMessages = toOpenAICompatibleMessages(allMessages);
 

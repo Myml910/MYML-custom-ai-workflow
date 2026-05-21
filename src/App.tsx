@@ -62,6 +62,7 @@ import {
   debugCanvasSurfaceEventIgnored,
   getCanvasSurfaceEventIgnoreReason
 } from './utils/canvasEventTarget';
+import { buildAgentCanvasContext } from './utils/agentCanvasContext';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -528,6 +529,15 @@ function CanvasApp({
     updateNode,
     workflowId
   });
+
+  const getAgentCanvasContext = React.useCallback(() => buildAgentCanvasContext({
+    nodes,
+    groups,
+    selectedNodeIds,
+    viewport,
+    workflowId,
+    canvasTitle
+  }), [nodes, groups, selectedNodeIds, viewport, workflowId, canvasTitle]);
 
   // Video Frame Extraction (auto-extract lastFrame for videos missing thumbnails)
   useVideoFrameExtraction({
@@ -1426,7 +1436,14 @@ function CanvasApp({
         language={language}
       />
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
-        <ChatPanel isOpen={isChatOpen} onClose={closeChat} isDraggingNode={isDraggingNodeToChat} canvasTheme={canvasTheme} language={language} />
+        <ChatPanel
+          isOpen={isChatOpen}
+          onClose={closeChat}
+          isDraggingNode={isDraggingNodeToChat}
+          canvasTheme={canvasTheme}
+          language={language}
+          getCanvasContext={getAgentCanvasContext}
+        />
       )}
 
       {/* Top Bar */}

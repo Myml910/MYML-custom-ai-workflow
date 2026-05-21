@@ -1615,7 +1615,7 @@ function sendAgentError(res, error, fallbackMessage = "Chat failed") {
 // Send a message to the chat agent
 app.post('/api/chat', async (req, res) => {
     try {
-        const { sessionId, message, media } = req.body;
+        const { sessionId, message, media, canvasContext } = req.body;
 
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         const hasApimartText = isApimartTextConfigured(aiProviderConfig);
@@ -1642,7 +1642,8 @@ app.post('/api/chat', async (req, res) => {
         const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
         const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey, {
             chatsDir: libraryDirs.chatsDir,
-            user: req.user
+            user: req.user,
+            canvasContext
         });
 
         res.json({
