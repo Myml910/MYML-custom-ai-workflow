@@ -1,4 +1,4 @@
-import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isNewapiImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
 import {
     PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
@@ -29,6 +29,11 @@ import {
     pollImageTask as pollAtlasImageTask,
     submitImageTask as submitAtlasImageTask
 } from '../../services/ai/providers/atlasProvider.js';
+import {
+    normalizeNewapiImageResponse,
+    normalizeProviderError as normalizeNewapiProviderError,
+    submitImageTask as submitNewapiImageTask
+} from '../../services/ai/providers/newapiProvider.js';
 import {
     addTaskEvent,
     heartbeatTask,
@@ -635,6 +640,19 @@ function buildAtlasInput(task, config, providerConfig, modelConfig) {
     };
 }
 
+function buildNewapiInput(task, config, providerConfig, modelConfig) {
+    const input = getTaskInput(task);
+    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+
+    return {
+        prompt: input.prompt || task.prompt || '',
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        size: input.aspectRatio || input.size || 'auto',
+        resolution: input.resolution || modelConfig.defaultResolution || config.newapi.imageResolution || 'auto',
+        model: providerConfig.upstreamModel
+    };
+}
+
 function normalizeWorkerError(error, providerConfig = null) {
     if (error?.type === PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE) {
         return {
@@ -652,6 +670,8 @@ function normalizeWorkerError(error, providerConfig = null) {
         normalized = normalizePikachuProviderError(error, { model: providerConfig.upstreamModel });
     } else if (providerConfig?.provider === 'atlas') {
         normalized = normalizeAtlasProviderError(error, { model: providerConfig.upstreamModel });
+    } else if (providerConfig?.provider === 'newapi') {
+        normalized = normalizeNewapiProviderError(error, { model: providerConfig.upstreamModel });
     } else {
         normalized = classifyProviderError(error, {
             provider: providerConfig?.provider,
@@ -749,6 +769,9 @@ export async function executeImageTask(task, options = {}) {
         if (providerConfig.provider === 'atlas' && !isAtlasImageConfigured(config)) {
             throw new Error('Atlas image provider is not configured. Add ATLAS_BASE_URL and ATLAS_API_KEY to .env, or configure a team provider credential.');
         }
+        if (providerConfig.provider === 'newapi' && !isNewapiImageConfigured(config)) {
+            throw new Error('NewAPI image provider is not configured. Add NEWAPI_BASE_URL and NEWAPI_API_KEY to .env.');
+        }
 
         if (providerConfig.provider === 'dataler') {
             const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig);
@@ -839,6 +862,33 @@ export async function executeImageTask(task, options = {}) {
                 progress: submitResult.progress ?? null,
                 request: submitResult.request || null
             }, credentialContext));
+        }
+
+        if (providerConfig.provider === 'newapi') {
+            const providerInput = buildNewapiInput(task, config, providerConfig, resolved.modelConfig);
+            const submitResult = await submitNewapiImageTask(providerInput, {
+                config,
+                user: getTaskUser(task)
+            });
+
+            if (submitResult.status !== 'completed') {
+                throw new Error(submitResult.error || 'NewAPI image task did not complete.');
+            }
+
+            const normalizedResult = normalizeNewapiImageResponse(submitResult.raw || submitResult, {
+                model: submitResult.model
+            });
+            return await completeImageTaskWithResult(task, normalizedResult, {
+                provider: submitResult.provider,
+                model: submitResult.model,
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? 100,
+                providerTaskId: submitResult.taskId || null,
+                usage: submitResult.usage || null,
+                raw: submitResult.raw || null,
+                workerId: options.workerId || null,
+                credentialContext
+            });
         }
 
         if (providerConfig.provider !== 'apimart') {

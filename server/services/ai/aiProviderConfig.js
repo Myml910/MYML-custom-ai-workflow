@@ -22,6 +22,9 @@ const DEFAULT_ATLAS_NANO_BANANA_2_OUTPUT_FORMAT = 'default';
 const DEFAULT_ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION = 'default';
 const DEFAULT_ATLAS_NANO_BANANA_2_THINKING_LEVEL = 'default';
 const DEFAULT_ATLAS_REQUEST_TIMEOUT_MS = 300000;
+const DEFAULT_NEWAPI_BASE_URL = 'http://10.0.0.30:13000/v1';
+const DEFAULT_NEWAPI_IMAGE_MODEL = 'google/gemini-3.1-flash-image-preview';
+const DEFAULT_NEWAPI_REQUEST_TIMEOUT_MS = 300000;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -77,6 +80,12 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             nanoBanana2MediaResolution: cleanString(env.ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION) || DEFAULT_ATLAS_NANO_BANANA_2_MEDIA_RESOLUTION,
             nanoBanana2ThinkingLevel: cleanString(env.ATLAS_NANO_BANANA_2_THINKING_LEVEL) || DEFAULT_ATLAS_NANO_BANANA_2_THINKING_LEVEL
         },
+        newapi: {
+            baseUrl: cleanBaseUrl(env.NEWAPI_BASE_URL) || DEFAULT_NEWAPI_BASE_URL,
+            apiKey: cleanString(env.NEWAPI_API_KEY),
+            requestTimeoutMs: parsePositiveInteger(env.NEWAPI_REQUEST_TIMEOUT_MS, DEFAULT_NEWAPI_REQUEST_TIMEOUT_MS),
+            imageModel: cleanString(env.NEWAPI_IMAGE_MODEL) || DEFAULT_NEWAPI_IMAGE_MODEL
+        },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',
             chatApiKey: cleanString(env.CHAT_API_KEY) || cleanString(locals.OPENAI_API_KEY) || cleanString(env.OPENAI_API_KEY),
@@ -112,6 +121,10 @@ export function isDatalerImageConfigured(config = getAiProviderConfig()) {
 
 export function isAtlasImageConfigured(config = getAiProviderConfig()) {
     return Boolean(config.atlas.baseUrl && config.atlas.apiKey);
+}
+
+export function isNewapiImageConfigured(config = getAiProviderConfig()) {
+    return Boolean(config.newapi.baseUrl && config.newapi.apiKey);
 }
 
 export function getLegacyChatConfig(runtimeApiKey, config = getAiProviderConfig()) {

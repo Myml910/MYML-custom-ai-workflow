@@ -91,6 +91,56 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         ],
         defaultResolution: 'medium'
     },
+    'custom-image-newapi-gemini-3-1-flash': {
+        projectModelId: 'custom-image-newapi-gemini-3-1-flash',
+        displayName: 'NewAPI Gemini 3.1 Flash Image',
+        description: 'Company intranet NewAPI / OpenAI-compatible chat completions image endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        resolutions: ['Auto', '1K', '2K', '4K'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'],
+        providers: [
+            {
+                provider: 'newapi',
+                upstreamModel: 'google/gemini-3.1-flash-image-preview',
+                priority: 1,
+                isAsync: false,
+                experimental: true
+            }
+        ],
+        defaultResolution: '2K'
+    },
+    'custom-image-newapi-gpt-image-2': {
+        projectModelId: 'custom-image-newapi-gpt-image-2',
+        displayName: 'NewAPI GPT Image 2',
+        description: 'Company intranet NewAPI / OpenAI-compatible chat completions image endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        resolutions: ['Auto', 'low', 'medium', 'high', '2k', '4k'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
+        providers: [
+            {
+                provider: 'newapi',
+                upstreamModel: 'gpt-image-2',
+                priority: 1,
+                isAsync: false,
+                experimental: true
+            }
+        ],
+        defaultResolution: 'medium'
+    },
     'custom-image-atlas-gpt-image-2-text': {
         projectModelId: 'custom-image-atlas-gpt-image-2-text',
         displayName: 'Atlas GPT Image 2 Text-to-Image',

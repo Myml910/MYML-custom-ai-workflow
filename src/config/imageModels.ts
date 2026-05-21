@@ -23,10 +23,14 @@ export const ATLAS_TEXT_TO_IMAGE_MODEL_ID = 'custom-image-atlas-gpt-image-2-text
 export const ATLAS_IMAGE_EDIT_MODEL_ID = 'custom-image-atlas-gpt-image-2-edit';
 export const ATLAS_NANO_BANANA_2_TEXT_MODEL_ID = 'custom-image-atlas-nano-banana-2-text';
 export const ATLAS_NANO_BANANA_2_EDIT_MODEL_ID = 'custom-image-atlas-nano-banana-2-edit';
+export const NEWAPI_GEMINI_3_1_FLASH_MODEL_ID = 'custom-image-newapi-gemini-3-1-flash';
+export const NEWAPI_GPT_IMAGE_2_MODEL_ID = 'custom-image-newapi-gpt-image-2';
 
 export const HIDDEN_IMAGE_MODEL_IDS = new Set([
     'custom-image-gpt-image-2',
-    'custom-image-nano-banana-3-1-flash'
+    'custom-image-nano-banana-3-1-flash',
+    NEWAPI_GEMINI_3_1_FLASH_MODEL_ID,
+    NEWAPI_GPT_IMAGE_2_MODEL_ID
 ]);
 
 export const VISIBLE_IMAGE_MODEL_IDS = new Set([
