@@ -90,9 +90,62 @@ const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
 };
 
+export type ConnectionDensityMode = 'normal' | 'medium' | 'dense' | 'reduced';
+
+const getConnectionDensityMode = ({
+    connectionCount,
+    zoom,
+    prefersReducedMotion
+}: {
+    connectionCount: number;
+    zoom: number;
+    prefersReducedMotion: boolean;
+}): ConnectionDensityMode => {
+    if (prefersReducedMotion) return 'reduced';
+    if (connectionCount > 60 || zoom < 0.5) return 'dense';
+    if (connectionCount > 20 || zoom < 0.75) return 'medium';
+    return 'normal';
+};
+
+const getConnectionEffects = (densityMode: ConnectionDensityMode) => ({
+    ambientEnabled: densityMode === 'normal',
+    flowEnabled: densityMode === 'normal',
+    movingPointEnabled: densityMode === 'normal',
+    controlsAlwaysVisible: densityMode === 'normal',
+    transitionsEnabled: densityMode === 'normal' || densityMode === 'medium'
+});
+
+const usePrefersReducedMotion = () => {
+    const getInitialValue = () => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    };
+
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(getInitialValue);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+        syncPreference();
+        mediaQuery.addEventListener('change', syncPreference);
+
+        return () => mediaQuery.removeEventListener('change', syncPreference);
+    }, []);
+
+    return prefersReducedMotion;
+};
+
+const isDevRuntime = () => Boolean(
+    (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV
+);
+
 const getConnectionTone = (
     parent: NodeData,
-    child: NodeData
+    child: NodeData,
+    flowEnabled: boolean
 ) => {
     const isConnectionRunning =
         parent.status === NodeStatus.LOADING ||
@@ -100,7 +153,7 @@ const getConnectionTone = (
     const isConnectionError =
         parent.status === NodeStatus.ERROR ||
         child.status === NodeStatus.ERROR;
-    const shouldShowFlow = true;
+    const shouldShowFlow = flowEnabled;
 
     return {
         isConnectionRunning,
@@ -113,7 +166,11 @@ const getConnectionTone = (
 // MOVING MAINTENANCE POINT HOOK
 // ============================================================================
 
-const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
+const usePathMaintenancePoint = (
+    path: string,
+    viewportZoom: number,
+    autoMotionEnabled: boolean
+) => {
     const sensorPathRef = useRef<SVGPathElement | null>(null);
     const buttonRootRef = useRef<SVGGElement | null>(null);
     const frameRef = useRef<number | null>(null);
@@ -125,6 +182,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
     const isManualPositionInitializedRef = useRef(false);
     const isManualRef = useRef(false);
     const isReducedMotionRef = useRef(false);
+    const autoMotionEnabledRef = useRef(autoMotionEnabled);
 
     const safeGetTotalLength = (pathElement: SVGPathElement) => {
         try {
@@ -371,7 +429,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
     };
 
     const startAutoFlow = () => {
-        if (isReducedMotionRef.current || frameRef.current !== null) return;
+        if (isReducedMotionRef.current || !autoMotionEnabledRef.current || frameRef.current !== null) return;
 
         frameRef.current = window.requestAnimationFrame(animate);
     };
@@ -390,6 +448,12 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
 
     const returnToAutoFlow = () => {
         stopAutoFlow();
+
+        if (!autoMotionEnabledRef.current) {
+            setButtonAtProgress(0.5);
+            return;
+        }
+
         const autoProgress = getAutoProgress(performance.now());
 
         if (isReducedMotionRef.current) {
@@ -445,6 +509,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        autoMotionEnabledRef.current = autoMotionEnabled;
         animationStartRef.current = null;
         pathLengthRef.current = null;
         refreshPathLength();
@@ -454,7 +519,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
             stopAutoFlow();
             setButtonAtProgress(0.5);
 
-            if (!mediaQuery.matches && !isManualRef.current) {
+            if (autoMotionEnabledRef.current && !mediaQuery.matches && !isManualRef.current) {
                 startAutoFlow();
             }
         };
@@ -462,7 +527,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
         syncReducedMotion();
         mediaQuery.addEventListener('change', syncReducedMotion);
 
-        if (!isReducedMotionRef.current && !isManualRef.current) {
+        if (autoMotionEnabledRef.current && !isReducedMotionRef.current && !isManualRef.current) {
             startAutoFlow();
         }
 
@@ -471,7 +536,7 @@ const usePathMaintenancePoint = (path: string, viewportZoom: number) => {
             stopAutoFlow();
             cancelManualProgress();
         };
-    }, [path, viewportZoom]);
+    }, [path, viewportZoom, autoMotionEnabled]);
 
     return {
         sensorPathRef,
@@ -611,19 +676,22 @@ const getNodeHeight = (node: NodeData, parentNode?: NodeData): number => {
  * For example, Image Editor displays the parent image, so its real visual width/height
  * depends on the parent image aspect ratio. Connections must use that same sizing logic.
  */
-const getNodeInputForSizing = (node: NodeData, nodes: NodeData[]): NodeData | undefined => {
+const getNodeInputForSizing = (
+    node: NodeData,
+    nodesById: Map<string, NodeData>
+): NodeData | undefined => {
     const firstParentId = node.parentIds?.[0];
     if (!firstParentId) return undefined;
 
-    return nodes.find(n => n.id === firstParentId);
+    return nodesById.get(firstParentId);
 };
 
 const getNodeVisualSize = (
     node: NodeData,
-    nodes: NodeData[],
+    nodesById: Map<string, NodeData>,
     fallbackParent?: NodeData
 ) => {
-    const inputNode = getNodeInputForSizing(node, nodes) || fallbackParent;
+    const inputNode = getNodeInputForSizing(node, nodesById) || fallbackParent;
 
     return {
         width: getNodeWidth(node, inputNode),
@@ -662,6 +730,8 @@ const ConnectionItem: React.FC<{
     path: string;
     viewportZoom: number;
     canvasTheme: 'dark' | 'light';
+    densityMode: ConnectionDensityMode;
+    isSelected: boolean;
     onDisconnectConnection?: (parentId: string, childId: string) => void;
 }> = ({
     parent,
@@ -669,10 +739,13 @@ const ConnectionItem: React.FC<{
     path,
     viewportZoom,
     canvasTheme,
+    densityMode,
+    isSelected,
     onDisconnectConnection
 }) => {
     const [isDeleteFocus, setIsDeleteFocus] = useState(false);
     const [isDeleteHot, setIsDeleteHot] = useState(false);
+    const effects = getConnectionEffects(densityMode);
     const {
         sensorPathRef,
         buttonRootRef,
@@ -681,10 +754,10 @@ const ConnectionItem: React.FC<{
         handleSensorLeave,
         handlePointEnter,
         handlePointLeave
-    } = usePathMaintenancePoint(path, viewportZoom);
+    } = usePathMaintenancePoint(path, viewportZoom, effects.movingPointEnabled);
 
     const palette = CONNECTION_COLORS[canvasTheme];
-    const connectionTone = getConnectionTone(parent, child);
+    const connectionTone = getConnectionTone(parent, child, effects.flowEnabled);
     const visibleStroke = connectionTone.isConnectionError
         ? palette.error
         : connectionTone.isConnectionRunning
@@ -703,30 +776,40 @@ const ConnectionItem: React.FC<{
             : palette.deleteBorder;
     const deleteGlyph = isDeleteHot
         ? palette.deleteDangerGlyph
-        : isDeleteFocus
+        : isDeleteFocus || isSelected
             ? palette.deleteFocusGlyph
             : palette.deleteGlyph;
-    const deleteSignal = isDeleteFocus ? visibleStroke : palette.deleteSignal;
-    const deleteSignalOpacity = isDeleteFocus ? 0 : 1;
-    const deleteHaloOpacity = isDeleteFocus ? 0 : 1;
-    const deleteHitRadius = isDeleteFocus ? 16 : 13;
-    const deleteVisualRadius = isDeleteFocus ? 11 : CRUISING_DOT_RADIUS;
-    const deleteVisualStrokeWidth = isDeleteFocus ? 1.2 : 1.8;
-    const deleteGlyphOpacity = isDeleteFocus ? 1 : 0.04;
-    const deleteStemOpacity = isDeleteFocus ? 0.34 : 0;
+    const isControlActive = isDeleteFocus || isSelected;
+    const shouldRenderMaintenanceControl =
+        Boolean(onDisconnectConnection) &&
+        (effects.controlsAlwaysVisible || isControlActive);
+    const deleteSignal = isControlActive ? visibleStroke : palette.deleteSignal;
+    const deleteSignalOpacity = isControlActive ? 0 : 1;
+    const deleteHaloOpacity = effects.ambientEnabled && !isControlActive ? 1 : 0;
+    const deleteHitRadius = isControlActive ? 16 : 13;
+    const deleteVisualRadius = isControlActive ? 11 : CRUISING_DOT_RADIUS;
+    const deleteVisualStrokeWidth = isControlActive ? 1.2 : 1.8;
+    const deleteGlyphOpacity = isControlActive ? 1 : 0.04;
+    const deleteStemOpacity = isControlActive ? 0.34 : 0;
+    const transitionClassName = effects.transitionsEnabled ? 'connector-transition' : '';
+    const visibleClassName = effects.transitionsEnabled
+        ? 'connector-transition pointer-events-none'
+        : 'pointer-events-none';
 
     return (
         <g className="pointer-events-none" style={{ pointerEvents: 'none' }}>
             {/* Ambient base line */}
-            <path
-                d={path}
-                stroke={palette.ambient}
-                strokeWidth={CONNECTION_WIDTHS.ambient}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-                className="pointer-events-none"
-            />
+            {effects.ambientEnabled && (
+                <path
+                    d={path}
+                    stroke={palette.ambient}
+                    strokeWidth={CONNECTION_WIDTHS.ambient}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                    className="pointer-events-none"
+                />
+            )}
 
             {/* Main visible line */}
             <path
@@ -737,7 +820,7 @@ const ConnectionItem: React.FC<{
                 strokeLinejoin="round"
                 fill="none"
                 opacity={visibleOpacity}
-                className="connector-transition pointer-events-none"
+                className={visibleClassName}
             />
 
             {/* Persistent low-noise signal flow. */}
@@ -796,101 +879,108 @@ const ConnectionItem: React.FC<{
                     ref={buttonRootRef}
                     transform="translate(0 0)"
                     style={{
-                        pointerEvents: isDeleteFocus ? 'all' : 'none',
+                        pointerEvents: isControlActive ? 'all' : 'none',
                         transform: 'translate(0px, 0px)',
                         transformOrigin: '0 0',
-                        willChange: 'transform'
+                        willChange: effects.movingPointEnabled ? 'transform' : undefined
                     }}
                 >
-                    <g
-                        className="connector-transition"
-                        transform={`scale(${isDeleteFocus ? 1 : 0.96})`}
-                        onMouseEnter={() => {
-                            handlePointEnter();
-                        }}
-                        onMouseLeave={(e) => {
-                            const nextTarget = e.relatedTarget;
-                            if (nextTarget instanceof Node && nextTarget === sensorPathRef.current) {
-                                return;
-                            }
-
-                            setIsDeleteHot(false);
-                            setIsDeleteFocus(false);
-                            handlePointLeave();
-                        }}
-                        style={{
-                            opacity: isDeleteFocus ? 1 : CRUISING_DOT_OPACITY
-                        }}
-                    >
-                        <line
-                            x1="-15"
-                            y1="0"
-                            x2="-10"
-                            y2="0"
-                            stroke={visibleStroke}
-                            strokeWidth="1.2"
-                            strokeLinecap="round"
-                            opacity={deleteStemOpacity}
-                            style={{ pointerEvents: 'none' }}
-                        />
-                        {/* Clickable maintenance button */}
+                    {shouldRenderMaintenanceControl && (
                         <g
-                            className="cursor-pointer"
-                            onMouseEnter={() => setIsDeleteHot(true)}
-                            onMouseLeave={() => setIsDeleteHot(false)}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (!isDeleteFocus) return;
+                            className={transitionClassName}
+                            transform={`scale(${isControlActive ? 1 : 0.96})`}
+                            onMouseEnter={() => {
+                                handlePointEnter();
+                            }}
+                            onMouseLeave={(e) => {
+                                const nextTarget = e.relatedTarget;
+                                if (nextTarget instanceof Node && nextTarget === sensorPathRef.current) {
+                                    return;
+                                }
 
-                                onDisconnectConnection(parent.id, child.id);
+                                setIsDeleteHot(false);
+                                setIsDeleteFocus(false);
+                                handlePointLeave();
+                            }}
+                            style={{
+                                opacity: isControlActive ? 1 : CRUISING_DOT_OPACITY
                             }}
                         >
-                            {/* Outer clickable hit circle */}
-                            <circle
-                                r={deleteHitRadius}
-                                fill="transparent"
-                                style={{ pointerEvents: 'all', cursor: 'pointer' }}
-                            />
-
-                            {/* Cruising signal halo */}
-                            <circle
-                                r={CRUISING_DOT_RADIUS + 3.5}
-                                fill={palette.deleteHalo}
-                                opacity={deleteHaloOpacity}
-                                style={{ pointerEvents: 'none' }}
-                            />
-
-                            {/* Visual circle */}
-                            <circle
-                                r={deleteVisualRadius}
-                                fill={deleteSurface}
-                                stroke={deleteBorder}
-                                strokeWidth={deleteVisualStrokeWidth}
-                                style={{ pointerEvents: 'none' }}
-                            />
-
-                            {/* Cruising signal center */}
-                            <circle
-                                r="2"
-                                fill={deleteSignal}
-                                opacity={deleteSignalOpacity}
-                                style={{ pointerEvents: 'none' }}
-                            />
-
-                            {/* Minus icon */}
                             <line
-                                x1="-4.5"
+                                x1="-15"
                                 y1="0"
-                                x2="4.5"
+                                x2="-10"
                                 y2="0"
-                                stroke={deleteGlyph}
-                                strokeWidth="2"
+                                stroke={visibleStroke}
+                                strokeWidth="1.2"
                                 strokeLinecap="round"
-                                opacity={deleteGlyphOpacity}
+                                opacity={deleteStemOpacity}
                                 style={{ pointerEvents: 'none' }}
                             />
+                            {/* Clickable maintenance button */}
+                            <g
+                                className="cursor-pointer"
+                                data-no-canvas-pan="true"
+                                onMouseEnter={() => setIsDeleteHot(true)}
+                                onMouseLeave={() => setIsDeleteHot(false)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!isControlActive) return;
+
+                                    onDisconnectConnection(parent.id, child.id);
+                                }}
+                            >
+                                {/* Outer clickable hit circle */}
+                                <circle
+                                    r={deleteHitRadius}
+                                    fill="transparent"
+                                    style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                                />
+
+                                {/* Cruising signal halo */}
+                                {effects.ambientEnabled && (
+                                    <circle
+                                        r={CRUISING_DOT_RADIUS + 3.5}
+                                        fill={palette.deleteHalo}
+                                        opacity={deleteHaloOpacity}
+                                        style={{ pointerEvents: 'none' }}
+                                    />
+                                )}
+
+                                {/* Visual circle */}
+                                <circle
+                                    r={deleteVisualRadius}
+                                    fill={deleteSurface}
+                                    stroke={deleteBorder}
+                                    strokeWidth={deleteVisualStrokeWidth}
+                                    style={{ pointerEvents: 'none' }}
+                                />
+
+                                {/* Cruising signal center */}
+                                {effects.ambientEnabled && (
+                                    <circle
+                                        r="2"
+                                        fill={deleteSignal}
+                                        opacity={deleteSignalOpacity}
+                                        style={{ pointerEvents: 'none' }}
+                                    />
+                                )}
+
+                                {/* Minus icon */}
+                                <line
+                                    x1="-4.5"
+                                    y1="0"
+                                    x2="4.5"
+                                    y2="0"
+                                    stroke={deleteGlyph}
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    opacity={deleteGlyphOpacity}
+                                    style={{ pointerEvents: 'none' }}
+                                />
+                            </g>
                         </g>
-                    </g>
+                    )}
                 </g>
             )}
         </g>
@@ -907,20 +997,66 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     isDraggingConnection,
     connectionStart,
     tempConnectionEnd,
+    selectedConnection,
     onDisconnectConnection,
     canvasTheme = 'dark'
 }) => {
     const connections: React.ReactNode[] = [];
+    const nodesById = React.useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+    const connectionCount = React.useMemo(
+        () => nodes.reduce((total, node) => {
+            const validParentCount = node.parentIds?.filter(parentId => nodesById.has(parentId)).length ?? 0;
+            return total + validParentCount;
+        }, 0),
+        [nodes, nodesById]
+    );
+    const prefersReducedMotion = usePrefersReducedMotion();
+    const densityMode = getConnectionDensityMode({
+        connectionCount,
+        zoom: viewport.zoom,
+        prefersReducedMotion
+    });
+    const effects = getConnectionEffects(densityMode);
+    const debugSummaryRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!isDevRuntime()) return;
+
+        const roundedZoom = Math.round(viewport.zoom * 100) / 100;
+        const summaryKey = `${connectionCount}:${roundedZoom}:${densityMode}`;
+        if (debugSummaryRef.current === summaryKey) return;
+
+        debugSummaryRef.current = summaryKey;
+        console.debug('[ConnectionsLayer][density]', {
+            connectionCount,
+            zoom: roundedZoom,
+            densityMode,
+            renderedEffects: {
+                flowEnabled: effects.flowEnabled,
+                movingPointEnabled: effects.movingPointEnabled,
+                glowEnabled: effects.ambientEnabled,
+                controlsAlwaysVisible: effects.controlsAlwaysVisible
+            }
+        });
+    }, [
+        connectionCount,
+        densityMode,
+        effects.ambientEnabled,
+        effects.controlsAlwaysVisible,
+        effects.flowEnabled,
+        effects.movingPointEnabled,
+        viewport.zoom
+    ]);
 
     nodes.forEach(node => {
         if (!node.parentIds || node.parentIds.length === 0) return;
 
         node.parentIds.forEach(parentId => {
-            const parent = nodes.find(n => n.id === parentId);
+            const parent = nodesById.get(parentId);
             if (!parent) return;
 
-            const parentSize = getNodeVisualSize(parent, nodes);
-            const childSize = getNodeVisualSize(node, nodes, parent);
+            const parentSize = getNodeVisualSize(parent, nodesById);
+            const childSize = getNodeVisualSize(node, nodesById, parent);
 
             const startX = parent.x + parentSize.width;
             const startY = parent.y + parentSize.height / 2;
@@ -938,6 +1074,12 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                     path={path}
                     viewportZoom={viewport.zoom}
                     canvasTheme={canvasTheme}
+                    densityMode={densityMode}
+                    isSelected={Boolean(
+                        selectedConnection &&
+                        selectedConnection.parentId === parent.id &&
+                        selectedConnection.childId === node.id
+                    )}
                     onDisconnectConnection={onDisconnectConnection}
                 />
             );
@@ -947,10 +1089,10 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     let tempLine = null;
 
     if (isDraggingConnection && connectionStart && tempConnectionEnd) {
-        const startNode = nodes.find(n => n.id === connectionStart.nodeId);
+        const startNode = nodesById.get(connectionStart.nodeId);
 
         if (startNode) {
-            const startNodeSize = getNodeVisualSize(startNode, nodes);
+            const startNodeSize = getNodeVisualSize(startNode, nodesById);
 
             const startX = connectionStart.handle === 'right'
                 ? startNode.x + startNodeSize.width
@@ -992,18 +1134,20 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         opacity="0.92"
                         style={{ pointerEvents: 'none' }}
                     />
-                    <path
-                        d={path}
-                        stroke={palette.selected}
-                        strokeWidth={CONNECTION_WIDTHS.flow}
-                        strokeDasharray={CONNECTION_DASH.temporary}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                        opacity="0.42"
-                        className="connector-flow-path"
-                        style={{ pointerEvents: 'none' }}
-                    />
+                    {effects.flowEnabled && (
+                        <path
+                            d={path}
+                            stroke={palette.selected}
+                            strokeWidth={CONNECTION_WIDTHS.flow}
+                            strokeDasharray={CONNECTION_DASH.temporary}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            fill="none"
+                            opacity="0.42"
+                            className="connector-flow-path"
+                            style={{ pointerEvents: 'none' }}
+                        />
+                    )}
                     <circle
                         cx={endX}
                         cy={endY}
