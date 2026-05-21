@@ -19,7 +19,7 @@ import {
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 import { getEffectiveImageReference } from '../utils/imageReferences';
-import { getDefaultImageModelId, HIDDEN_IMAGE_MODEL_IDS } from '../config/imageModels';
+import { getCompatibleImageModelId } from '../config/imageModels';
 
 const MAX_IMAGE_REFERENCES = 6;
 const MIN_IMAGE_GENERATION_COUNT = 1;
@@ -323,9 +323,10 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
     ) => {
         const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
         const imageBase64s = collectImageReferences(targetNode, nodesById);
-        const imageModel = targetNode.imageModel && !HIDDEN_IMAGE_MODEL_IDS.has(targetNode.imageModel)
-            ? targetNode.imageModel
-            : getDefaultImageModelId(imageBase64s.length > 0);
+        const imageModel = getCompatibleImageModelId(targetNode.imageModel, imageBase64s.length);
+        if (imageModel !== targetNode.imageModel) {
+            updateNode(targetNode.id, { imageModel });
+        }
 
         let taskCreated = false;
         try {

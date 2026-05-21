@@ -665,6 +665,7 @@ function buildT8Input(task, config, providerConfig, modelConfig) {
 
     return {
         prompt: input.prompt || task.prompt || '',
+        projectModelId: task.model,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
         size: input.size || 'auto',
         aspectRatio,

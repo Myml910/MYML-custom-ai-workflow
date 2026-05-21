@@ -1,14 +1,23 @@
+import fs from 'fs';
+import path from 'path';
 import { getAiProviderConfig } from '../aiProviderConfig.js';
 import { AI_ERROR_TYPES, AiProviderError, classifyProviderError } from '../errors.js';
+import { safeFetchImageUrl } from '../../../utils/safeFetchImage.js';
+import { resolveLibraryUrlToPath } from '../../../utils/userLibrary.js';
 
 const T8_PROVIDER = 't8';
 const GPT_IMAGE_2_MODEL = 'gpt-image-2';
 const NANO_BANANA_MODEL = 'gemini-3.1-flash-image-preview';
+const T8_GPT_IMAGE_2_TEXT_MODEL_ID = 'custom-image-t8-gpt-image-2';
+const T8_NANO_BANANA_TEXT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash';
+const T8_GPT_IMAGE_2_EDIT_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
+const T8_NANO_BANANA_EDIT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
 const DEFAULT_REQUEST_TIMEOUT_MS = 300000;
 const DEFAULT_GPT_IMAGE_SIZE = 'auto';
 const DEFAULT_GPT_IMAGE_QUALITY = 'medium';
 const DEFAULT_NANO_IMAGE_SIZE = '1K';
 const DEFAULT_RESPONSE_FORMAT = 'url';
+const MAX_REFERENCE_IMAGES = 6;
 
 const GPT_IMAGE_SIZE_ALLOWLIST = new Set([
     '1024x1024',
@@ -66,6 +75,14 @@ export function buildT8ImageGenerationsUrl(baseUrl) {
     return `${cleanBaseUrl}/v1/images/generations`;
 }
 
+export function buildT8ImageEditsUrl(baseUrl) {
+    const cleanBaseUrl = cleanString(baseUrl).replace(/\/+$/, '');
+    if (!cleanBaseUrl) return '';
+    if (/\/images\/edits$/i.test(cleanBaseUrl)) return cleanBaseUrl;
+    if (/\/v1$/i.test(cleanBaseUrl)) return `${cleanBaseUrl}/images/edits`;
+    return `${cleanBaseUrl}/v1/images/edits`;
+}
+
 function createTimeoutError(context, timeoutMs, cause) {
     return new AiProviderError({
         type: AI_ERROR_TYPES.TIMEOUT,
@@ -114,6 +131,14 @@ function isAutoValue(value) {
     return !normalized || normalized === 'auto' || normalized === '自动';
 }
 
+function isT8TextProjectModel(projectModelId) {
+    return projectModelId === T8_GPT_IMAGE_2_TEXT_MODEL_ID || projectModelId === T8_NANO_BANANA_TEXT_MODEL_ID;
+}
+
+function isT8EditProjectModel(projectModelId) {
+    return projectModelId === T8_GPT_IMAGE_2_EDIT_MODEL_ID || projectModelId === T8_NANO_BANANA_EDIT_MODEL_ID;
+}
+
 function normalizeGptImageSize({ requestedSize, model }) {
     const cleanRequestedSize = cleanString(requestedSize);
     const lowerRequestedSize = cleanRequestedSize.toLowerCase();
@@ -135,6 +160,44 @@ function normalizeGptImageSize({ requestedSize, model }) {
     }
 
     return DEFAULT_GPT_IMAGE_SIZE;
+}
+
+function normalizeGptImageEditSize({ requestedSize, model }) {
+    const cleanRequestedSize = cleanString(requestedSize);
+    const lowerRequestedSize = cleanRequestedSize.toLowerCase();
+
+    if (isAutoValue(cleanRequestedSize)) {
+        return {
+            value: undefined,
+            summary: {
+                sizeMode: 'auto_omitted'
+            }
+        };
+    }
+
+    if (cleanRequestedSize && GPT_IMAGE_SIZE_ALLOWLIST.has(lowerRequestedSize) && lowerRequestedSize !== DEFAULT_GPT_IMAGE_SIZE) {
+        return {
+            value: lowerRequestedSize,
+            summary: {
+                size: lowerRequestedSize
+            }
+        };
+    }
+
+    if (cleanRequestedSize) {
+        console.warn('[T8][edit size omitted]', {
+            model,
+            requestedSize: cleanRequestedSize,
+            sizeMode: 'invalid_omitted'
+        });
+    }
+
+    return {
+        value: undefined,
+        summary: {
+            sizeMode: 'invalid_omitted'
+        }
+    };
 }
 
 export function normalizeGptImage2Quality(requestedQuality, model = GPT_IMAGE_2_MODEL) {
@@ -202,7 +265,7 @@ function normalizeNanoImageSize(imageSize, model) {
     return DEFAULT_NANO_IMAGE_SIZE;
 }
 
-function hasReferenceImages(input = {}) {
+function getReferenceImages(input = {}) {
     return [
         ...normalizeInputArray(input.imageUrls),
         ...normalizeInputArray(input.image_urls),
@@ -210,7 +273,11 @@ function hasReferenceImages(input = {}) {
         ...normalizeInputArray(input.images)
     ]
         .filter(Boolean)
-        .length > 0;
+        .slice(0, MAX_REFERENCE_IMAGES);
+}
+
+function hasReferenceImages(input = {}) {
+    return getReferenceImages(input).length > 0;
 }
 
 function buildRequestBody(input = {}, model) {
@@ -324,11 +391,12 @@ async function parseJsonResponse(response, context) {
             response.statusText ||
             `HTTP ${response.status}`;
 
-        console.warn('[T8][image error response]', {
+        console.warn(context.errorLogLabel || '[T8][image error response]', {
             status: response.status,
             statusText: response.statusText,
             url: context.requestUrl,
             model: context.model,
+            projectModelId: context.projectModelId || undefined,
             body: rawText.slice(0, 1000)
         });
 
@@ -478,6 +546,158 @@ function collectImages(raw) {
     });
 }
 
+function guessMimeType(filePathOrUrl) {
+    const ext = path.extname(String(filePathOrUrl || '').split('?')[0]).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+    if (ext === '.webp') return 'image/webp';
+    if (ext === '.gif') return 'image/gif';
+    if (ext === '.avif') return 'image/avif';
+    return 'image/png';
+}
+
+function getFilenameFromUrl(url, fallback) {
+    try {
+        const pathname = new URL(url).pathname;
+        return path.basename(pathname) || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function parseDataUriForUpload(input) {
+    const parsed = parseDataUri(input);
+    if (!parsed) return null;
+    if (!String(parsed.mimeType || '').toLowerCase().startsWith('image/')) return null;
+    return {
+        buffer: Buffer.from(parsed.base64, 'base64'),
+        mimeType: parsed.mimeType || 'image/png',
+        filename: `reference.${(parsed.mimeType || 'image/png').split('/').pop() || 'png'}`
+    };
+}
+
+async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
+    if (typeof reference !== 'string' || !reference.trim()) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.PARAM_ERROR,
+            provider: T8_PROVIDER,
+            model,
+            message: 'T8 reference image must be a /library URL, http(s) URL, or data:image base64 URI.'
+        });
+    }
+
+    const cleanReference = reference.trim();
+    const dataUri = parseDataUriForUpload(cleanReference);
+    if (dataUri) return dataUri;
+    if (cleanReference.startsWith('data:')) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.PARAM_ERROR,
+            provider: T8_PROVIDER,
+            model,
+            message: 'T8 reference image data URI must use an image/* MIME type.'
+        });
+    }
+
+    const localPath = resolveLibraryUrlToPath(cleanReference, user);
+    if (localPath) {
+        return {
+            buffer: fs.readFileSync(localPath),
+            mimeType: guessMimeType(localPath),
+            filename: path.basename(localPath)
+        };
+    }
+
+    if (/^https?:\/\//i.test(cleanReference)) {
+        try {
+            const downloaded = await safeFetchImageUrl(cleanReference, {
+                timeoutMs
+            });
+            return {
+                buffer: downloaded.buffer,
+                mimeType: downloaded.contentType || guessMimeType(cleanReference),
+                filename: getFilenameFromUrl(downloaded.url || cleanReference, 'reference.png')
+            };
+        } catch (error) {
+            throw new AiProviderError({
+                type: error.message?.startsWith('Blocked unsafe image URL') || error.message?.includes('Unsupported image content type')
+                    ? AI_ERROR_TYPES.PARAM_ERROR
+                    : AI_ERROR_TYPES.NETWORK_ERROR,
+                provider: T8_PROVIDER,
+                model,
+                message: `Failed to fetch T8 reference image: ${error.message}`,
+                cause: error
+            });
+        }
+    }
+
+    throw new AiProviderError({
+        type: AI_ERROR_TYPES.PARAM_ERROR,
+        provider: T8_PROVIDER,
+        model,
+        message: 'T8 reference image must be a /library URL, http(s) URL, or data:image base64 URI.'
+    });
+}
+
+async function buildEditFormData(input = {}, model, referenceImages, context = {}) {
+    const formData = new FormData();
+    const prompt = input.prompt || '';
+    let summary = {
+        imageCount: referenceImages.length,
+        response_format: DEFAULT_RESPONSE_FORMAT
+    };
+
+    formData.append('model', model);
+    formData.append('prompt', prompt);
+    formData.append('response_format', DEFAULT_RESPONSE_FORMAT);
+
+    if (model === GPT_IMAGE_2_MODEL) {
+        const size = normalizeGptImageEditSize({
+            requestedSize: input.size,
+            model
+        });
+        const quality = normalizeGptImage2Quality(input.quality || input.requestedQuality, model);
+        if (size.value) {
+            formData.append('size', size.value);
+        }
+        formData.append('quality', quality);
+        summary = {
+            ...summary,
+            ...size.summary,
+            quality
+        };
+    } else if (model === NANO_BANANA_MODEL) {
+        const aspectRatio = normalizeNanoAspectRatio(input.aspectRatio || input.aspect_ratio || input.size, model);
+        const imageSize = normalizeNanoImageSize(input.imageSize || input.image_size || input.resolution, model);
+        if (aspectRatio.value) {
+            formData.append('aspect_ratio', aspectRatio.value);
+        }
+        formData.append('image_size', imageSize);
+        summary = {
+            ...summary,
+            ...aspectRatio.summary,
+            image_size: imageSize
+        };
+    } else {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.PARAM_ERROR,
+            provider: T8_PROVIDER,
+            model,
+            message: `T8 image edit model is not supported: ${model}`
+        });
+    }
+
+    for (const [index, reference] of referenceImages.entries()) {
+        const resolved = await resolveReferenceImage(reference, {
+            user: context.user,
+            timeoutMs: context.timeoutMs,
+            model
+        });
+        const blob = new Blob([resolved.buffer], { type: resolved.mimeType || 'image/png' });
+        formData.append('image', blob, resolved.filename || `reference-${index + 1}.png`);
+    }
+
+    return { formData, summary };
+}
+
 export function normalizeT8ImageResponse(raw, context = {}) {
     const images = collectImages(raw);
     if (images.length === 0) {
@@ -524,6 +744,9 @@ export async function submitImageTask(input = {}, options = {}) {
     const baseUrl = t8Config.baseUrl;
     const apiKey = t8Config.apiKey;
     const model = input.model || t8Config.imageModel || t8Config.gptImageModel || GPT_IMAGE_2_MODEL;
+    const projectModelId = cleanString(input.projectModelId || input.modelId || input.imageModel);
+    const referenceImages = getReferenceImages(input);
+    const isEditModel = isT8EditProjectModel(projectModelId);
 
     if (!baseUrl) {
         throw new AiProviderError({
@@ -541,22 +764,105 @@ export async function submitImageTask(input = {}, options = {}) {
             message: 'T8 image provider is not configured. Add T8_API_KEY to .env.'
         });
     }
-    if (hasReferenceImages(input)) {
+
+    if (isEditModel && referenceImages.length === 0) {
         throw new AiProviderError({
             type: AI_ERROR_TYPES.PARAM_ERROR,
             provider: T8_PROVIDER,
             model,
-            message: 'T8 provider currently supports text-to-image only. Image edits and reference images are not enabled in this integration.'
+            message: 'T8 edit model requires at least one reference image.'
+        });
+    }
+
+    if (!isEditModel && hasReferenceImages(input)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.PARAM_ERROR,
+            provider: T8_PROVIDER,
+            model,
+            message: 'T8 text-to-image model does not support reference images. Choose a T8 edit model for image-to-image or multi-image generation.'
+        });
+    }
+
+    const timeoutMs = parsePositiveInteger(t8Config.requestTimeoutMs, DEFAULT_REQUEST_TIMEOUT_MS);
+    const requestUrl = isEditModel ? buildT8ImageEditsUrl(baseUrl) : buildT8ImageGenerationsUrl(baseUrl);
+
+    if (isEditModel) {
+        const { formData, summary } = await buildEditFormData(input, model, referenceImages, {
+            user: options.user,
+            timeoutMs
+        });
+
+        console.log('[T8][image edit submit]', {
+            url: requestUrl,
+            model,
+            projectModelId,
+            promptLength: getPromptLength(input.prompt),
+            ...summary
+        });
+
+        const response = await fetchWithTimeout(requestUrl, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`
+            },
+            body: formData
+        }, {
+            action: 'image edit',
+            model,
+            timeoutMs
+        });
+
+        const raw = await parseJsonResponse(response, {
+            action: 'image edit',
+            model,
+            projectModelId,
+            requestUrl,
+            errorLogLabel: '[T8][image edit error response]'
+        });
+        const normalized = normalizeT8ImageResponse(raw, { model });
+
+        console.log('[T8][image edit response]', {
+            url: requestUrl,
+            model,
+            projectModelId,
+            imageCount: normalized.images.length,
+            hasUsage: Boolean(raw?.usage)
+        });
+
+        return {
+            provider: T8_PROVIDER,
+            model,
+            taskId: raw?.id || raw?.created ? `t8:${raw.id || raw.created}` : null,
+            status: 'completed',
+            rawStatus: 'completed',
+            progress: 100,
+            images: normalized.images,
+            raw,
+            usage: raw?.usage,
+            request: {
+                endpoint: '/images/edits',
+                requestUrl,
+                projectModelId,
+                ...summary
+            }
+        };
+    }
+
+    if (projectModelId && !isT8TextProjectModel(projectModelId)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.PARAM_ERROR,
+            provider: T8_PROVIDER,
+            model,
+            message: `T8 project model is not supported for text-to-image: ${projectModelId}`
         });
     }
 
     const { body: requestBody, summary } = buildRequestBody(input, model);
-    const requestUrl = buildT8ImageGenerationsUrl(baseUrl);
-    const timeoutMs = parsePositiveInteger(t8Config.requestTimeoutMs, DEFAULT_REQUEST_TIMEOUT_MS);
 
     console.log('[T8][image submit]', {
         url: requestUrl,
         model,
+        projectModelId: projectModelId || undefined,
         promptLength: getPromptLength(input.prompt),
         ...summary
     });
@@ -577,6 +883,7 @@ export async function submitImageTask(input = {}, options = {}) {
     const raw = await parseJsonResponse(response, {
         action: 'image generation',
         model,
+        projectModelId,
         requestUrl
     });
     const normalized = normalizeT8ImageResponse(raw, { model });
@@ -584,6 +891,7 @@ export async function submitImageTask(input = {}, options = {}) {
     console.log('[T8][image response]', {
         url: requestUrl,
         model,
+        projectModelId: projectModelId || undefined,
         imageCount: normalized.images.length,
         hasUsage: Boolean(raw?.usage)
     });
@@ -601,6 +909,7 @@ export async function submitImageTask(input = {}, options = {}) {
         request: {
             endpoint: '/images/generations',
             requestUrl,
+            projectModelId: projectModelId || undefined,
             ...summary
         }
     };

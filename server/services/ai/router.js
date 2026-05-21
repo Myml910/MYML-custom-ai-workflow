@@ -145,6 +145,7 @@ async function runT8Provider(input, providerConfig, modelConfig, config, options
 
     return await generateT8Image({
         prompt: input.prompt,
+        projectModelId: input.projectModelId || input.imageModel,
         imageUrls: input.imageUrls.length > 0 ? input.imageUrls : undefined,
         size: input.size,
         aspectRatio: input.aspectRatio,
@@ -204,11 +205,12 @@ async function generateImage(input = {}, options = {}) {
     }
 
     const config = options.config || getAiProviderConfig();
+    const providerConfig = providerConfigs[0];
     const imageUrls = Array.isArray(input.imageUrls) ? input.imageUrls : [];
     const routerInput = {
         ...input,
         imageUrls,
-        size: input.size || config.apimart.imageSize
+        size: input.size || (providerConfig.provider === 't8' ? undefined : config.apimart.imageSize)
     };
 
     logAiEvent({
@@ -218,8 +220,6 @@ async function generateImage(input = {}, options = {}) {
         projectModelId,
         status: 'submitted'
     });
-
-    const providerConfig = providerConfigs[0];
 
     try {
         logAiEvent({

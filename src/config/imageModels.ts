@@ -27,6 +27,8 @@ export const NEWAPI_GEMINI_3_1_FLASH_MODEL_ID = 'custom-image-newapi-gemini-3-1-
 export const NEWAPI_GPT_IMAGE_2_MODEL_ID = 'custom-image-newapi-gpt-image-2';
 export const T8_GPT_IMAGE_2_MODEL_ID = 'custom-image-t8-gpt-image-2';
 export const T8_NANO_BANANA_3_1_FLASH_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash';
+export const T8_GPT_IMAGE_2_EDIT_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
+export const T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
 
 export const HIDDEN_IMAGE_MODEL_IDS = new Set([
     'custom-image-gpt-image-2',
@@ -41,7 +43,29 @@ export const VISIBLE_IMAGE_MODEL_IDS = new Set([
     ATLAS_NANO_BANANA_2_TEXT_MODEL_ID,
     ATLAS_NANO_BANANA_2_EDIT_MODEL_ID,
     T8_GPT_IMAGE_2_MODEL_ID,
-    T8_NANO_BANANA_3_1_FLASH_MODEL_ID
+    T8_NANO_BANANA_3_1_FLASH_MODEL_ID,
+    T8_GPT_IMAGE_2_EDIT_MODEL_ID,
+    T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID
+]);
+
+const STATIC_IMAGE_MODEL_CAPABILITIES = new Map<string, Pick<ImageModelOption, 'supportsTextToImage' | 'supportsImageToImage' | 'supportsMultiImage'>>([
+    [ATLAS_TEXT_TO_IMAGE_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [ATLAS_IMAGE_EDIT_MODEL_ID, { supportsTextToImage: false, supportsImageToImage: true, supportsMultiImage: true }],
+    [ATLAS_NANO_BANANA_2_TEXT_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [ATLAS_NANO_BANANA_2_EDIT_MODEL_ID, { supportsTextToImage: false, supportsImageToImage: true, supportsMultiImage: true }],
+    [NEWAPI_GEMINI_3_1_FLASH_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [NEWAPI_GPT_IMAGE_2_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [T8_GPT_IMAGE_2_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [T8_NANO_BANANA_3_1_FLASH_MODEL_ID, { supportsTextToImage: true, supportsImageToImage: false, supportsMultiImage: false }],
+    [T8_GPT_IMAGE_2_EDIT_MODEL_ID, { supportsTextToImage: false, supportsImageToImage: true, supportsMultiImage: true }],
+    [T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID, { supportsTextToImage: false, supportsImageToImage: true, supportsMultiImage: true }]
+]);
+
+const SAME_FAMILY_IMAGE_MODEL_FALLBACKS = new Map<string, string>([
+    [T8_GPT_IMAGE_2_MODEL_ID, T8_GPT_IMAGE_2_EDIT_MODEL_ID],
+    [T8_NANO_BANANA_3_1_FLASH_MODEL_ID, T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID],
+    [T8_GPT_IMAGE_2_EDIT_MODEL_ID, T8_GPT_IMAGE_2_MODEL_ID],
+    [T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID, T8_NANO_BANANA_3_1_FLASH_MODEL_ID]
 ]);
 
 export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
@@ -131,6 +155,32 @@ export function filterVisibleImageModels<T extends ImageModelOption>(models: T[]
 
 export function getDefaultImageModelId(hasReferenceImages = false): string {
     return hasReferenceImages ? ATLAS_IMAGE_EDIT_MODEL_ID : ATLAS_TEXT_TO_IMAGE_MODEL_ID;
+}
+
+export function imageModelSupportsReferenceCount(modelId: string | undefined | null, referenceCount = 0): boolean {
+    if (!modelId) return false;
+    const capabilities = STATIC_IMAGE_MODEL_CAPABILITIES.get(modelId);
+    if (!capabilities) return true;
+    if (referenceCount === 0) return capabilities.supportsTextToImage;
+    if (referenceCount === 1) return capabilities.supportsImageToImage;
+    return capabilities.supportsMultiImage;
+}
+
+export function getCompatibleImageModelId(modelId: string | undefined | null, referenceCount = 0): string {
+    if (!modelId || HIDDEN_IMAGE_MODEL_IDS.has(modelId)) {
+        return getDefaultImageModelId(referenceCount > 0);
+    }
+
+    if (imageModelSupportsReferenceCount(modelId, referenceCount)) {
+        return modelId;
+    }
+
+    const sameFamilyModelId = SAME_FAMILY_IMAGE_MODEL_FALLBACKS.get(modelId);
+    if (sameFamilyModelId && imageModelSupportsReferenceCount(sameFamilyModelId, referenceCount)) {
+        return sameFamilyModelId;
+    }
+
+    return getDefaultImageModelId(referenceCount > 0);
 }
 
 export function getDefaultImageModel(
