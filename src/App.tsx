@@ -58,6 +58,10 @@ import { getEffectiveImageReference } from './utils/imageReferences';
 import { AuthUser, useAuth } from './auth/AuthContext';
 import { LoginPage } from './components/LoginPage';
 import { T8_GPT_IMAGE_2_EDIT_MODEL_ID, T8_GPT_IMAGE_2_MODEL_ID } from './config/imageModels';
+import {
+  debugCanvasSurfaceEventIgnored,
+  getCanvasSurfaceEventIgnoreReason
+} from './utils/canvasEventTarget';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -1153,28 +1157,46 @@ function CanvasApp({
     return true;
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).id === 'canvas-background') {
-      if (startTemporaryPanFromPointer(e)) {
-        return;
-      }
+  const captureCanvasPointer = (e: React.PointerEvent) => {
+    if (!(e.currentTarget instanceof HTMLElement)) return;
 
-      // Left-click (button 0): Start selection box
-      if (e.button === 0) {
-        startSelection(e);
-        clearSelection();
-        setSelectedConnection(null);
-        setContextMenu(prev => ({ ...prev, isOpen: false }));
-        closeWorkflowPanel();
-        closeHistoryPanel();
-        closeAssetLibrary();
+    try {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.setPointerCapture(e.pointerId);
       }
-      // Middle-click (button 1) or other: Start panning
-      else {
-        startPanning(e);
-        setSelectedConnection(null);
-        setContextMenu(prev => ({ ...prev, isOpen: false }));
-      }
+    } catch {
+      // Pointer capture can fail for synthetic or already-released pointers.
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const ignoreReason = getCanvasSurfaceEventIgnoreReason(e);
+    if (ignoreReason) {
+      debugCanvasSurfaceEventIgnored('pointerdown', e, ignoreReason);
+      return;
+    }
+
+    if (startTemporaryPanFromPointer(e)) {
+      return;
+    }
+
+    setSelectedConnection(null);
+    setContextMenu(prev => ({ ...prev, isOpen: false }));
+    closeWorkflowPanel();
+    closeHistoryPanel();
+    closeAssetLibrary();
+
+    // Shift + left-drag keeps marquee selection available; plain blank drag pans.
+    if (e.button === 0 && e.shiftKey) {
+      startSelection(e);
+      clearSelection();
+      return;
+    }
+
+    if (e.button === 0 || e.button === 1) {
+      e.preventDefault();
+      captureCanvasPointer(e);
+      startPanning(e);
     }
   };
 

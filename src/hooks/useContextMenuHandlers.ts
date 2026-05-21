@@ -7,6 +7,10 @@
 
 import React, { useCallback } from 'react';
 import { NodeData, NodeType, ContextMenuState, Viewport } from '../types';
+import {
+    debugCanvasSurfaceEventIgnored,
+    getCanvasSurfaceEventIgnoreReason
+} from '../utils/canvasEventTarget';
 
 interface UseContextMenuHandlersOptions {
     nodes: NodeData[];
@@ -35,27 +39,35 @@ export const useContextMenuHandlers = ({
     // ============================================================================
 
     const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).id === 'canvas-background') {
-            setContextMenu({
-                isOpen: true,
-                x: e.clientX,
-                y: e.clientY,
-                type: 'add-nodes'
-            });
+        const ignoreReason = getCanvasSurfaceEventIgnoreReason(e);
+        if (ignoreReason) {
+            debugCanvasSurfaceEventIgnored('doubleclick', e, ignoreReason);
+            return;
         }
+
+        setContextMenu({
+            isOpen: true,
+            x: e.clientX,
+            y: e.clientY,
+            type: 'add-nodes'
+        });
     }, [setContextMenu]);
 
     const handleGlobalContextMenu = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
 
-        if ((e.target as HTMLElement).id === 'canvas-background') {
-            setContextMenu({
-                isOpen: true,
-                x: e.clientX,
-                y: e.clientY,
-                type: 'global'
-            });
+        const ignoreReason = getCanvasSurfaceEventIgnoreReason(e);
+        if (ignoreReason) {
+            debugCanvasSurfaceEventIgnored('contextmenu', e, ignoreReason);
+            return;
         }
+
+        setContextMenu({
+            isOpen: true,
+            x: e.clientX,
+            y: e.clientY,
+            type: 'global'
+        });
     }, [setContextMenu]);
 
     // ============================================================================
