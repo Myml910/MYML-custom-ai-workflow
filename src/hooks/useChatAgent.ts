@@ -46,6 +46,12 @@ interface UseChatAgentReturn {
     hasMessages: boolean;
 }
 
+interface ApiErrorPayload {
+    code?: string;
+    message?: string;
+    error?: string;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -62,6 +68,27 @@ function generateSessionId(): string {
  */
 function generateMessageId(): string {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function formatAgentError(payload: ApiErrorPayload, fallback: string): string {
+    if (payload.code === 'AGENT_TEXT_MODEL_NOT_CONFIGURED') {
+        return 'Agent 文本模型未配置。T8 图像 Key 只负责图片生成，聊天 Agent 需要单独配置文本模型 Key。';
+    }
+
+    if (payload.code === 'AGENT_MEDIA_TOO_LARGE') {
+        return payload.message || payload.error || '图片太大，请压缩后再发送。';
+    }
+
+    if (payload.code === 'AGENT_INVALID_SESSION_ID' || payload.code === 'AGENT_SESSION_PATH_FORBIDDEN') {
+        return payload.message || payload.error || '聊天会话 ID 无效。';
+    }
+
+    return payload.message || payload.error || fallback;
+}
+
+async function readApiError(response: Response, fallback: string): Promise<string> {
+    const payload = await response.json().catch(() => ({} as ApiErrorPayload));
+    return formatAgentError(payload, response.statusText || fallback);
 }
 
 // ============================================================================
@@ -123,7 +150,7 @@ export function useChatAgent(): UseChatAgentReturn {
         try {
             const response = await fetch(`/api/chat/sessions/${targetSessionId}`, { credentials: 'include' });
             if (!response.ok) {
-                throw new Error('Session not found');
+                throw new Error(await readApiError(response, 'Session not found'));
             }
 
             const data = await response.json();
@@ -211,8 +238,7 @@ export function useChatAgent(): UseChatAgentReturn {
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.error || response.statusText);
+                throw new Error(await readApiError(response, 'Failed to send message'));
             }
 
             const data = await response.json();
@@ -236,6 +262,15 @@ export function useChatAgent(): UseChatAgentReturn {
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
             setError(errorMessage);
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: generateMessageId(),
+                    role: 'assistant',
+                    content: errorMessage,
+                    timestamp: new Date(),
+                },
+            ]);
             console.error('Chat error:', err);
         } finally {
             setIsLoading(false);

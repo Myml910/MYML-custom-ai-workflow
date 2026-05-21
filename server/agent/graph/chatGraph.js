@@ -18,12 +18,28 @@ import { createTextResponse, extractResponseText } from "../../services/ai/provi
 // MODEL CONFIGURATION
 // ============================================================================
 
+function createChatError(code, message, status = 500) {
+    const error = new Error(message);
+    error.code = code;
+    error.status = status;
+    return error;
+}
+
 function getChatConfig(runtimeApiKey) {
     const aiConfig = getAiProviderConfig();
     const legacyChatConfig = getLegacyChatConfig(runtimeApiKey, aiConfig);
+    const provider = isApimartTextConfigured(aiConfig) ? "apimart" : "legacy";
+
+    if (provider === "legacy" && !legacyChatConfig.apiKey) {
+        throw createChatError(
+            "AGENT_TEXT_MODEL_NOT_CONFIGURED",
+            "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
+            503
+        );
+    }
 
     return {
-        provider: isApimartTextConfigured(aiConfig) ? "apimart" : "legacy",
+        provider,
         aiConfig,
         ...legacyChatConfig,
     };
@@ -97,7 +113,11 @@ async function callChatCompletions({
     maxTokens = 2048,
 }) {
     if (!apiKey) {
-        throw new Error("CHAT_API_KEY is not configured. Add CHAT_API_KEY to your .env file.");
+        throw createChatError(
+            "AGENT_TEXT_MODEL_NOT_CONFIGURED",
+            "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
+            503
+        );
     }
 
     const url = `${baseUrl}/chat/completions`;

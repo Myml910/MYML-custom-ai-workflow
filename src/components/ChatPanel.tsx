@@ -34,6 +34,24 @@ interface ChatPanelProps {
     language?: Language;
 }
 
+const CHAT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
+
+function getMediaTooLargeMessage(language: Language): string {
+    return language === 'zh'
+        ? '图片太大，请压缩后再发送。'
+        : 'The image is too large. Please compress it before sending.';
+}
+
+function estimateBase64Bytes(value?: string): number {
+    if (!value) return 0;
+    const base64 = value.includes(',') ? value.split(',').pop() || '' : value;
+    const normalized = base64.replace(/\s/g, '');
+    if (!normalized) return 0;
+
+    const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -52,6 +70,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const [attachedMedia, setAttachedMedia] = useState<AttachedMedia[]>([]);
     const [isDragOver, setIsDragOver] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [mediaError, setMediaError] = useState<string | null>(null);
 
     // Theme helper
     const isDark = canvasTheme === 'dark';
@@ -107,6 +126,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragOver(false);
+        setMediaError(null);
 
         // Get data from drag event
         const nodeData = e.dataTransfer.getData('application/json');
@@ -123,6 +143,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         try {
                             const response = await fetch(url);
                             const blob = await response.blob();
+
+                            if (blob.size > CHAT_ATTACHMENT_MAX_BYTES) {
+                                setMediaError(getMediaTooLargeMessage(language));
+                                return;
+                            }
 
                             base64Data = await new Promise<string>((resolve, reject) => {
                                 const reader = new FileReader();
@@ -163,9 +188,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         const currentMessage = message;
         const currentMedia = attachedMedia;
 
+        const hasOversizedMedia = currentMedia.some(media =>
+            media.base64 && estimateBase64Bytes(media.base64) > CHAT_ATTACHMENT_MAX_BYTES
+        );
+
+        if (hasOversizedMedia) {
+            setMediaError(getMediaTooLargeMessage(language));
+            return;
+        }
+
         // Clear input immediately for better UX
         setMessage('');
         setAttachedMedia([]);
+        setMediaError(null);
 
         // Reset textarea height
         if (textareaRef.current) {
@@ -193,6 +228,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         startNewChat();
         setMessage('');
         setAttachedMedia([]);
+        setMediaError(null);
         setShowTip(true);
         setShowHistory(false);
     };
@@ -257,6 +293,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         : 'hover:bg-neutral-200 text-neutral-500 hover:text-lime-600 transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/35';
 
     const isSendDisabled = isLoading || (!message.trim() && attachedMedia.length === 0);
+    const visibleError = mediaError;
+    const hasAssistantErrorMessage = Boolean(
+        error && messages.some(msg => msg.role === 'assistant' && msg.content === error)
+    );
 
     return (
         <div
@@ -495,7 +535,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         )}
 
                         {/* Error message */}
-                        {error && (
+                        {error && !hasAssistantErrorMessage && (
                             <div className="flex justify-center mb-4">
                                 <div className="bg-red-500/20 border border-red-500/50 rounded-lg px-4 py-2 text-red-400 text-sm">
                                     {error}
@@ -510,6 +550,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
             {/* Input Area */}
             <div className={`p-4 border-t ${isDark ? 'border-neutral-800 bg-[#101210]' : 'border-neutral-200 bg-white'}`}>
+                {visibleError && (
+                    <div className="mb-3 rounded-lg border border-red-500/50 bg-red-500/15 px-3 py-2 text-sm leading-5 text-red-400">
+                        {visibleError}
+                    </div>
+                )}
+
                 <div
                     className={`rounded-xl p-3 border ${
                         isDark

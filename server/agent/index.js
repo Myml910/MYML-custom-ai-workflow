@@ -17,6 +17,17 @@ import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { CHATS_DIR, IMAGES_DIR } from '../config/paths.js';
 import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 
+const SAFE_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
+const CHAT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+const MEDIA_TOO_LARGE_MESSAGE = "图片太大，请压缩后再发送。";
+
+function createAgentError(code, message, status = 400) {
+    const error = new Error(message);
+    error.code = code;
+    error.status = status;
+    return error;
+}
+
 // ============================================================================
 // FILE PATHS
 // ============================================================================
@@ -24,6 +35,62 @@ import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 // Ensure chats directory exists
 if (!fs.existsSync(CHATS_DIR)) {
     fs.mkdirSync(CHATS_DIR, { recursive: true });
+}
+
+function assertSafeSessionId(sessionId) {
+    if (typeof sessionId !== 'string' || !SAFE_SESSION_ID_PATTERN.test(sessionId)) {
+        throw createAgentError(
+            'AGENT_INVALID_SESSION_ID',
+            'Invalid chat session id.',
+            400
+        );
+    }
+
+    return sessionId;
+}
+
+function assertPathInside(baseDir, targetPath) {
+    const resolvedBase = path.resolve(baseDir);
+    const resolvedTarget = path.resolve(targetPath);
+    const relative = path.relative(resolvedBase, resolvedTarget);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw createAgentError(
+            'AGENT_SESSION_PATH_FORBIDDEN',
+            'Chat session path is outside the user chat directory.',
+            403
+        );
+    }
+
+    return resolvedTarget;
+}
+
+function estimateBase64Bytes(value) {
+    if (typeof value !== 'string') return 0;
+    const base64 = value.includes(',') ? value.split(',').pop() || '' : value;
+    const normalized = base64.replace(/\s/g, '');
+    if (!normalized) return 0;
+
+    const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
+}
+
+function assertMediaSize(byteLength) {
+    if (byteLength > CHAT_MEDIA_MAX_BYTES) {
+        throw createAgentError(
+            'AGENT_MEDIA_TOO_LARGE',
+            MEDIA_TOO_LARGE_MESSAGE,
+            413
+        );
+    }
+}
+
+function looksLikeBase64(value) {
+    return (
+        typeof value === 'string' &&
+        value.length > 128 &&
+        /^[A-Za-z0-9+/=\s]+$/.test(value)
+    );
 }
 
 /**
@@ -35,6 +102,7 @@ function resolveImageToBase64(imageInput, user = null) {
 
     // Already a base64 data URL
     if (imageInput.startsWith('data:')) {
+        assertMediaSize(estimateBase64Bytes(imageInput));
         return imageInput;
     }
 
@@ -56,11 +124,17 @@ function resolveImageToBase64(imageInput, user = null) {
     if (cleanPath.startsWith('/library/')) {
         const filePath = resolveLibraryUrlToPath(cleanPath, user);
         if (filePath && fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            assertMediaSize(stat.size);
             const buffer = fs.readFileSync(filePath);
             const ext = path.extname(filePath).toLowerCase();
             const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
             return `data:${mimeType};base64,${buffer.toString('base64')}`;
         }
+    }
+
+    if (looksLikeBase64(imageInput)) {
+        assertMediaSize(estimateBase64Bytes(imageInput));
     }
 
     // Return as-is if unknown format
@@ -140,7 +214,9 @@ function deserializeMessages(messages) {
  * Get the file path for a session
  */
 function getSessionPath(sessionId, chatsDir = CHATS_DIR) {
-    return path.join(chatsDir, `${sessionId}.json`);
+    const safeSessionId = assertSafeSessionId(sessionId);
+    const baseDir = path.resolve(chatsDir || CHATS_DIR);
+    return assertPathInside(baseDir, path.join(baseDir, `${safeSessionId}.json`));
 }
 
 /**
@@ -187,7 +263,8 @@ function loadSession(sessionId, chatsDir = CHATS_DIR) {
  * @returns {object} Session object
  */
 function getScopedSessionCacheKey(sessionId, chatsDir = CHATS_DIR) {
-    return `${chatsDir}:${sessionId}`;
+    const safeSessionId = assertSafeSessionId(sessionId);
+    return `${path.resolve(chatsDir || CHATS_DIR)}:${safeSessionId}`;
 }
 
 export function getSession(sessionId, options = {}) {
@@ -247,7 +324,12 @@ export function listSessions(options = {}) {
 
     for (const file of files) {
         try {
-            const filePath = path.join(chatsDir, file);
+            const sessionId = file.slice(0, -'.json'.length);
+            if (!SAFE_SESSION_ID_PATTERN.test(sessionId)) {
+                continue;
+            }
+
+            const filePath = getSessionPath(sessionId, chatsDir);
             const content = fs.readFileSync(filePath, 'utf8');
             const data = JSON.parse(content);
             sessions.push({

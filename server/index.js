@@ -1598,19 +1598,36 @@ app.post('/api/trim-video', async (req, res) => {
 // are needed (multi-agent, advanced tools), consider migrating to Python.
 // ============================================================================
 
+const AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE = "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.";
+
+function sendAgentError(res, error, fallbackMessage = "Chat failed") {
+    const status = Number.isInteger(error?.status) ? error.status : 500;
+    const code = error?.code || (status >= 500 ? 'AGENT_CHAT_FAILED' : 'AGENT_REQUEST_INVALID');
+    const message = error?.message || fallbackMessage;
+
+    return res.status(status).json({
+        code,
+        message,
+        error: message
+    });
+}
+
 // Send a message to the chat agent
 app.post('/api/chat', async (req, res) => {
     try {
         const { sessionId, message, media } = req.body;
 
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
-        const chatApiKey = isApimartTextConfigured(aiProviderConfig)
+        const hasApimartText = isApimartTextConfigured(aiProviderConfig);
+        const chatApiKey = hasApimartText
             ? aiProviderConfig.apimart.apiKey
-            : (aiProviderConfig.legacy.chatApiKey || API_KEY);
+            : aiProviderConfig.legacy.chatApiKey;
 
-        if (!chatApiKey) {
-            return res.status(500).json({
-                error: "Server missing AI text config. Add APIMART_API_KEY or fallback CHAT_API_KEY to .env and restart the server."
+        if (!hasApimartText && !chatApiKey) {
+            return res.status(503).json({
+                code: "AGENT_TEXT_MODEL_NOT_CONFIGURED",
+                message: AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE,
+                error: AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE
             });
         }
 
@@ -1636,7 +1653,7 @@ app.post('/api/chat', async (req, res) => {
         });
     } catch (error) {
         console.error("Chat API Error:", error);
-        res.status(500).json({ error: error.message || "Chat failed" });
+        sendAgentError(res, error);
     }
 });
 
@@ -1648,7 +1665,7 @@ app.get('/api/chat/sessions', async (req, res) => {
         res.json(sessions);
     } catch (error) {
         console.error("List sessions error:", error);
-        res.status(500).json({ error: error.message });
+        sendAgentError(res, error, "Failed to list chat sessions");
     }
 });
 
@@ -1660,7 +1677,7 @@ app.delete('/api/chat/sessions/:id', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error("Delete session error:", error);
-        res.status(500).json({ error: error.message });
+        sendAgentError(res, error, "Failed to delete chat session");
     }
 });
 
@@ -1675,7 +1692,7 @@ app.get('/api/chat/sessions/:id', async (req, res) => {
         res.json(sessionData);
     } catch (error) {
         console.error("Get session error:", error);
-        res.status(500).json({ error: error.message });
+        sendAgentError(res, error, "Failed to get chat session");
     }
 });
 

@@ -253,6 +253,19 @@ Do not commit real secrets. The current default image models are T8:
 
 Until team-scoped provider credentials and data isolation are rolled out, T8 uses the global `.env` key. Keep `REQUIRE_TEAM_PROVIDER_CREDENTIALS=false` for this deployment mode. The NewAPI scaffold is retained for later work but should stay disabled with `NEWAPI_MODELS_ENABLED=false`.
 
+### Agent Chat Text Model
+
+The right-bottom Agent chat is separate from T8 image generation. T8 keys do not enable text chat. Configure one of these before expecting Agent replies:
+
+- APIMart text route: `APIMART_BASE_URL`, `APIMART_API_KEY`, and optionally `APIMART_TEXT_MODEL`
+- Legacy OpenAI-compatible route: `CHAT_API_KEY` or `OPENAI_API_KEY`, plus optional `CHAT_API_BASE_URL`, `CHAT_MODEL`, and `CHAT_REASONING_EFFORT`
+
+Health check:
+
+1. Open the right-bottom Agent.
+2. Send a short text-only message.
+3. If no text key is configured, the expected response is a clear `AGENT_TEXT_MODEL_NOT_CONFIGURED` message, not a blank panel or generic server error.
+
 ## 5. Team Provider Credentials
 
 MYML Canvas can resolve provider credentials from PostgreSQL before falling back to `.env`.
