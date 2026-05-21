@@ -14,6 +14,10 @@ function isAtlasNanoBanana2Enabled() {
     return isEnabledFlag(process.env.ENABLE_ATLAS_NANO_BANANA_2);
 }
 
+function isNewapiModelsEnabled() {
+    return isEnabledFlag(process.env.NEWAPI_MODELS_ENABLED);
+}
+
 function envString(name, fallback) {
     const value = process.env[name];
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
@@ -111,7 +115,8 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
                 upstreamModel: 'google/gemini-3.1-flash-image-preview',
                 priority: 1,
                 isAsync: false,
-                experimental: true
+                experimental: true,
+                enabled: isNewapiModelsEnabled()
             }
         ],
         defaultResolution: '2K'
@@ -136,7 +141,8 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
                 upstreamModel: 'gpt-image-2',
                 priority: 1,
                 isAsync: false,
-                experimental: true
+                experimental: true,
+                enabled: isNewapiModelsEnabled()
             }
         ],
         defaultResolution: 'medium'

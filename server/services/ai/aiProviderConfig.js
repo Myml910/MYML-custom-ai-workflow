@@ -28,6 +28,7 @@ const DEFAULT_NEWAPI_REQUEST_TIMEOUT_MS = 300000;
 const DEFAULT_T8_GPT_IMAGE_MODEL = 'gpt-image-2';
 const DEFAULT_T8_NANO_BANANA_MODEL = 'gemini-3.1-flash-image-preview';
 const DEFAULT_T8_REQUEST_TIMEOUT_MS = 300000;
+const DEFAULT_T8_REFERENCE_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -94,7 +95,8 @@ export function getAiProviderConfig(env = process.env, locals = {}) {
             apiKey: cleanString(env.T8_API_KEY),
             requestTimeoutMs: parsePositiveInteger(env.T8_REQUEST_TIMEOUT_MS, DEFAULT_T8_REQUEST_TIMEOUT_MS),
             gptImageModel: cleanString(env.T8_GPT_IMAGE_MODEL) || DEFAULT_T8_GPT_IMAGE_MODEL,
-            nanoBananaModel: cleanString(env.T8_NANO_BANANA_MODEL) || DEFAULT_T8_NANO_BANANA_MODEL
+            nanoBananaModel: cleanString(env.T8_NANO_BANANA_MODEL) || DEFAULT_T8_NANO_BANANA_MODEL,
+            referenceImageMaxBytes: parsePositiveInteger(env.T8_REFERENCE_IMAGE_MAX_BYTES, DEFAULT_T8_REFERENCE_IMAGE_MAX_BYTES)
         },
         legacy: {
             chatBaseUrl: cleanBaseUrl(env.CHAT_API_BASE_URL) || 'https://api.openai.com/v1',

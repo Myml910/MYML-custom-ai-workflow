@@ -9,6 +9,8 @@ const KNOWN_SHARED_DB_TARGETS = new Set([
 const KNOWN_LOCAL_ISOLATED_DB_TARGETS = new Set([
     '10.0.0.30:15433/design_system_db'
 ]);
+const DEFAULT_TEXT_TO_IMAGE_MODEL_ID = 'custom-image-t8-gpt-image-2';
+const DEFAULT_IMAGE_TO_IMAGE_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
 
 function readEnv(name, fallback = '') {
     return process.env[name] || fallback;
@@ -66,6 +68,9 @@ function main() {
     const pointsAtKnownLocalIsolatedDb = KNOWN_LOCAL_ISOLATED_DB_TARGETS.has(dbTargetKey);
     const workerEnabled = boolEnv('TASK_WORKER_ENABLED');
     const atlasNanoBanana2Enabled = boolEnv('ENABLE_ATLAS_NANO_BANANA_2');
+    const t8BaseUrlConfigured = hasValue('T8_BASE_URL');
+    const t8ApiKeyConfigured = hasValue('T8_API_KEY');
+    const newapiModelsEnabled = boolEnv('NEWAPI_MODELS_ENABLED');
     const splitBrainRisk = isDevelopment && pointsAtKnownSharedDb;
 
     if (isDevelopment && pointsAtKnownLocalIsolatedDb) {
@@ -100,6 +105,31 @@ function main() {
         warnings.push('ATLAS_API_KEY is configured while strict team credentials are enabled. User tasks should use DB credentials, not env fallback.');
     }
 
+    if (!t8BaseUrlConfigured || !t8ApiKeyConfigured) {
+        const missing = [
+            !t8BaseUrlConfigured ? 'T8_BASE_URL' : null,
+            !t8ApiKeyConfigured ? 'T8_API_KEY' : null
+        ].filter(Boolean).join(', ');
+        warnings.push(`T8 is the current default image provider (${DEFAULT_TEXT_TO_IMAGE_MODEL_ID}, ${DEFAULT_IMAGE_TO_IMAGE_MODEL_ID}), but ${missing} is missing. Server default image generation will fail until T8 is configured.`);
+        if (strict) {
+            failures.push(`Strict mode requires ${missing} because T8 is the current default image provider.`);
+        }
+    }
+
+    if (!workerEnabled) {
+        warnings.push('TASK_WORKER_ENABLED=false. /api/tasks/image tasks will remain queued until the background worker is enabled.');
+        if (strict) {
+            failures.push('Strict mode requires TASK_WORKER_ENABLED=true for server deployment.');
+        }
+    }
+
+    if (newapiModelsEnabled && !hasValue('NEWAPI_API_KEY')) {
+        warnings.push('NEWAPI_MODELS_ENABLED=true but NEWAPI_API_KEY is not configured. NewAPI image tasks will fail until a key is provided.');
+        if (strict) {
+            failures.push('Strict mode requires NEWAPI_API_KEY when NEWAPI_MODELS_ENABLED=true.');
+        }
+    }
+
     const seedInternalUsers = boolEnv('MYML_SEED_INTERNAL_USERS');
     if (seedInternalUsers && (hasValue('MYML_GROUP1_USERNAME') || hasValue('MYML_GROUP2_USERNAME'))) {
         warnings.push('group1/group2 seed variables are present. Confirm this environment is intended to manage design test users.');
@@ -121,6 +151,17 @@ function main() {
         atlasProviderEnabled: boolEnv('ENABLE_ATLAS_PROVIDER'),
         atlasNanoBanana2Enabled,
         atlasApiKeyConfigured: hasValue('ATLAS_API_KEY'),
+        defaultImageModels: {
+            textToImage: DEFAULT_TEXT_TO_IMAGE_MODEL_ID,
+            imageToImage: DEFAULT_IMAGE_TO_IMAGE_MODEL_ID,
+            provider: 't8'
+        },
+        t8Configured: {
+            baseUrl: t8BaseUrlConfigured,
+            apiKey: t8ApiKeyConfigured,
+            referenceImageMaxBytes: readEnv('T8_REFERENCE_IMAGE_MAX_BYTES', '15728640')
+        },
+        newapiModelsEnabled,
         providerCredentialEncryptionKeyConfigured: hasValue('PROVIDER_CREDENTIAL_ENCRYPTION_KEY'),
         seedInternalUsers,
         groupSeedConfigured: {

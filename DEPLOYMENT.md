@@ -224,25 +224,34 @@ DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/DATABASE
 MYML_SEED_ADMIN_USERNAME=admin@example.com
 MYML_SEED_ADMIN_PASSWORD=change_this_before_first_start
 
-APIMART_BASE_URL=https://api.apimart.ai/v1
-APIMART_API_KEY=your_apimart_key
+T8_BASE_URL=https://ai.t8star.org/v1
+T8_API_KEY=your_t8_key
+T8_REQUEST_TIMEOUT_MS=300000
+T8_GPT_IMAGE_MODEL=gpt-image-2
+T8_NANO_BANANA_MODEL=gemini-3.1-flash-image-preview
+T8_REFERENCE_IMAGE_MAX_BYTES=15728640
 
-TASK_WORKER_ENABLED=false
-TASK_WORKER_CONCURRENCY=2
-SYSTEM_MAX_RUNNING_IMAGE_TASKS=4
-USER_MAX_RUNNING_IMAGE_TASKS=2
-PROVIDER_MAX_RUNNING_APIMART=2
-PROVIDER_MAX_RUNNING_ATLAS=1
+TASK_WORKER_ENABLED=true
+TASK_WORKER_CONCURRENCY=1
+SYSTEM_MAX_RUNNING_IMAGE_TASKS=1
+USER_MAX_RUNNING_IMAGE_TASKS=1
+PROVIDER_MAX_RUNNING_IMAGE_TASKS=1
 
 REQUIRE_TEAM_PROVIDER_CREDENTIALS=false
 PROVIDER_CREDENTIAL_ENCRYPTION_KEY=
+NEWAPI_MODELS_ENABLED=false
 ENABLE_DATALER_PROVIDER=false
 ENABLE_PIKACHU_PROVIDER=false
 ENABLE_ATLAS_PROVIDER=false
 VITE_ENABLE_LEGACY_GENERATION_FALLBACK=false
 ```
 
-Do not commit real secrets. `APIMART_BASE_URL` is the runtime variable used by the server for the APIMart API base URL.
+Do not commit real secrets. The current default image models are T8:
+
+- Text-to-image: `custom-image-t8-gpt-image-2`
+- Image-to-image / reference fallback: `custom-image-t8-gpt-image-2-edit`
+
+Until team-scoped provider credentials and data isolation are rolled out, T8 uses the global `.env` key. Keep `REQUIRE_TEAM_PROVIDER_CREDENTIALS=false` for this deployment mode. The NewAPI scaffold is retained for later work but should stay disabled with `NEWAPI_MODELS_ENABLED=false`.
 
 ## 5. Team Provider Credentials
 

@@ -24,11 +24,17 @@ docker compose config
 `.env` 中关键变量应存在：
 
 - `DATABASE_URL`
-- `APIMART_API_KEY`
+- `T8_BASE_URL`
+- `T8_API_KEY`
+- `T8_REQUEST_TIMEOUT_MS`
+- `T8_GPT_IMAGE_MODEL`
+- `T8_NANO_BANANA_MODEL`
+- `T8_REFERENCE_IMAGE_MAX_BYTES`
 - `TASK_WORKER_ENABLED`
 - `TASK_WORKER_CONCURRENCY`
 - `SYSTEM_MAX_RUNNING_IMAGE_TASKS`
 - `USER_MAX_RUNNING_IMAGE_TASKS`
+- `PROVIDER_MAX_RUNNING_IMAGE_TASKS`
 - `TASK_LEASE_MS`
 - `TASK_HEARTBEAT_MS`
 - `ENABLE_DATALER_PROVIDER`
@@ -36,6 +42,16 @@ docker compose config
 - `VITE_ENABLE_LEGACY_GENERATION_FALLBACK`
 - `REQUIRE_TEAM_PROVIDER_CREDENTIALS`
 - `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`
+- `NEWAPI_MODELS_ENABLED`
+
+T8 is the current default image provider:
+
+- Text-to-image default: `custom-image-t8-gpt-image-2`
+- Image-to-image/reference fallback default: `custom-image-t8-gpt-image-2-edit`
+- Server prelaunch must set `TASK_WORKER_ENABLED=true`; otherwise `/api/tasks/image` tasks remain queued.
+- Initial server concurrency should stay conservative: `TASK_WORKER_CONCURRENCY=1`, `SYSTEM_MAX_RUNNING_IMAGE_TASKS=1`, `USER_MAX_RUNNING_IMAGE_TASKS=1`, `PROVIDER_MAX_RUNNING_IMAGE_TASKS=1`.
+- Current T8 deployment uses the global env key. Team key isolation, data isolation, and cost attribution are later phases.
+- NewAPI scaffold should remain disabled with `NEWAPI_MODELS_ENABLED=false` until it is explicitly validated for the server.
 
 ## 2. 推荐启动方式
 
@@ -48,7 +64,7 @@ set TASK_WORKER_ENABLED=true
 set TASK_WORKER_CONCURRENCY=1
 set SYSTEM_MAX_RUNNING_IMAGE_TASKS=1
 set USER_MAX_RUNNING_IMAGE_TASKS=1
-set PROVIDER_MAX_RUNNING_APIMART=1
+set PROVIDER_MAX_RUNNING_IMAGE_TASKS=1
 npm run server
 ```
 
@@ -134,7 +150,7 @@ set TASK_WORKER_ENABLED=true
 set TASK_WORKER_CONCURRENCY=1
 set SYSTEM_MAX_RUNNING_IMAGE_TASKS=1
 set USER_MAX_RUNNING_IMAGE_TASKS=1
-set PROVIDER_MAX_RUNNING_APIMART=1
+set PROVIDER_MAX_RUNNING_IMAGE_TASKS=1
 npm run server
 ```
 
@@ -178,6 +194,23 @@ LIMIT 20;
 拒绝时应显示清晰错误，不应导致 Node server 崩溃。
 
 ## 7. 供应商 / Provider 检查
+
+T8:
+
+- `T8_BASE_URL` and `T8_API_KEY` must be configured before server deployment because T8 is the default image provider.
+- `T8_REQUEST_TIMEOUT_MS=300000`.
+- `T8_GPT_IMAGE_MODEL=gpt-image-2`.
+- `T8_NANO_BANANA_MODEL=gemini-3.1-flash-image-preview`.
+- `T8_REFERENCE_IMAGE_MAX_BYTES=15728640`.
+- GPT Image 2 quality is normalized to `medium` by the backend.
+- GPT Image 2 edits omit `size` when the user selected Auto.
+- Nano Banana Auto aspect ratio omits `aspect_ratio`.
+- Initial provider concurrency should use `PROVIDER_MAX_RUNNING_IMAGE_TASKS=1`.
+
+NewAPI:
+
+- Keep `NEWAPI_MODELS_ENABLED=false` until the company intranet NewAPI models are explicitly validated on the server.
+- Missing `NEWAPI_API_KEY` must not affect startup while NewAPI models are disabled.
 
 APIMart：
 
@@ -223,7 +256,7 @@ Provider credential encryption:
 | 任务一直 running | worker 崩溃、heartbeat/lease 异常、provider submit 卡住 | `locked_by`、`lease_expires_at`、server log | 查看 worker 日志，确认 lease 是否会过期并被 sweep |
 | 任务一直 polling | provider pending、poll 失败重试、任务未超时 | `provider_task_id`、task_events、provider 控制台 | 等待或检查 provider 状态；确认 `IMAGE_TASK_TIMEOUT_MS` |
 | APIMart 402 | APIMart 余额不足或额度不足 | task `error_message`、APIMart 控制台 | 充值或更换可用 API key |
-| `/api/models/image` 为空 | APIMart 配置缺失，experimental provider 未开启 | `APIMART_BASE_URL`、`APIMART_API_KEY`、provider gate env | 补齐可用 provider 配置 |
+| `/api/models/image` 为空 | T8/default provider 配置缺失，或 experimental provider 未开启 | `T8_BASE_URL`、`T8_API_KEY`、`NEWAPI_MODELS_ENABLED`、provider gate env | 补齐可用 provider 配置 |
 | 旧 workflow 模型不可用 | 历史模型已隐藏或 experimental disabled | 节点模型下拉 | 选择新的可用模型后再生成 |
 | Agent 入口看不到 | z-index 遮挡、modal 状态残留、入口未挂载 | App/ChatPanel 状态、浏览器元素检查 | 关闭 modal/asset panel，检查 Agent 挂载和 z-index |
 | Docker compose 启动失败 | env 缺失、PostgreSQL 未就绪、端口冲突 | `docker compose config`、container logs | 修正 `.env`、释放端口、重启 compose |

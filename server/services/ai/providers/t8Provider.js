@@ -18,6 +18,7 @@ const DEFAULT_GPT_IMAGE_QUALITY = 'medium';
 const DEFAULT_NANO_IMAGE_SIZE = '1K';
 const DEFAULT_RESPONSE_FORMAT = 'url';
 const MAX_REFERENCE_IMAGES = 6;
+const DEFAULT_REFERENCE_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 
 const GPT_IMAGE_SIZE_ALLOWLIST = new Set([
     '1024x1024',
@@ -564,6 +565,30 @@ function getFilenameFromUrl(url, fallback) {
     }
 }
 
+function getReferenceImageMaxBytes(config = {}) {
+    return parsePositiveInteger(
+        config.referenceImageMaxBytes || process.env.T8_REFERENCE_IMAGE_MAX_BYTES,
+        DEFAULT_REFERENCE_IMAGE_MAX_BYTES
+    );
+}
+
+function assertReferenceImageSize(buffer, { model, maxBytes, sourceType }) {
+    const byteLength = Buffer.isBuffer(buffer) ? buffer.length : Buffer.byteLength(buffer || '');
+    if (byteLength <= maxBytes) return;
+
+    throw new AiProviderError({
+        type: AI_ERROR_TYPES.PARAM_ERROR,
+        provider: T8_PROVIDER,
+        model,
+        message: `T8 reference image is too large (${byteLength} bytes). Limit is ${maxBytes} bytes.`,
+        raw: {
+            sourceType,
+            byteLength,
+            maxBytes
+        }
+    });
+}
+
 function parseDataUriForUpload(input) {
     const parsed = parseDataUri(input);
     if (!parsed) return null;
@@ -575,7 +600,9 @@ function parseDataUriForUpload(input) {
     };
 }
 
-async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
+async function resolveReferenceImage(reference, { user, timeoutMs, maxBytes, model }) {
+    const effectiveMaxBytes = parsePositiveInteger(maxBytes, DEFAULT_REFERENCE_IMAGE_MAX_BYTES);
+
     if (typeof reference !== 'string' || !reference.trim()) {
         throw new AiProviderError({
             type: AI_ERROR_TYPES.PARAM_ERROR,
@@ -587,7 +614,14 @@ async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
 
     const cleanReference = reference.trim();
     const dataUri = parseDataUriForUpload(cleanReference);
-    if (dataUri) return dataUri;
+    if (dataUri) {
+        assertReferenceImageSize(dataUri.buffer, {
+            model,
+            maxBytes: effectiveMaxBytes,
+            sourceType: 'data-uri'
+        });
+        return dataUri;
+    }
     if (cleanReference.startsWith('data:')) {
         throw new AiProviderError({
             type: AI_ERROR_TYPES.PARAM_ERROR,
@@ -599,8 +633,28 @@ async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
 
     const localPath = resolveLibraryUrlToPath(cleanReference, user);
     if (localPath) {
+        const stat = fs.statSync(localPath);
+        if (stat.size > effectiveMaxBytes) {
+            throw new AiProviderError({
+                type: AI_ERROR_TYPES.PARAM_ERROR,
+                provider: T8_PROVIDER,
+                model,
+                message: `T8 reference image is too large (${stat.size} bytes). Limit is ${effectiveMaxBytes} bytes.`,
+                raw: {
+                    sourceType: 'library-file',
+                    byteLength: stat.size,
+                    maxBytes: effectiveMaxBytes
+                }
+            });
+        }
+        const buffer = fs.readFileSync(localPath);
+        assertReferenceImageSize(buffer, {
+            model,
+            maxBytes: effectiveMaxBytes,
+            sourceType: 'library-file'
+        });
         return {
-            buffer: fs.readFileSync(localPath),
+            buffer,
             mimeType: guessMimeType(localPath),
             filename: path.basename(localPath)
         };
@@ -609,7 +663,8 @@ async function resolveReferenceImage(reference, { user, timeoutMs, model }) {
     if (/^https?:\/\//i.test(cleanReference)) {
         try {
             const downloaded = await safeFetchImageUrl(cleanReference, {
-                timeoutMs
+                timeoutMs,
+                maxBytes: effectiveMaxBytes
             });
             return {
                 buffer: downloaded.buffer,
@@ -689,6 +744,7 @@ async function buildEditFormData(input = {}, model, referenceImages, context = {
         const resolved = await resolveReferenceImage(reference, {
             user: context.user,
             timeoutMs: context.timeoutMs,
+            maxBytes: context.referenceImageMaxBytes,
             model
         });
         const blob = new Blob([resolved.buffer], { type: resolved.mimeType || 'image/png' });
@@ -784,12 +840,14 @@ export async function submitImageTask(input = {}, options = {}) {
     }
 
     const timeoutMs = parsePositiveInteger(t8Config.requestTimeoutMs, DEFAULT_REQUEST_TIMEOUT_MS);
+    const referenceImageMaxBytes = getReferenceImageMaxBytes(t8Config);
     const requestUrl = isEditModel ? buildT8ImageEditsUrl(baseUrl) : buildT8ImageGenerationsUrl(baseUrl);
 
     if (isEditModel) {
         const { formData, summary } = await buildEditFormData(input, model, referenceImages, {
             user: options.user,
-            timeoutMs
+            timeoutMs,
+            referenceImageMaxBytes
         });
 
         console.log('[T8][image edit submit]', {
