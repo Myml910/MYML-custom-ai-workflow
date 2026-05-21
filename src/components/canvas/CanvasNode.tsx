@@ -100,6 +100,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const [isNodeHovered, setIsNodeHovered] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const aspectDetectionKeyRef = React.useRef<string | null>(null);
 
   const isIdle = data.status === NodeStatus.IDLE || data.status === NodeStatus.ERROR;
   const isLoading = data.status === NodeStatus.LOADING;
@@ -200,13 +201,22 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   // Auto-detect aspect ratio for legacy images/videos that don't have resultAspectRatio
   React.useEffect(() => {
     // Only detect if we have a result but no stored aspect ratio
-    if (!isSuccess || !data.resultUrl || data.resultAspectRatio) return;
+    if (!isSuccess || !data.resultUrl || data.resultAspectRatio) {
+      aspectDetectionKeyRef.current = null;
+      return;
+    }
+
+    const detectionKey = `${data.id}:${data.type}:${data.resultUrl}`;
+    if (aspectDetectionKeyRef.current === detectionKey) return;
+    aspectDetectionKeyRef.current = detectionKey;
+
+    let cancelled = false;
 
     if (data.type === NodeType.VIDEO) {
       // Detect video dimensions
       const video = document.createElement('video');
       video.onloadedmetadata = () => {
-        if (video.videoWidth && video.videoHeight) {
+        if (!cancelled && video.videoWidth && video.videoHeight) {
           onUpdate(data.id, { resultAspectRatio: `${video.videoWidth}/${video.videoHeight}` });
         }
       };
@@ -215,12 +225,16 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       // Detect image dimensions
       const img = new Image();
       img.onload = () => {
-        if (img.naturalWidth && img.naturalHeight) {
+        if (!cancelled && img.naturalWidth && img.naturalHeight) {
           onUpdate(data.id, { resultAspectRatio: `${img.naturalWidth}/${img.naturalHeight}` });
         }
       };
       img.src = data.resultUrl;
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [isSuccess, data.resultUrl, data.resultAspectRatio, data.type, data.id, onUpdate]);
 
   // ============================================================================

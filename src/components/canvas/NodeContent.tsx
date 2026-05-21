@@ -102,13 +102,14 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     // Sync local state ONLY when data.prompt changes externally (not from our own update)
     useEffect(() => {
         if (data.prompt !== lastSentPromptRef.current) {
-            setLocalPrompt(data.prompt || '');
+            const nextPrompt = data.prompt || '';
+            setLocalPrompt(prev => prev === nextPrompt ? prev : nextPrompt);
             lastSentPromptRef.current = data.prompt;
         }
     }, [data.prompt]);
 
     useEffect(() => {
-        setFailedImageUrl(null);
+        setFailedImageUrl(prev => prev === null ? prev : null);
     }, [data.resultUrl]);
 
     // Cleanup timeout on unmount
@@ -222,7 +223,10 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                             src={displayResultUrl}
                             alt={t(language, 'generated')}
                             className="w-full h-full object-cover pointer-events-none"
-                            onError={() => setFailedImageUrl(displayResultUrl || null)}
+                            onError={() => {
+                                const failedUrl = displayResultUrl || null;
+                                setFailedImageUrl(prev => prev === failedUrl ? prev : failedUrl);
+                            }}
                         />
                     )}
 
