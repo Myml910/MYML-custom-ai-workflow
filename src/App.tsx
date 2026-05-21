@@ -1449,7 +1449,10 @@ function CanvasApp({
           />
 
           {/* SVG Layer for Connections */}
-          <svg className="absolute top-0 left-0 w-full h-full overflow-visible pointer-events-none z-0">
+          <svg
+            className="absolute top-0 left-0 w-full h-full overflow-visible pointer-events-none z-0"
+            style={{ pointerEvents: 'none' }}
+          >
             <ConnectionsLayer
               nodes={nodes}
               viewport={viewport}

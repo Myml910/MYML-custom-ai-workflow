@@ -716,7 +716,7 @@ const ConnectionItem: React.FC<{
     const deleteStemOpacity = isDeleteFocus ? 0.34 : 0;
 
     return (
-        <g className="pointer-events-none">
+        <g className="pointer-events-none" style={{ pointerEvents: 'none' }}>
             {/* Ambient base line */}
             <path
                 d={path}
@@ -971,7 +971,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
             const palette = CONNECTION_COLORS[canvasTheme];
 
             tempLine = (
-                <g className="pointer-events-none">
+                <g className="pointer-events-none" style={{ pointerEvents: 'none' }}>
                     <path
                         d={path}
                         stroke={palette.selected}
@@ -980,6 +980,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         strokeLinejoin="round"
                         fill="none"
                         opacity="0.12"
+                        style={{ pointerEvents: 'none' }}
                     />
                     <path
                         d={path}
@@ -989,6 +990,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         strokeLinejoin="round"
                         fill="none"
                         opacity="0.92"
+                        style={{ pointerEvents: 'none' }}
                     />
                     <path
                         d={path}
@@ -1000,6 +1002,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         fill="none"
                         opacity="0.42"
                         className="connector-flow-path"
+                        style={{ pointerEvents: 'none' }}
                     />
                     <circle
                         cx={endX}
@@ -1009,6 +1012,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         stroke={palette.selected}
                         strokeWidth="1.6"
                         opacity="0.95"
+                        style={{ pointerEvents: 'none' }}
                     />
                 </g>
             );
