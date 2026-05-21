@@ -1,4 +1,4 @@
-import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isNewapiImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured } from '../../services/ai/aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isNewapiImageConfigured, isDatalerImageConfigured, isPikachuImageConfigured, isT8ImageConfigured } from '../../services/ai/aiProviderConfig.js';
 import { AI_ERROR_TYPES, classifyProviderError } from '../../services/ai/errors.js';
 import {
     PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
@@ -34,6 +34,11 @@ import {
     normalizeProviderError as normalizeNewapiProviderError,
     submitImageTask as submitNewapiImageTask
 } from '../../services/ai/providers/newapiProvider.js';
+import {
+    normalizeProviderError as normalizeT8ProviderError,
+    normalizeT8ImageResponse,
+    submitImageTask as submitT8ImageTask
+} from '../../services/ai/providers/t8Provider.js';
 import {
     addTaskEvent,
     heartbeatTask,
@@ -653,6 +658,23 @@ function buildNewapiInput(task, config, providerConfig, modelConfig) {
     };
 }
 
+function buildT8Input(task, config, providerConfig, modelConfig) {
+    const input = getTaskInput(task);
+    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const aspectRatio = input.aspectRatio || input.size || null;
+
+    return {
+        prompt: input.prompt || task.prompt || '',
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        size: input.size || 'auto',
+        aspectRatio,
+        resolution: input.resolution || modelConfig.defaultResolution || 'auto',
+        imageSize: input.imageSize || input.image_size || input.resolution || modelConfig.defaultResolution,
+        quality: input.quality || input.requestedQuality,
+        model: providerConfig.upstreamModel
+    };
+}
+
 function normalizeWorkerError(error, providerConfig = null) {
     if (error?.type === PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE) {
         return {
@@ -672,6 +694,8 @@ function normalizeWorkerError(error, providerConfig = null) {
         normalized = normalizeAtlasProviderError(error, { model: providerConfig.upstreamModel });
     } else if (providerConfig?.provider === 'newapi') {
         normalized = normalizeNewapiProviderError(error, { model: providerConfig.upstreamModel });
+    } else if (providerConfig?.provider === 't8') {
+        normalized = normalizeT8ProviderError(error, { model: providerConfig.upstreamModel });
     } else {
         normalized = classifyProviderError(error, {
             provider: providerConfig?.provider,
@@ -771,6 +795,9 @@ export async function executeImageTask(task, options = {}) {
         }
         if (providerConfig.provider === 'newapi' && !isNewapiImageConfigured(config)) {
             throw new Error('NewAPI image provider is not configured. Add NEWAPI_BASE_URL and NEWAPI_API_KEY to .env.');
+        }
+        if (providerConfig.provider === 't8' && !isT8ImageConfigured(config)) {
+            throw new Error('T8 image provider is not configured. Add T8_BASE_URL and T8_API_KEY to .env.');
         }
 
         if (providerConfig.provider === 'dataler') {
@@ -876,6 +903,33 @@ export async function executeImageTask(task, options = {}) {
             }
 
             const normalizedResult = normalizeNewapiImageResponse(submitResult.raw || submitResult, {
+                model: submitResult.model
+            });
+            return await completeImageTaskWithResult(task, normalizedResult, {
+                provider: submitResult.provider,
+                model: submitResult.model,
+                rawStatus: submitResult.rawStatus || submitResult.status,
+                progress: submitResult.progress ?? 100,
+                providerTaskId: submitResult.taskId || null,
+                usage: submitResult.usage || null,
+                raw: submitResult.raw || null,
+                workerId: options.workerId || null,
+                credentialContext
+            });
+        }
+
+        if (providerConfig.provider === 't8') {
+            const providerInput = buildT8Input(task, config, providerConfig, resolved.modelConfig);
+            const submitResult = await submitT8ImageTask(providerInput, {
+                config,
+                user: getTaskUser(task)
+            });
+
+            if (submitResult.status !== 'completed') {
+                throw new Error(submitResult.error || 'T8 image task did not complete.');
+            }
+
+            const normalizedResult = normalizeT8ImageResponse(submitResult.raw || submitResult, {
                 model: submitResult.model
             });
             return await completeImageTaskWithResult(task, normalizedResult, {

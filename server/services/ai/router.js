@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isNewapiImageConfigured, isPikachuImageConfigured } from './aiProviderConfig.js';
+import { getAiProviderConfig, isApimartImageConfigured, isAtlasImageConfigured, isDatalerImageConfigured, isNewapiImageConfigured, isPikachuImageConfigured, isT8ImageConfigured } from './aiProviderConfig.js';
 import { AiProviderError, AI_ERROR_TYPES, classifyProviderError } from './errors.js';
 import { logAiEvent } from './logger.js';
 import { getImageModelConfig, getImageProviders } from './modelRegistry.js';
@@ -12,6 +12,7 @@ import { generateImage as generateDatalerImage } from './providers/datalerProvid
 import { generateImage as generatePikachuImage } from './providers/pikachuProvider.js';
 import { generateImage as generateAtlasImage } from './providers/atlasProvider.js';
 import { generateImage as generateNewapiImage } from './providers/newapiProvider.js';
+import { generateImage as generateT8Image } from './providers/t8Provider.js';
 
 function getImageFormat(result) {
     const mimeType = result?.images?.[0]?.mimeType || '';
@@ -132,6 +133,31 @@ async function runNewapiProvider(input, providerConfig, modelConfig, config, opt
     });
 }
 
+async function runT8Provider(input, providerConfig, modelConfig, config, options = {}) {
+    if (!isT8ImageConfigured(config)) {
+        throw new AiProviderError({
+            type: AI_ERROR_TYPES.AUTH_ERROR,
+            provider: 't8',
+            model: providerConfig.upstreamModel,
+            message: 'T8 image provider is not configured. Add T8_BASE_URL and T8_API_KEY to .env.'
+        });
+    }
+
+    return await generateT8Image({
+        prompt: input.prompt,
+        imageUrls: input.imageUrls.length > 0 ? input.imageUrls : undefined,
+        size: input.size,
+        aspectRatio: input.aspectRatio,
+        resolution: input.resolution || modelConfig.defaultResolution,
+        imageSize: input.imageSize || input.resolution || modelConfig.defaultResolution,
+        quality: input.quality,
+        model: providerConfig.upstreamModel
+    }, {
+        config,
+        user: options.user
+    });
+}
+
 async function runImageProvider(input, providerConfig, modelConfig, config, options = {}) {
     if (providerConfig.provider === 'apimart') {
         return await runApimartProvider(input, providerConfig, modelConfig, config);
@@ -147,6 +173,9 @@ async function runImageProvider(input, providerConfig, modelConfig, config, opti
     }
     if (providerConfig.provider === 'newapi') {
         return await runNewapiProvider(input, providerConfig, modelConfig, config, options);
+    }
+    if (providerConfig.provider === 't8') {
+        return await runT8Provider(input, providerConfig, modelConfig, config, options);
     }
 
     throw new AiProviderError({

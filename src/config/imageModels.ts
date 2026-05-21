@@ -25,6 +25,8 @@ export const ATLAS_NANO_BANANA_2_TEXT_MODEL_ID = 'custom-image-atlas-nano-banana
 export const ATLAS_NANO_BANANA_2_EDIT_MODEL_ID = 'custom-image-atlas-nano-banana-2-edit';
 export const NEWAPI_GEMINI_3_1_FLASH_MODEL_ID = 'custom-image-newapi-gemini-3-1-flash';
 export const NEWAPI_GPT_IMAGE_2_MODEL_ID = 'custom-image-newapi-gpt-image-2';
+export const T8_GPT_IMAGE_2_MODEL_ID = 'custom-image-t8-gpt-image-2';
+export const T8_NANO_BANANA_3_1_FLASH_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash';
 
 export const HIDDEN_IMAGE_MODEL_IDS = new Set([
     'custom-image-gpt-image-2',
@@ -37,7 +39,9 @@ export const VISIBLE_IMAGE_MODEL_IDS = new Set([
     ATLAS_TEXT_TO_IMAGE_MODEL_ID,
     ATLAS_IMAGE_EDIT_MODEL_ID,
     ATLAS_NANO_BANANA_2_TEXT_MODEL_ID,
-    ATLAS_NANO_BANANA_2_EDIT_MODEL_ID
+    ATLAS_NANO_BANANA_2_EDIT_MODEL_ID,
+    T8_GPT_IMAGE_2_MODEL_ID,
+    T8_NANO_BANANA_3_1_FLASH_MODEL_ID
 ]);
 
 export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [

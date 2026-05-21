@@ -141,6 +141,58 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         ],
         defaultResolution: 'medium'
     },
+    'custom-image-t8-gpt-image-2': {
+        projectModelId: 'custom-image-t8-gpt-image-2',
+        displayName: 'T8 GPT Image 2',
+        description: 'Experimental T8 GPT Image 2 text-to-image generations endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        recommended: false,
+        resolutions: ['Auto'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
+        providers: [
+            {
+                provider: 't8',
+                upstreamModel: envString('T8_GPT_IMAGE_MODEL', 'gpt-image-2'),
+                priority: 1,
+                isAsync: false,
+                experimental: true
+            }
+        ],
+        defaultResolution: 'Auto'
+    },
+    'custom-image-t8-nano-banana-3-1-flash': {
+        projectModelId: 'custom-image-t8-nano-banana-3-1-flash',
+        displayName: 'T8 Nano Banana 3.1 Flash',
+        description: 'Experimental T8 Nano Banana 3.1 Flash text-to-image generations endpoint.',
+        capability: 'image-generation',
+        capabilities: ['text-to-image'],
+        taskType: 'image_generation',
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        supportsMultiImage: false,
+        enabled: true,
+        experimental: true,
+        recommended: false,
+        resolutions: ['1K', '2K', '4K', '512'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '21:9', '1:4', '4:1', '8:1', '1:8'],
+        providers: [
+            {
+                provider: 't8',
+                upstreamModel: envString('T8_NANO_BANANA_MODEL', 'gemini-3.1-flash-image-preview'),
+                priority: 1,
+                isAsync: false,
+                experimental: true
+            }
+        ],
+        defaultResolution: '1K'
+    },
     'custom-image-atlas-gpt-image-2-text': {
         projectModelId: 'custom-image-atlas-gpt-image-2-text',
         displayName: 'Atlas GPT Image 2 Text-to-Image',
