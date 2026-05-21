@@ -39,6 +39,10 @@ import modelsRoutes from './routes/models.js';
 import runtimeRoutes from './routes/runtime.js';
 import { getAiProviderConfig, isApimartTextConfigured } from './services/ai/aiProviderConfig.js';
 import { createTextResponse, extractResponseText } from './services/ai/providers/apimartProvider.js';
+import {
+    AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE,
+    getAgentChatConfig
+} from './agent/config/chatConfig.js';
 import { resolveImageToBase64 } from './utils/imageHelpers.js';
 import twitterRoutes from './routes/twitter.js';
 import tiktokPostRoutes from './routes/tiktok-post.js';
@@ -1598,8 +1602,6 @@ app.post('/api/trim-video', async (req, res) => {
 // are needed (multi-agent, advanced tools), consider migrating to Python.
 // ============================================================================
 
-const AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE = "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.";
-
 function sendAgentError(res, error, fallbackMessage = "Chat failed") {
     const status = Number.isInteger(error?.status) ? error.status : 500;
     const code = error?.code || (status >= 500 ? 'AGENT_CHAT_FAILED' : 'AGENT_REQUEST_INVALID');
@@ -1618,18 +1620,24 @@ app.post('/api/chat', async (req, res) => {
         const { sessionId, message, media, canvasContext } = req.body;
 
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
-        const hasApimartText = isApimartTextConfigured(aiProviderConfig);
-        const chatApiKey = hasApimartText
-            ? aiProviderConfig.apimart.apiKey
-            : aiProviderConfig.legacy.chatApiKey;
-
-        if (!hasApimartText && !chatApiKey) {
-            return res.status(503).json({
-                code: "AGENT_TEXT_MODEL_NOT_CONFIGURED",
-                message: AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE,
-                error: AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE
+        let agentChatConfig;
+        try {
+            agentChatConfig = getAgentChatConfig({
+                env: process.env,
+                aiConfig: aiProviderConfig,
             });
+        } catch (error) {
+            if (error?.code === 'AGENT_TEXT_MODEL_NOT_CONFIGURED') {
+                return res.status(error.status || 503).json({
+                    code: "AGENT_TEXT_MODEL_NOT_CONFIGURED",
+                    message: error.message || AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE,
+                    error: error.message || AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE
+                });
+            }
+            throw error;
         }
+
+        const chatApiKey = agentChatConfig.provider === 'legacy' ? agentChatConfig.apiKey : undefined;
 
         if (!sessionId) {
             return res.status(400).json({ error: "sessionId is required" });

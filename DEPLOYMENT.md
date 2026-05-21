@@ -231,6 +231,12 @@ T8_GPT_IMAGE_MODEL=gpt-image-2
 T8_NANO_BANANA_MODEL=gemini-3.1-flash-image-preview
 T8_REFERENCE_IMAGE_MAX_BYTES=15728640
 
+AGENT_CHAT_PROVIDER=t8
+AGENT_CHAT_API_KEY=your_t8_agent_chat_key
+AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
+AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-medium
+AGENT_CHAT_TIMEOUT_MS=60000
+
 TASK_WORKER_ENABLED=true
 TASK_WORKER_CONCURRENCY=1
 SYSTEM_MAX_RUNNING_IMAGE_TASKS=1
@@ -255,7 +261,19 @@ Until team-scoped provider credentials and data isolation are rolled out, T8 use
 
 ### Agent Chat Text Model
 
-The right-bottom Agent chat is separate from T8 image generation. T8 keys do not enable text chat. Configure one of these before expecting Agent replies:
+The right-bottom Agent chat is separate from T8 image generation. `T8_API_KEY` is for image generation; `AGENT_CHAT_API_KEY` is for text chat. Configure one of these before expecting Agent replies:
+
+Recommended T8 Agent chat route:
+
+```env
+AGENT_CHAT_PROVIDER=t8
+AGENT_CHAT_API_KEY=your_t8_agent_chat_key
+AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
+AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-medium
+AGENT_CHAT_TIMEOUT_MS=60000
+```
+
+Fallback chain when `AGENT_CHAT_PROVIDER` is unset:
 
 - APIMart text route: `APIMART_BASE_URL`, `APIMART_API_KEY`, and optionally `APIMART_TEXT_MODEL`
 - Legacy OpenAI-compatible route: `CHAT_API_KEY` or `OPENAI_API_KEY`, plus optional `CHAT_API_BASE_URL`, `CHAT_MODEL`, and `CHAT_REASONING_EFFORT`

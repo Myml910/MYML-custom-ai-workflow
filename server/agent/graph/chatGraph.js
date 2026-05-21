@@ -11,39 +11,12 @@
 import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { CHAT_AGENT_SYSTEM_PROMPT, TOPIC_GENERATION_PROMPT } from "../prompts/system.js";
-import { getAiProviderConfig, getLegacyChatConfig, isApimartTextConfigured } from "../../services/ai/aiProviderConfig.js";
 import { createTextResponse, extractResponseText } from "../../services/ai/providers/apimartProvider.js";
+import { createAgentChatError, getAgentChatConfig } from "../config/chatConfig.js";
 
 // ============================================================================
 // MODEL CONFIGURATION
 // ============================================================================
-
-function createChatError(code, message, status = 500) {
-    const error = new Error(message);
-    error.code = code;
-    error.status = status;
-    return error;
-}
-
-function getChatConfig(runtimeApiKey) {
-    const aiConfig = getAiProviderConfig();
-    const legacyChatConfig = getLegacyChatConfig(runtimeApiKey, aiConfig);
-    const provider = isApimartTextConfigured(aiConfig) ? "apimart" : "legacy";
-
-    if (provider === "legacy" && !legacyChatConfig.apiKey) {
-        throw createChatError(
-            "AGENT_TEXT_MODEL_NOT_CONFIGURED",
-            "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
-            503
-        );
-    }
-
-    return {
-        provider,
-        aiConfig,
-        ...legacyChatConfig,
-    };
-}
 
 function getMessageRole(message) {
     const type = message._getType?.();
@@ -109,13 +82,15 @@ async function callChatCompletions({
     baseUrl,
     model,
     reasoningEffort,
+    provider = "legacy",
+    timeoutMs,
     temperature = 0.7,
     maxTokens = 2048,
 }) {
     if (!apiKey) {
-        throw createChatError(
+        throw createAgentChatError(
             "AGENT_TEXT_MODEL_NOT_CONFIGURED",
-            "Agent text model is not configured. Configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
+            "Agent text model is not configured. Configure AGENT_CHAT_PROVIDER=t8 with AGENT_CHAT_API_KEY, or configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
             503
         );
     }
@@ -125,36 +100,66 @@ async function callChatCompletions({
     const body = {
         model,
         messages,
-        temperature,
-        max_tokens: maxTokens,
+        stream: false,
     };
 
-    // Your third-party gateway says reasoning_effort supports:
-    // none / low / medium / high.
-    // If it is set to none, do not send it.
-    if (reasoningEffort && reasoningEffort !== "none") {
-        body.reasoning_effort = reasoningEffort;
+    if (provider !== "t8") {
+        body.temperature = temperature;
+        body.max_tokens = maxTokens;
+
+        // Your third-party gateway says reasoning_effort supports:
+        // none / low / medium / high.
+        // If it is set to none, do not send it.
+        if (reasoningEffort && reasoningEffort !== "none") {
+            body.reasoning_effort = reasoningEffort;
+        }
     }
 
-    console.log(`[ChatGraph] Calling ${url}`);
+    console.log(`[ChatGraph] Calling ${provider} ${url}`);
     console.log(`[ChatGraph] Model: ${model}`);
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : null;
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+    } catch (error) {
+        if (error?.name === "AbortError") {
+            throw createAgentChatError(
+                "AGENT_TEXT_MODEL_TIMEOUT",
+                `${provider} chat completion timed out after ${timeoutMs}ms.`,
+                504
+            );
+        }
+        throw createAgentChatError(
+            "AGENT_TEXT_MODEL_PROVIDER_ERROR",
+            `${provider} chat completion request failed: ${error?.message || error}`,
+            502
+        );
+    } finally {
+        if (timeout) clearTimeout(timeout);
+    }
 
     const rawText = await response.text();
 
     let data;
+    let parsedJson = true;
     try {
         data = rawText ? JSON.parse(rawText) : {};
     } catch (error) {
-        throw new Error(`Chat API returned non-JSON response: ${rawText.slice(0, 500)}`);
+        parsedJson = false;
+        data = { message: rawText.slice(0, 500) };
     }
 
     if (!response.ok) {
@@ -164,7 +169,28 @@ async function callChatCompletions({
             response.statusText ||
             "Chat API request failed";
 
-        throw new Error(message);
+        let code = "AGENT_TEXT_MODEL_PROVIDER_ERROR";
+        if (response.status === 401 || response.status === 403) {
+            code = "AGENT_TEXT_MODEL_AUTH_ERROR";
+        } else if (response.status === 402) {
+            code = "AGENT_TEXT_MODEL_PAYMENT_REQUIRED";
+        } else if (response.status === 429) {
+            code = "AGENT_TEXT_MODEL_RATE_LIMIT";
+        }
+
+        throw createAgentChatError(
+            code,
+            `${provider} chat completion failed: ${message}`,
+            response.status
+        );
+    }
+
+    if (!parsedJson) {
+        throw createAgentChatError(
+            "AGENT_TEXT_MODEL_PROVIDER_ERROR",
+            `${provider} chat API returned non-JSON response: ${rawText.slice(0, 500)}`,
+            502
+        );
     }
 
     const content = data?.choices?.[0]?.message?.content;
@@ -213,6 +239,8 @@ async function callTextModel({
         baseUrl: chatConfig.baseUrl,
         model: chatConfig.model,
         reasoningEffort: chatConfig.reasoningEffort,
+        provider: chatConfig.provider,
+        timeoutMs: chatConfig.timeoutMs,
         temperature,
         maxTokens,
     });
@@ -223,7 +251,9 @@ async function callTextModel({
 // ============================================================================
 
 async function agentNode(state, config) {
-    const chatConfig = getChatConfig(config.configurable?.apiKey);
+    const chatConfig = getAgentChatConfig({
+        runtimeApiKey: config.configurable?.apiKey,
+    });
     const canvasContextSummary = config.configurable?.canvasContextSummary;
 
     const systemMessage = new SystemMessage(CHAT_AGENT_SYSTEM_PROMPT);
@@ -275,7 +305,9 @@ export function createChatGraph() {
 // ============================================================================
 
 export async function generateTopicTitle(messages, apiKey) {
-    const chatConfig = getChatConfig(apiKey);
+    const chatConfig = getAgentChatConfig({
+        runtimeApiKey: apiKey,
+    });
 
     const contextMessages = messages.slice(0, 6);
     const conversationSummary = contextMessages

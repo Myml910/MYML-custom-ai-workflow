@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { getAvailableImageModels } from '../services/ai/modelRegistry.js';
+import { getAgentChatStartupSummary } from '../agent/config/chatConfig.js';
 
 export function safeValue(value, fallback = 'unknown') {
     if (value === undefined || value === null || value === '') return fallback;
@@ -84,6 +85,7 @@ export async function checkLibraryDirStatus(libraryDir) {
 export function logStartupSummary(options = {}) {
     return (async () => {
         const imageModels = readImageModelSummary();
+        const agentChat = getAgentChatStartupSummary(process.env);
         const libraryDir = safeValue(options.libraryDir || process.env.LIBRARY_DIR);
         const libraryStatus = await checkLibraryDirStatus(libraryDir);
         const summary = {
@@ -101,6 +103,10 @@ export function logStartupSummary(options = {}) {
             requireTeamProviderCredentials: safeValue(process.env.REQUIRE_TEAM_PROVIDER_CREDENTIALS, 'false'),
             imageModelCount: imageModels.count,
             imageModelIds: imageModels.ids,
+            agentChatProvider: agentChat.agentChatProvider,
+            agentChatModel: agentChat.agentChatModel,
+            agentChatBaseUrl: agentChat.agentChatBaseUrl,
+            agentChatConfigured: agentChat.agentChatConfigured,
             gitCommit: readGitCommit(),
             entrypoint: getStartupEntry()
         };
