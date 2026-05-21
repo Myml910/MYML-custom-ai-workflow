@@ -70,33 +70,34 @@ const SAME_FAMILY_IMAGE_MODEL_FALLBACKS = new Map<string, string>([
 
 export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
     {
-        id: ATLAS_TEXT_TO_IMAGE_MODEL_ID,
-        label: 'Atlas GPT Image 2 Text-to-Image',
-        name: 'Atlas GPT Image 2 Text-to-Image',
-        provider: 'atlas',
-        providerChain: ['atlas'],
+        id: T8_GPT_IMAGE_2_MODEL_ID,
+        label: 'T8 GPT Image 2',
+        name: 'T8 GPT Image 2',
+        provider: 't8',
+        providerChain: ['t8'],
         capabilities: ['text-to-image'],
         supportsTextToImage: true,
         supportsImageToImage: false,
         supportsMultiImage: false,
         recommended: true,
         experimental: true,
-        resolutions: ['low', 'medium', 'high'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
+        resolutions: ['Auto'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1']
     },
     {
-        id: ATLAS_IMAGE_EDIT_MODEL_ID,
-        label: 'Atlas GPT Image 2 Edit',
-        name: 'Atlas GPT Image 2 Edit',
-        provider: 'atlas',
-        providerChain: ['atlas'],
+        id: T8_GPT_IMAGE_2_EDIT_MODEL_ID,
+        label: 'T8 GPT Image 2 Edit',
+        name: 'T8 GPT Image 2 Edit',
+        provider: 't8',
+        providerChain: ['t8'],
         capabilities: ['image-to-image', 'multi-image'],
         supportsTextToImage: false,
         supportsImageToImage: true,
         supportsMultiImage: true,
+        recommended: true,
         experimental: true,
-        resolutions: ['low', 'medium', 'high'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
+        resolutions: ['Auto'],
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1']
     }
 ];
 
@@ -154,7 +155,7 @@ export function filterVisibleImageModels<T extends ImageModelOption>(models: T[]
 }
 
 export function getDefaultImageModelId(hasReferenceImages = false): string {
-    return hasReferenceImages ? ATLAS_IMAGE_EDIT_MODEL_ID : ATLAS_TEXT_TO_IMAGE_MODEL_ID;
+    return hasReferenceImages ? T8_GPT_IMAGE_2_EDIT_MODEL_ID : T8_GPT_IMAGE_2_MODEL_ID;
 }
 
 export function imageModelSupportsReferenceCount(modelId: string | undefined | null, referenceCount = 0): boolean {

@@ -14,6 +14,7 @@ import React from 'react';
 import { NodeData, NodeType, NodeStatus } from '../types';
 import { generateCameraAngle } from '../services/cameraAngleService';
 import { removeImageBackground } from '../services/mattingService';
+import { getCompatibleImageModelId } from '../config/imageModels';
 
 // ============================================================================
 // TYPES
@@ -93,7 +94,7 @@ export const useImageNodeHandlers = ({
             prompt: '',
             status: NodeStatus.IDLE,
             model: 'Banana Pro',
-            imageModel: imageNode.imageModel || 'custom-image-gpt-image-2',
+            imageModel: getCompatibleImageModelId(imageNode.imageModel, 1),
             aspectRatio: imageNode.aspectRatio || 'Auto',
             resolution: imageNode.resolution || 'Auto',
             parentIds: [nodeId]
@@ -150,7 +151,7 @@ export const useImageNodeHandlers = ({
             prompt: '',
             status: NodeStatus.IDLE,
             model: 'Image Editor',
-            imageModel: imageNode.imageModel || 'custom-image-gpt-image-2',
+            imageModel: getCompatibleImageModelId(imageNode.imageModel, 1),
             aspectRatio: imageNode.aspectRatio || 'Auto',
             resolution: imageNode.resolution || 'Auto',
             parentIds: [nodeId]

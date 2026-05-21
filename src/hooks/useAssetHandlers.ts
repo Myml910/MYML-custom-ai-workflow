@@ -8,6 +8,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { NodeData, NodeType, NodeStatus, Viewport, ContextMenuState } from '../types';
+import { T8_GPT_IMAGE_2_MODEL_ID } from '../config/imageModels';
 
 interface UseAssetHandlersOptions {
     nodes: NodeData[];
@@ -96,8 +97,8 @@ export const useAssetHandlers = ({
                 status: NodeStatus.SUCCESS,
                 resultUrl: url,
                 resultAspectRatio,
-                model: isVideo ? 'video-disabled' : 'custom-image-gpt-image-2',
-                imageModel: !isVideo ? 'custom-image-gpt-image-2' : undefined,
+                model: isVideo ? 'video-disabled' : T8_GPT_IMAGE_2_MODEL_ID,
+                imageModel: !isVideo ? T8_GPT_IMAGE_2_MODEL_ID : undefined,
                 videoModel: isVideo ? 'video-disabled' : undefined,
                 aspectRatio: aspectRatio || '1:1',
                 resolution: isVideo ? 'Auto' : '2k'

@@ -57,6 +57,7 @@ import { uploadAsset } from './services/assetService';
 import { getEffectiveImageReference } from './utils/imageReferences';
 import { AuthUser, useAuth } from './auth/AuthContext';
 import { LoginPage } from './components/LoginPage';
+import { T8_GPT_IMAGE_2_EDIT_MODEL_ID, T8_GPT_IMAGE_2_MODEL_ID } from './config/imageModels';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -544,7 +545,7 @@ function CanvasApp({
       y: data.y || 0,
       prompt: data.prompt || '',
       status: data.status || NodeStatus.IDLE,
-      model: data.model || 'custom-image-gpt-image-2',
+      model: data.model || T8_GPT_IMAGE_2_MODEL_ID,
       imageModel: data.imageModel,
       aspectRatio: data.aspectRatio || '16:9',
       resolution: data.resolution || '1K',
@@ -974,7 +975,7 @@ function CanvasApp({
           resultUrl,
           resultAspectRatio,
           model: 'Upload',
-          imageModel: 'custom-image-gpt-image-2',
+          imageModel: T8_GPT_IMAGE_2_MODEL_ID,
           aspectRatio,
           resolution: 'Auto'
         };
@@ -998,7 +999,7 @@ function CanvasApp({
     const createNode = (resultAspectRatio?: string, aspectRatio?: string) => {
       const isVideo = type === 'videos';
       // Use the original model from asset metadata, or fall back to defaults
-      const defaultModel = isVideo ? 'video-disabled' : 'custom-image-gpt-image-2';
+      const defaultModel = isVideo ? 'video-disabled' : T8_GPT_IMAGE_2_MODEL_ID;
       const nodeModel = model || defaultModel;
 
       const newNode: NodeData = {
@@ -1692,7 +1693,7 @@ function CanvasApp({
         nodeId={editorModal.nodeId || ''}
         imageUrl={editorModal.imageUrl}
         initialPrompt={nodes.find(n => n.id === editorModal.nodeId)?.prompt}
-        initialModel={nodes.find(n => n.id === editorModal.nodeId)?.imageModel || 'custom-image-gpt-image-2'}
+        initialModel={nodes.find(n => n.id === editorModal.nodeId)?.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID}
         initialAspectRatio={nodes.find(n => n.id === editorModal.nodeId)?.aspectRatio || 'Auto'}
         initialResolution={nodes.find(n => n.id === editorModal.nodeId)?.resolution || '1K'}
         initialElements={nodes.find(n => n.id === editorModal.nodeId)?.editorElements as any}
@@ -1714,7 +1715,7 @@ function CanvasApp({
           }
 
           // Prefer modal-selected settings because node updates may still be batched.
-          const imageModel = options?.imageModel || sourceNode.imageModel || 'custom-image-gpt-image-2';
+          const imageModel = options?.imageModel || sourceNode.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID;
           const aspectRatio = options?.aspectRatio || sourceNode.aspectRatio || 'Auto';
           const resolution = options?.resolution || sourceNode.resolution || '1K';
 

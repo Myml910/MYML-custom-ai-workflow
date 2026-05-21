@@ -26,7 +26,7 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         description: 'Stable GPT Image 2 image generation through the default production provider chain.',
         capability: 'image-generation',
         capabilities: ['text-to-image', 'image-to-image', 'multi-image'],
-        recommended: true,
+        recommended: false,
         resolutions: ['Auto', '2k', '4k'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9'],
         providers: [
@@ -153,7 +153,7 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         supportsMultiImage: false,
         enabled: true,
         experimental: true,
-        recommended: false,
+        recommended: true,
         resolutions: ['Auto'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
         providers: [
@@ -205,7 +205,7 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         supportsMultiImage: true,
         enabled: true,
         experimental: true,
-        recommended: false,
+        recommended: true,
         resolutions: ['Auto'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
         providers: [

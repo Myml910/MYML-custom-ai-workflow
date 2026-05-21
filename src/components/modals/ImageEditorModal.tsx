@@ -27,9 +27,9 @@ import { useImageEditorShapes, drawShapeElement } from '../../hooks/useImageEdit
 import { useImageModels } from '../../hooks/useImageModels';
 import { NodeStatus } from '../../types';
 import {
-    ATLAS_IMAGE_EDIT_MODEL_ID,
     HIDDEN_IMAGE_MODEL_IDS,
     LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
+    T8_GPT_IMAGE_2_EDIT_MODEL_ID,
     withLegacyImageModelOption,
     isUnavailableLegacyImageModel
 } from '../../config/imageModels';
@@ -75,10 +75,11 @@ const isRenderableElement = (element: EditorElement) => {
     ].every(isFiniteNumber);
 };
 
-const DEFAULT_IMAGE_MODEL_ID = ATLAS_IMAGE_EDIT_MODEL_ID;
+const DEFAULT_IMAGE_MODEL_ID = T8_GPT_IMAGE_2_EDIT_MODEL_ID;
 
 const getInitialImageModelId = (modelId?: string, models = IMAGE_MODELS) => {
-    if (modelId && !HIDDEN_IMAGE_MODEL_IDS.has(modelId)) {
+    const selectedModel = models.find(model => model.id === modelId);
+    if (modelId && !HIDDEN_IMAGE_MODEL_IDS.has(modelId) && selectedModel && (selectedModel.supportsImageToImage || selectedModel.supportsMultiImage)) {
         return modelId;
     }
 
