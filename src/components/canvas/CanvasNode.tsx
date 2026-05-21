@@ -350,6 +350,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     : ''
                 }`}
                 style={{ maxHeight: '500px' }}
+                loading="lazy"
+                decoding="async"
                 draggable={false}
               />
             ) : (
@@ -580,6 +582,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   src={data.resultUrl}
                 alt={t(language, 'nodeContentAlt')}
                   className={`rounded-lg w-full h-auto object-cover ${selected ? angleImageRingClass : ''}`}
+                  loading="lazy"
+                  decoding="async"
                   draggable={false}
                 />
               ) : (

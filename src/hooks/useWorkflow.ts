@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, Dispatch, SetStateAction } from 'react';
 import { NodeData, NodeGroup, Viewport } from '../types';
+import { warnIfLargeWorkflowPayload } from '../utils/workflowSnapshot';
 
 interface WorkflowData {
     id: string | null;
@@ -59,11 +60,14 @@ export const useWorkflow = ({
                 viewport
             };
 
+            const serializedWorkflow = JSON.stringify(workflow);
+            warnIfLargeWorkflowPayload(workflow, serializedWorkflow);
+
             const response = await fetch('/api/workflows', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify(workflow)
+                body: serializedWorkflow
             });
 
             if (response.ok) {

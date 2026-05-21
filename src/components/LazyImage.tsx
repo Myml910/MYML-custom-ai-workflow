@@ -87,6 +87,9 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                 <img
                     src={src}
                     alt={alt}
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
                     onLoad={handleLoad}
                     onError={handleError}
                     className={`w-full h-full object-cover transition-opacity duration-150 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}

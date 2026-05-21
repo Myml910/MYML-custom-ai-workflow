@@ -223,6 +223,9 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                             src={displayResultUrl}
                             alt={t(language, 'generated')}
                             className="w-full h-full object-cover pointer-events-none"
+                            loading="lazy"
+                            decoding="async"
+                            draggable={false}
                             onError={() => {
                                 const failedUrl = displayResultUrl || null;
                                 setFailedImageUrl(prev => prev === failedUrl ? prev : failedUrl);
@@ -329,7 +332,14 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                     {/* Input Image Preview for Video Nodes */}
                     {isVideoType && inputUrl && (
                         <div className="absolute inset-0 z-0">
-                            <img src={inputUrl} alt={t(language, 'inputFrame')} className="w-full h-full object-cover opacity-30 blur-sm" />
+                            <img
+                                src={inputUrl}
+                                alt={t(language, 'inputFrame')}
+                                className="w-full h-full object-cover opacity-30 blur-sm"
+                                loading="lazy"
+                                decoding="async"
+                                draggable={false}
+                            />
                             <div className="absolute inset-0 bg-black/40" />
                             <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium text-white">
                                 <ImageIcon size={10} />

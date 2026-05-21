@@ -5,11 +5,20 @@
  * Handles pointer events for dragging nodes around the canvas.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NodeData, Viewport } from '../types';
 
 interface DragNode {
     id: string;
+}
+
+type UpdateNodes = (updater: (prev: NodeData[]) => NodeData[]) => void;
+
+interface PendingNodeDrag {
+    dx: number;
+    dy: number;
+    nodeIds: string[];
+    onUpdateNodes: UpdateNodes;
 }
 
 export const useNodeDragging = () => {
@@ -19,7 +28,65 @@ export const useNodeDragging = () => {
 
     const dragNodeRef = useRef<DragNode | null>(null);
     const isPanning = useRef<boolean>(false);
+    const pendingNodeDragRef = useRef<PendingNodeDrag | null>(null);
+    const nodeDragFrameRef = useRef<number | null>(null);
     const [isDragging, setIsDragging] = useState<boolean>(false);
+
+    const applyPendingNodeDrag = () => {
+        const pendingDrag = pendingNodeDragRef.current;
+        pendingNodeDragRef.current = null;
+        nodeDragFrameRef.current = null;
+
+        if (!pendingDrag || (pendingDrag.dx === 0 && pendingDrag.dy === 0)) return;
+
+        const nodeIdsToMove = new Set(pendingDrag.nodeIds);
+        pendingDrag.onUpdateNodes(prev => prev.map(n => {
+            if (nodeIdsToMove.has(n.id)) {
+                return { ...n, x: n.x + pendingDrag.dx, y: n.y + pendingDrag.dy };
+            }
+
+            return n;
+        }));
+    };
+
+    const scheduleNodeDragUpdate = (
+        dx: number,
+        dy: number,
+        nodeIds: string[],
+        onUpdateNodes: UpdateNodes
+    ) => {
+        const pendingDrag = pendingNodeDragRef.current;
+
+        pendingNodeDragRef.current = pendingDrag
+            ? {
+                dx: pendingDrag.dx + dx,
+                dy: pendingDrag.dy + dy,
+                nodeIds,
+                onUpdateNodes
+            }
+            : { dx, dy, nodeIds, onUpdateNodes };
+
+        if (nodeDragFrameRef.current !== null) return;
+
+        nodeDragFrameRef.current = window.requestAnimationFrame(applyPendingNodeDrag);
+    };
+
+    const flushPendingNodeDrag = () => {
+        if (nodeDragFrameRef.current !== null) {
+            window.cancelAnimationFrame(nodeDragFrameRef.current);
+        }
+
+        applyPendingNodeDrag();
+    };
+
+    useEffect(() => () => {
+        if (nodeDragFrameRef.current !== null) {
+            window.cancelAnimationFrame(nodeDragFrameRef.current);
+        }
+
+        pendingNodeDragRef.current = null;
+        nodeDragFrameRef.current = null;
+    }, []);
 
     // ============================================================================
     // EVENT HANDLERS
@@ -57,7 +124,7 @@ export const useNodeDragging = () => {
     const updateNodeDrag = (
         e: React.PointerEvent,
         viewport: Viewport,
-        onUpdateNodes: (updater: (prev: NodeData[]) => NodeData[]) => void,
+        onUpdateNodes: UpdateNodes,
         selectedNodeIds: string[] = []
     ): boolean => {
         if (!dragNodeRef.current) return false;
@@ -71,12 +138,7 @@ export const useNodeDragging = () => {
             ? selectedNodeIds
             : [nodeId];
 
-        onUpdateNodes(prev => prev.map(n => {
-            if (nodesToMove.includes(n.id)) {
-                return { ...n, x: n.x + zoomAdjustedDx, y: n.y + zoomAdjustedDy };
-            }
-            return n;
-        }));
+        scheduleNodeDragUpdate(zoomAdjustedDx, zoomAdjustedDy, nodesToMove, onUpdateNodes);
 
         return true;
     };
@@ -85,6 +147,7 @@ export const useNodeDragging = () => {
      * Ends node dragging
      */
     const endNodeDrag = () => {
+        flushPendingNodeDrag();
         dragNodeRef.current = null;
         setIsDragging(false);
     };

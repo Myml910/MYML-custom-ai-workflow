@@ -6,8 +6,9 @@
  */
 
 import { useState, useCallback } from 'react';
+import { createWorkflowHistorySignature } from '../utils/workflowSnapshot';
 
-export const useHistory = <T>(initialState: T, maxHistorySize: number = 50) => {
+export const useHistory = <T>(initialState: T, maxHistorySize: number = 10) => {
     // ============================================================================
     // STATE
     // ============================================================================
@@ -22,6 +23,7 @@ export const useHistory = <T>(initialState: T, maxHistorySize: number = 50) => {
 
     const canUndo = past.length > 0;
     const canRedo = future.length > 0;
+    const effectiveMaxHistorySize = Math.max(1, Math.min(maxHistorySize, 10));
 
     // ============================================================================
     // OPERATIONS
@@ -63,18 +65,19 @@ export const useHistory = <T>(initialState: T, maxHistorySize: number = 50) => {
      * @param newState - New state to push
      */
     const pushHistory = useCallback((newState: T) => {
-        // Skip if state hasn't changed (deep comparison)
-        if (JSON.stringify(newState) === JSON.stringify(present)) {
+        // Skip if meaningful canvas fields have not changed.
+        // The signature intentionally excludes large media payloads and URLs.
+        if (createWorkflowHistorySignature(newState) === createWorkflowHistorySignature(present)) {
             return;
         }
 
         // Add current state to past (with size limit)
-        const newPast = [...past.slice(-maxHistorySize + 1), present];
+        const newPast = [...past.slice(-effectiveMaxHistorySize + 1), present];
 
         setPast(newPast);
         setPresent(newState);
         setFuture([]); // Clear redo stack on new action
-    }, [past, present, maxHistorySize]);
+    }, [past, present, effectiveMaxHistorySize]);
 
     /**
      * Reset history to a new initial state

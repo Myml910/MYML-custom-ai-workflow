@@ -229,12 +229,6 @@ function CanvasApp({
     handleSliderZoom
   } = useCanvasNavigation();
 
-  // Wrap handleWheel to pass hovered node for zoom-to-center
-  const handleWheel = (e: React.WheelEvent) => {
-    const hoveredNode = canvasHoveredNodeId ? nodes.find(n => n.id === canvasHoveredNodeId) : undefined;
-    baseHandleWheel(e, hoveredNode);
-  };
-
   const {
     nodes,
     setNodes,
@@ -247,6 +241,16 @@ function CanvasApp({
     clearSelection,
     handleSelectTypeFromMenu
   } = useNodeManagement();
+
+  const nodesById = React.useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+  const canvasHoveredNode = React.useMemo(
+    () => canvasHoveredNodeId ? nodesById.get(canvasHoveredNodeId) : undefined,
+    [canvasHoveredNodeId, nodesById]
+  );
+  // Wrap handleWheel to pass hovered node for zoom-to-center.
+  const handleWheel = React.useCallback((e: React.WheelEvent) => {
+    baseHandleWheel(e, canvasHoveredNode);
+  }, [baseHandleWheel, canvasHoveredNode]);
 
   const {
     isDraggingConnection,
@@ -301,7 +305,7 @@ function CanvasApp({
     pushHistory,
     canUndo,
     canRedo
-  } = useHistory({ nodes, groups }, 50);
+  } = useHistory({ nodes, groups }, 10);
 
   // Workflow management
   const {
@@ -441,12 +445,20 @@ function CanvasApp({
     handleCloseVideoEditor,
     handleExportTrimmedVideo
   } = useVideoEditor({ nodes, updateNode });
+  const editorNode = React.useMemo(
+    () => editorModal.nodeId ? nodesById.get(editorModal.nodeId) : undefined,
+    [editorModal.nodeId, nodesById]
+  );
+  const videoEditorNode = React.useMemo(
+    () => videoEditorModal.nodeId ? nodesById.get(videoEditorModal.nodeId) : undefined,
+    [videoEditorModal.nodeId, nodesById]
+  );
 
   /**
    * Routes editor open to the correct handler based on node type
    */
   const handleOpenEditor = React.useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
+    const node = nodesById.get(nodeId);
     if (!node) return;
 
     if (node.type === NodeType.VIDEO_EDITOR) {
@@ -454,7 +466,7 @@ function CanvasApp({
     } else {
       handleOpenImageEditor(nodeId);
     }
-  }, [nodes, handleOpenVideoEditor, handleOpenImageEditor]);
+  }, [nodesById, handleOpenVideoEditor, handleOpenImageEditor]);
 
   // Text node handlers
   const {
@@ -1080,15 +1092,14 @@ function CanvasApp({
       if (isModalBlockingSpacePan) return;
       if (isEditableElement(e.target instanceof Element ? e.target : null)) return;
 
-      const hoveredNode = canvasHoveredNodeId ? nodes.find(n => n.id === canvasHoveredNodeId) : undefined;
-      handleZoomWheel(e, hoveredNode);
+      handleZoomWheel(e, canvasHoveredNode);
       e.stopPropagation();
     };
 
     const listenerOptions = { passive: false, capture: true } as const;
     canvas.addEventListener('wheel', handleNativeWheel, listenerOptions);
     return () => canvas.removeEventListener('wheel', handleNativeWheel, listenerOptions);
-  }, [canvasRef, canvasHoveredNodeId, handleZoomWheel, isModalBlockingSpacePan, nodes]);
+  }, [canvasRef, canvasHoveredNode, handleZoomWheel, isModalBlockingSpacePan]);
 
   // Keyboard shortcuts (handleCopy, handlePaste, handleDuplicate) provided by useKeyboardShortcuts hook
 
@@ -1125,11 +1136,16 @@ function CanvasApp({
       return;
     }
 
-    if (historyState.nodes !== nodes) {
+    if (historyState.nodes !== nodes || historyState.groups !== groups) {
       isApplyingHistory.current = true;
-      setNodes(historyState.nodes);
+      if (historyState.nodes !== nodes) {
+        setNodes(historyState.nodes);
+      }
+      if (historyState.groups !== groups) {
+        setGroups(historyState.groups);
+      }
     }
-  }, [historyState]);
+  }, [groups, historyState, nodes, setGroups, setNodes]);
 
   // Simple wrapper for updateNode (sync code removed - TEXT node prompts are combined at generation time)
   const updateNodeWithSync = React.useCallback((id: string, updates: Partial<NodeData>) => {
@@ -1225,14 +1241,14 @@ function CanvasApp({
    */
   const handleConnectionMade = React.useCallback((parentId: string, childId: string) => {
     // Find the parent node
-    const parentNode = nodes.find(n => n.id === parentId);
+    const parentNode = nodesById.get(parentId);
     if (!parentNode) return;
 
     // If parent is a Text node, sync its prompt to the child
     if (parentNode.type === NodeType.TEXT && parentNode.prompt) {
       updateNode(childId, { prompt: parentNode.prompt });
     }
-  }, [nodes, updateNode]);
+  }, [nodesById, updateNode]);
 
   const handleDisconnectConnection = React.useCallback((parentId: string, childId: string) => {
     setNodes(prev =>
@@ -1497,7 +1513,7 @@ function CanvasApp({
                 inputUrl={(() => {
                   // Get first parent's result for display (multiple inputs handled in generation)
                   if (!node.parentIds || node.parentIds.length === 0) return undefined;
-                  const parent = nodes.find(n => n.id === node.parentIds![0]);
+                  const parent = nodesById.get(node.parentIds[0]);
 
                   // VIDEO_EDITOR nodes need the actual video URL from parent Video node
                   if (node.type === NodeType.VIDEO_EDITOR && parent?.type === NodeType.VIDEO) {
@@ -1516,7 +1532,6 @@ function CanvasApp({
                     return [];
                   }
 
-                  const nodesById = new Map(nodes.map(n => [n.id, n]));
                   const parentNodes = node.parentIds.map(parentId => nodesById.get(parentId));
                   const connectedReferences = parentNodes
                     .map(parent => getConnectedMediaReference(parent, nodesById))
@@ -1717,21 +1732,21 @@ function CanvasApp({
         isOpen={editorModal.isOpen}
         nodeId={editorModal.nodeId || ''}
         imageUrl={editorModal.imageUrl}
-        initialPrompt={nodes.find(n => n.id === editorModal.nodeId)?.prompt}
-        initialModel={nodes.find(n => n.id === editorModal.nodeId)?.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID}
-        initialAspectRatio={nodes.find(n => n.id === editorModal.nodeId)?.aspectRatio || 'Auto'}
-        initialResolution={nodes.find(n => n.id === editorModal.nodeId)?.resolution || '1K'}
-        initialElements={nodes.find(n => n.id === editorModal.nodeId)?.editorElements as any}
-        initialCanvasData={nodes.find(n => n.id === editorModal.nodeId)?.editorCanvasData}
-        initialCanvasSize={nodes.find(n => n.id === editorModal.nodeId)?.editorCanvasSize}
-        initialBackgroundUrl={nodes.find(n => n.id === editorModal.nodeId)?.editorBackgroundUrl}
+        initialPrompt={editorNode?.prompt}
+        initialModel={editorNode?.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID}
+        initialAspectRatio={editorNode?.aspectRatio || 'Auto'}
+        initialResolution={editorNode?.resolution || '1K'}
+        initialElements={editorNode?.editorElements as any}
+        initialCanvasData={editorNode?.editorCanvasData}
+        initialCanvasSize={editorNode?.editorCanvasSize}
+        initialBackgroundUrl={editorNode?.editorBackgroundUrl}
         onClose={handleCloseImageEditorWithAbort}
         onGenerate={async (sourceId, prompt, count, options) => {
           imageEditorGenerationAbortRef.current?.abort();
           const generationAbortController = new AbortController();
           imageEditorGenerationAbortRef.current = generationAbortController;
 
-          const sourceNode = nodes.find(n => n.id === sourceId);
+          const sourceNode = nodesById.get(sourceId);
           if (!sourceNode) {
             if (imageEditorGenerationAbortRef.current === generationAbortController) {
               imageEditorGenerationAbortRef.current = null;
@@ -1888,8 +1903,8 @@ function CanvasApp({
         isOpen={videoEditorModal.isOpen}
         nodeId={videoEditorModal.nodeId}
         videoUrl={videoEditorModal.videoUrl}
-        initialTrimStart={nodes.find(n => n.id === videoEditorModal.nodeId)?.trimStart}
-        initialTrimEnd={nodes.find(n => n.id === videoEditorModal.nodeId)?.trimEnd}
+        initialTrimStart={videoEditorNode?.trimStart}
+        initialTrimEnd={videoEditorNode?.trimEnd}
         onClose={handleCloseVideoEditor}
         onExport={handleExportTrimmedVideo}
       />

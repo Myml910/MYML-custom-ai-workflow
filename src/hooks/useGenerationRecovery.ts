@@ -31,6 +31,12 @@ function getRecoveredResultWarning(resultUrl?: string | null): string | undefine
     return 'Recovered legacy result URL may be unavailable. Regenerate if the image does not load.';
 }
 
+function hasMeaningfulNodeUpdates(node: NodeData, updates: Partial<NodeData>) {
+    return Object.entries(updates).some(([key, value]) => (
+        node[key as keyof NodeData] !== value
+    ));
+}
+
 export const useGenerationRecovery = ({
     nodes,
     updateNode,
@@ -46,9 +52,17 @@ export const useGenerationRecovery = ({
         return 'Image generation failed.';
     };
 
+    const updateNodeIfChanged = useCallback((nodeId: string, updates: Partial<NodeData>) => {
+        const node = nodesRef.current.find(n => n.id === nodeId);
+        if (!node || !hasMeaningfulNodeUpdates(node, updates)) return false;
+
+        updateNode(nodeId, updates);
+        return true;
+    }, [updateNode]);
+
     const applyTaskStatus = useCallback(async (nodeId: string, task: GenerationTask): Promise<boolean> => {
         if (ACTIVE_TASK_STATUSES.has(task.status)) {
-            updateNode(nodeId, {
+            updateNodeIfChanged(nodeId, {
                 status: NodeStatus.LOADING,
                 taskId: task.taskId,
                 generationStatus: task.status,
@@ -59,7 +73,7 @@ export const useGenerationRecovery = ({
         }
 
         if (task.status === 'completed' && task.resultUrl) {
-            updateNode(nodeId, {
+            updateNodeIfChanged(nodeId, {
                 status: NodeStatus.SUCCESS,
                 resultUrl: task.resultUrl,
                 taskId: undefined,
@@ -73,7 +87,7 @@ export const useGenerationRecovery = ({
 
         if (task.status === 'cancelled') {
             const node = nodesRef.current.find(n => n.id === nodeId);
-            updateNode(nodeId, {
+            updateNodeIfChanged(nodeId, {
                 status: node?.resultUrl ? NodeStatus.SUCCESS : NodeStatus.IDLE,
                 taskId: undefined,
                 generationStatus: undefined,
@@ -85,7 +99,7 @@ export const useGenerationRecovery = ({
         }
 
         if (task.status === 'failed' || task.status === 'timeout') {
-            updateNode(nodeId, {
+            updateNodeIfChanged(nodeId, {
                 status: NodeStatus.ERROR,
                 taskId: undefined,
                 generationStatus: task.status,
@@ -97,7 +111,7 @@ export const useGenerationRecovery = ({
         }
 
         return false;
-    }, [updateNode]);
+    }, [updateNodeIfChanged]);
 
     const checkLegacyStatus = useCallback(async (nodeId: string) => {
         try {
@@ -143,13 +157,13 @@ export const useGenerationRecovery = ({
                         }
                     }
 
-                    updateNode(nodeId, updates);
+                    updateNodeIfChanged(nodeId, updates);
                 }
             }
         } catch (error) {
             console.error(`[Recovery] Error checking legacy status for node ${nodeId}:`, error);
         }
-    }, [updateNode]);
+    }, [updateNodeIfChanged]);
 
     const checkStatus = useCallback(async (nodeId: string) => {
         try {
