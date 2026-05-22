@@ -8,6 +8,14 @@
 import React, { useState, useCallback } from 'react';
 import { X, RotateCcw } from 'lucide-react';
 import { OrbitCameraControl } from './OrbitCameraControl';
+import type { ImageQuality } from '../../types';
+import {
+    T8_GPT_IMAGE_2_EDIT_MODEL_ID,
+    getImageQualityLabel,
+    getImageQualityOptions,
+    normalizeImageQuality
+} from '../../config/imageModels';
+import { t, type Language } from '../../i18n/translations';
 
 // ============================================================================
 // TYPES
@@ -25,9 +33,12 @@ interface ChangeAnglePanelProps {
     settings: AngleSettings;
     onSettingsChange: (settings: AngleSettings) => void;
     onClose: () => void;
-    onGenerate: () => void;
+    onGenerate: (quality: ImageQuality) => void;
+    quality?: ImageQuality;
+    onQualityChange?: (quality: ImageQuality) => void;
     isLoading?: boolean;
     canvasTheme?: 'dark' | 'light';
+    language?: Language;
 }
 
 // ============================================================================
@@ -51,8 +62,11 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
     onSettingsChange,
     onClose,
     onGenerate,
+    quality = 'auto',
+    onQualityChange,
     isLoading = false,
-    canvasTheme = 'dark'
+    canvasTheme = 'dark',
+    language = 'zh'
 }) => {
     const isDark = canvasTheme === 'dark';
     const accentTextClass = isDark ? 'text-[#D8FF00]' : 'text-lime-600';
@@ -62,6 +76,8 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
     const iconButtonClass = isDark
         ? 'hover:bg-neutral-800 text-neutral-400 hover:text-[#D8FF00]'
         : 'hover:bg-lime-50 text-neutral-500 hover:text-lime-700';
+    const qualityOptions = getImageQualityOptions(T8_GPT_IMAGE_2_EDIT_MODEL_ID);
+    const selectedQuality = normalizeImageQuality(quality);
 
     // --- Event Handlers ---
     const handleRotationChange = useCallback((value: number) => {
@@ -148,9 +164,41 @@ export const ChangeAnglePanel: React.FC<ChangeAnglePanelProps> = ({
                 </div>
             </div>
 
+            {/* Quality */}
+            <div className={`mt-3 flex items-center justify-between gap-3 rounded-xl border p-2.5 ${isDark ? 'bg-neutral-900/50 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
+                <span className={`shrink-0 text-xs font-medium ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>
+                    {t(language, 'quality')}
+                </span>
+                <div className={`flex min-w-0 rounded-lg border p-0.5 ${isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white'}`}>
+                    {qualityOptions.map(option => {
+                        const active = selectedQuality === option;
+                        return (
+                            <button
+                                key={option}
+                                type="button"
+                                onClick={() => onQualityChange?.(option)}
+                                disabled={isLoading}
+                                className={`h-7 min-w-14 rounded-md px-2 text-[11px] font-semibold transition-[background-color,color,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${active
+                                    ? isDark
+                                        ? 'bg-[#D8FF00] text-black'
+                                        : 'bg-lime-600 text-white'
+                                    : isDark
+                                        ? 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100'
+                                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+                                    }`}
+                                aria-pressed={active}
+                                aria-label={`${t(language, 'quality')}: ${getImageQualityLabel(option)}`}
+                            >
+                                {getImageQualityLabel(option)}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* Generate Button */}
             <button
-                onClick={onGenerate}
+                onClick={() => onGenerate(selectedQuality)}
                 disabled={isLoading}
                 className={`group mt-4 flex h-10 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-lg text-sm font-semibold transition-[background-color,color,opacity,transform] duration-150 ${isLoading
                     ? 'bg-neutral-700/50 text-neutral-500 opacity-50 cursor-not-allowed'

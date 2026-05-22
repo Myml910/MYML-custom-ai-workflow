@@ -57,7 +57,12 @@ import { uploadAsset } from './services/assetService';
 import { getEffectiveImageReference } from './utils/imageReferences';
 import { AuthUser, useAuth } from './auth/AuthContext';
 import { LoginPage } from './components/LoginPage';
-import { T8_GPT_IMAGE_2_EDIT_MODEL_ID, T8_GPT_IMAGE_2_MODEL_ID } from './config/imageModels';
+import {
+  T8_GPT_IMAGE_2_EDIT_MODEL_ID,
+  T8_GPT_IMAGE_2_MODEL_ID,
+  imageModelSupportsQuality,
+  normalizeImageQuality
+} from './config/imageModels';
 import {
   debugCanvasSurfaceEventIgnored,
   getCanvasSurfaceEventIgnoreReason
@@ -483,7 +488,7 @@ function CanvasApp({
     handleImageToEditor,
     handleRemoveBackground,
     handleChangeAngleGenerate
-  } = useImageNodeHandlers({ nodes, setNodes, setSelectedNodeIds, onGenerateNode: handleGenerate });
+  } = useImageNodeHandlers({ nodes, setNodes, setSelectedNodeIds, onGenerateNode: handleGenerate, workflowId });
 
   // Asset handlers (create asset modal)
   const {
@@ -1756,6 +1761,7 @@ function CanvasApp({
         initialModel={editorNode?.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID}
         initialAspectRatio={editorNode?.aspectRatio || 'Auto'}
         initialResolution={editorNode?.resolution || '1K'}
+        initialQuality={normalizeImageQuality(editorNode?.quality)}
         initialElements={editorNode?.editorElements as any}
         initialCanvasData={editorNode?.editorCanvasData}
         initialCanvasSize={editorNode?.editorCanvasSize}
@@ -1778,6 +1784,9 @@ function CanvasApp({
           const imageModel = options?.imageModel || sourceNode.imageModel || T8_GPT_IMAGE_2_EDIT_MODEL_ID;
           const aspectRatio = options?.aspectRatio || sourceNode.aspectRatio || 'Auto';
           const resolution = options?.resolution || sourceNode.resolution || '1K';
+          const quality = imageModelSupportsQuality(imageModel)
+            ? normalizeImageQuality(options?.quality || sourceNode.quality)
+            : undefined;
 
           const startX = sourceNode.x + 360; // Source width + gap
           const startY = sourceNode.y;
@@ -1801,6 +1810,7 @@ function CanvasApp({
               imageModel: imageModel,
               aspectRatio: aspectRatio,
               resolution: resolution,
+              quality,
               parentIds: [sourceId]
             });
           }
@@ -1833,6 +1843,7 @@ function CanvasApp({
                 imageModel,
                 aspectRatio,
                 resolution,
+                quality,
                 referenceImages: imageBase64 ? [imageBase64] : undefined
               });
 

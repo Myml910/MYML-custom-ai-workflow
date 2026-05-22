@@ -6,6 +6,7 @@
 
 import { Language } from '../../../i18n/translations';
 import { FALLBACK_IMAGE_MODELS } from '../../../config/imageModels';
+import type { ImageQuality } from '../../../types';
 
 // ============================================================================
 // TYPES
@@ -75,6 +76,7 @@ export interface ImageEditorGenerateOptions {
     imageModel?: string;
     aspectRatio?: string;
     resolution?: string;
+    quality?: ImageQuality;
     compositeImageDataUrl?: string;
 }
 
@@ -89,6 +91,7 @@ export interface ImageEditorModalProps {
     initialModel?: string;
     initialAspectRatio?: string;
     initialResolution?: string;
+    initialQuality?: ImageQuality;
     initialElements?: EditorElement[];
     initialCanvasData?: string;
     initialCanvasSize?: { width: number; height: number };
@@ -123,6 +126,8 @@ export interface ImageModel {
     status?: 'available' | 'disabled' | 'comingSoon';
     resolutions: string[];
     aspectRatios: string[];
+    supportsQuality?: boolean;
+    qualities?: ImageQuality[];
 }
 
 /**

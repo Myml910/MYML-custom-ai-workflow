@@ -149,6 +149,10 @@ export async function createTask(input) {
         imageModel: input.imageModel,
         aspectRatio: input.aspectRatio || null,
         resolution: input.resolution || null,
+        quality: input.quality || null,
+        source: input.source || null,
+        legacySource: input.legacySource || null,
+        capability: input.capability || null,
         referenceImages: input.referenceImages || null
     };
 

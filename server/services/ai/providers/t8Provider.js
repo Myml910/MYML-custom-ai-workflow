@@ -14,7 +14,7 @@ const T8_GPT_IMAGE_2_EDIT_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
 const T8_NANO_BANANA_EDIT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
 const DEFAULT_REQUEST_TIMEOUT_MS = 300000;
 const DEFAULT_GPT_IMAGE_SIZE = 'auto';
-const DEFAULT_GPT_IMAGE_QUALITY = 'medium';
+const GPT_IMAGE_QUALITY_ALLOWLIST = new Set(['low', 'medium', 'high']);
 const DEFAULT_NANO_IMAGE_SIZE = '1K';
 const DEFAULT_RESPONSE_FORMAT = 'url';
 const MAX_REFERENCE_IMAGES = 6;
@@ -202,15 +202,25 @@ function normalizeGptImageEditSize({ requestedSize, model }) {
 }
 
 export function normalizeGptImage2Quality(requestedQuality, model = GPT_IMAGE_2_MODEL) {
-    const cleanRequestedQuality = cleanString(requestedQuality);
+    const cleanRequestedQuality = cleanString(requestedQuality).toLowerCase();
+
+    if (isAutoValue(cleanRequestedQuality)) {
+        return undefined;
+    }
+
+    if (GPT_IMAGE_QUALITY_ALLOWLIST.has(cleanRequestedQuality)) {
+        return cleanRequestedQuality;
+    }
+
     if (cleanRequestedQuality) {
-        console.log('[T8][quality normalized]', {
+        console.warn('[T8][quality omitted]', {
             model,
             requestedQuality: cleanRequestedQuality,
-            normalizedQuality: DEFAULT_GPT_IMAGE_QUALITY
+            qualityMode: 'invalid_omitted'
         });
     }
-    return DEFAULT_GPT_IMAGE_QUALITY;
+
+    return undefined;
 }
 
 function normalizeNanoAspectRatio(aspectRatio, model) {
@@ -290,18 +300,23 @@ function buildRequestBody(input = {}, model) {
             model
         });
         const quality = normalizeGptImage2Quality(input.quality || input.requestedQuality, model);
+        const body = {
+            model,
+            prompt,
+            size,
+            response_format: DEFAULT_RESPONSE_FORMAT
+        };
+
+        if (quality) {
+            body.quality = quality;
+        }
+
         return {
-            body: {
-                model,
-                prompt,
-                size,
-                quality,
-                response_format: DEFAULT_RESPONSE_FORMAT
-            },
+            body,
             summary: {
                 size,
-                quality,
-                response_format: DEFAULT_RESPONSE_FORMAT
+                response_format: DEFAULT_RESPONSE_FORMAT,
+                ...(quality ? { quality } : { qualityMode: 'auto_omitted' })
             }
         };
     }
@@ -713,11 +728,13 @@ async function buildEditFormData(input = {}, model, referenceImages, context = {
         if (size.value) {
             formData.append('size', size.value);
         }
-        formData.append('quality', quality);
+        if (quality) {
+            formData.append('quality', quality);
+        }
         summary = {
             ...summary,
             ...size.summary,
-            quality
+            ...(quality ? { quality } : { qualityMode: 'auto_omitted' })
         };
     } else if (model === NANO_BANANA_MODEL) {
         const aspectRatio = normalizeNanoAspectRatio(input.aspectRatio || input.aspect_ratio || input.size, model);

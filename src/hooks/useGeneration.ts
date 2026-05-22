@@ -19,7 +19,7 @@ import {
 import { generateLocalImage } from '../services/localModelService';
 import { extractVideoLastFrame } from '../utils/videoHelpers';
 import { getEffectiveImageReference } from '../utils/imageReferences';
-import { getCompatibleImageModelId } from '../config/imageModels';
+import { getCompatibleImageModelId, imageModelSupportsQuality, normalizeImageQuality } from '../config/imageModels';
 
 const MAX_IMAGE_REFERENCES = 6;
 const MIN_IMAGE_GENERATION_COUNT = 1;
@@ -324,6 +324,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
         const combinedPrompt = getCombinedPrompt(targetNode, allNodes);
         const imageBase64s = collectImageReferences(targetNode, nodesById);
         const imageModel = getCompatibleImageModelId(targetNode.imageModel, imageBase64s.length);
+        const quality = imageModelSupportsQuality(imageModel) ? normalizeImageQuality(targetNode.quality) : undefined;
         if (imageModel !== targetNode.imageModel) {
             updateNode(targetNode.id, { imageModel });
         }
@@ -337,6 +338,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 imageModel,
                 aspectRatio: targetNode.aspectRatio,
                 resolution: targetNode.resolution,
+                quality,
                 referenceImages: imageBase64s.length > 0 ? imageBase64s : undefined
             });
 
@@ -391,6 +393,7 @@ export const useGeneration = ({ nodes, updateNode, setNodes, setSelectedNodeIds,
                 imageModel: sourceNode.imageModel,
                 aspectRatio: sourceNode.aspectRatio,
                 resolution: sourceNode.resolution,
+                quality: sourceNode.quality,
                 parentIds: inheritedParentIds,
                 title: language === 'zh' ? `\u5019\u9009 ${index + 1}` : `Candidate ${index + 1}`,
                 generationCount: 1,

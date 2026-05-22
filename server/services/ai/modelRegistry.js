@@ -161,6 +161,8 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         experimental: true,
         recommended: true,
         resolutions: ['Auto'],
+        supportsQuality: true,
+        qualities: ['auto', 'low', 'medium', 'high'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
         providers: [
             {
@@ -213,6 +215,8 @@ export const IMAGE_MODEL_REGISTRY = Object.freeze({
         experimental: true,
         recommended: true,
         resolutions: ['Auto'],
+        supportsQuality: true,
+        qualities: ['auto', 'low', 'medium', 'high'],
         aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
         providers: [
             {
@@ -392,7 +396,9 @@ export function getAvailableImageModels() {
                 supportsMultiImage: modelConfig.supportsMultiImage ?? modelConfig.capabilities?.includes('multi-image') ?? true,
                 recommended: Boolean(modelConfig.recommended),
                 resolutions: modelConfig.resolutions || ['Auto'],
-                aspectRatios: modelConfig.aspectRatios || ['Auto', '1:1', '16:9', '9:16']
+                aspectRatios: modelConfig.aspectRatios || ['Auto', '1:1', '16:9', '9:16'],
+                supportsQuality: Boolean(modelConfig.supportsQuality),
+                qualities: modelConfig.qualities || undefined
             };
         })
         .filter(Boolean);

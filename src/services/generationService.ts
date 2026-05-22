@@ -7,6 +7,8 @@
  * - Video: currently disabled
  */
 
+import type { ImageQuality } from '../types';
+
 export interface GenerateImageParams {
   prompt: string;
   aspectRatio?: string;
@@ -43,7 +45,11 @@ export interface CreateImageTaskParams {
   imageModel?: string;
   aspectRatio?: string;
   resolution?: string;
+  quality?: ImageQuality;
   referenceImages?: string[];
+  source?: string;
+  legacySource?: string;
+  capability?: string;
 }
 
 export interface CreateImageTaskResponse {

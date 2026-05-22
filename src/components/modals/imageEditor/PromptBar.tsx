@@ -6,10 +6,17 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ChevronDown, Check, Image as ImageIcon, Crop, Monitor } from 'lucide-react';
+import { ChevronDown, Check, Image as ImageIcon, Crop, Monitor, Settings2 } from 'lucide-react';
 import { ImageModel, IMAGE_MODELS } from './imageEditor.types';
 import { t, type Language } from '../../../i18n/translations';
 import { PromptInput, ToolGroup } from '../../ui';
+import {
+    getImageQualityLabel,
+    getImageQualityOptions,
+    imageModelSupportsQuality,
+    normalizeImageQuality
+} from '../../../config/imageModels';
+import type { ImageQuality } from '../../../types';
 
 // ============================================================================
 // TYPES
@@ -41,6 +48,12 @@ interface PromptBarProps {
     onResolutionChange: (res: string) => void;
     showResolutionDropdown: boolean;
     setShowResolutionDropdown: (show: boolean) => void;
+
+    // Quality state
+    selectedQuality: ImageQuality;
+    onQualityChange: (quality: ImageQuality) => void;
+    showQualityDropdown: boolean;
+    setShowQualityDropdown: (show: boolean) => void;
 
     // Batch count
     batchCount: number;
@@ -77,6 +90,10 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     onResolutionChange,
     showResolutionDropdown,
     setShowResolutionDropdown,
+    selectedQuality,
+    onQualityChange,
+    showQualityDropdown,
+    setShowQualityDropdown,
     batchCount,
     setBatchCount,
     onGenerate,
@@ -88,6 +105,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const modelDropdownRef = useRef<HTMLDivElement>(null);
     const aspectDropdownRef = useRef<HTMLDivElement>(null);
     const resolutionDropdownRef = useRef<HTMLDivElement>(null);
+    const qualityDropdownRef = useRef<HTMLDivElement>(null);
 
     // --- Derived State ---
     const modelOptions = imageModels && imageModels.length > 0 ? imageModels : IMAGE_MODELS;
@@ -95,6 +113,12 @@ export const PromptBar: React.FC<PromptBarProps> = ({
     const availableModels = hasInputImage
         ? modelOptions.filter(m => m.supportsImageToImage)
         : modelOptions;
+    const qualityOptions = getImageQualityOptions(currentModel);
+    const supportsQuality = imageModelSupportsQuality(currentModel);
+    const resolutionOptions = currentModel.resolutions || [];
+    const shouldShowResolutionControl = !supportsQuality ||
+        resolutionOptions.some(res => res.toLowerCase() !== 'auto');
+    const normalizedQuality = normalizeImageQuality(selectedQuality);
 
     const text = {
         imageToImage: t(language, 'imageToImage'),
@@ -175,10 +199,13 @@ export const PromptBar: React.FC<PromptBarProps> = ({
             if (resolutionDropdownRef.current && !resolutionDropdownRef.current.contains(event.target as Node)) {
                 setShowResolutionDropdown(false);
             }
+            if (qualityDropdownRef.current && !qualityDropdownRef.current.contains(event.target as Node)) {
+                setShowQualityDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [setShowModelDropdown, setShowAspectDropdown, setShowResolutionDropdown]);
+    }, [setShowModelDropdown, setShowAspectDropdown, setShowResolutionDropdown, setShowQualityDropdown]);
 
     const renderProviderIcon = (model: ImageModel, size = 11) => {
         return <ImageIcon size={size} className="text-neutral-400" />;
@@ -305,36 +332,72 @@ export const PromptBar: React.FC<PromptBarProps> = ({
                 </div>
 
                 {/* Resolution */}
-                <div className="relative" ref={resolutionDropdownRef}>
-                    <button
-                        onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
-                        className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
-                        title={text.selectResolution}
-                        aria-label={text.selectResolution}
-                    >
-                        <Monitor size={10} className={accentTextClass} />
-                        <span className="whitespace-nowrap">{selectedResolution}</span>
-                    </button>
+                {shouldShowResolutionControl && (
+                    <div className="relative" ref={resolutionDropdownRef}>
+                        <button
+                            onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
+                            className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                            title={text.selectResolution}
+                            aria-label={text.selectResolution}
+                        >
+                            <Monitor size={10} className={accentTextClass} />
+                            <span className="whitespace-nowrap">{selectedResolution}</span>
+                        </button>
 
-                    {showResolutionDropdown && (
-                        <div className={`absolute bottom-full mb-2 right-0 w-24 border overflow-hidden z-50 ${dropdownClass}`}>
-                            <div className={`px-3 py-2 text-[10px] font-bold ${dropdownSectionClass}`}>
-                                {text.quality}
+                        {showResolutionDropdown && (
+                            <div className={`absolute bottom-full mb-2 right-0 w-24 border overflow-hidden z-50 ${dropdownClass}`}>
+                                <div className={`px-3 py-2 text-[10px] font-bold ${dropdownSectionClass}`}>
+                                    {text.quality}
+                                </div>
+                                {(currentModel.resolutions || ['1K']).map(res => (
+                                    <button
+                                        key={res}
+                                        onClick={() => onResolutionChange(res)}
+                                        aria-label={`${text.selectResolution}: ${res}`}
+                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${dropdownItemClass(selectedResolution === res)}`}
+                                    >
+                                        <span>{res}</span>
+                                        {selectedResolution === res && <Check size={12} className={accentTextClass} />}
+                                    </button>
+                                ))}
                             </div>
-                            {(currentModel.resolutions || ['1K']).map(res => (
-                                <button
-                                    key={res}
-                                    onClick={() => onResolutionChange(res)}
-                                    aria-label={`${text.selectResolution}: ${res}`}
-                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${dropdownItemClass(selectedResolution === res)}`}
-                                >
-                                    <span>{res}</span>
-                                    {selectedResolution === res && <Check size={12} className={accentTextClass} />}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
+
+                {/* T8 Quality */}
+                {supportsQuality && qualityOptions.length > 0 && (
+                    <div className="relative" ref={qualityDropdownRef}>
+                        <button
+                            onClick={() => setShowQualityDropdown(!showQualityDropdown)}
+                            className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${compactButtonClass}`}
+                            title={`${text.quality}: ${getImageQualityLabel(normalizedQuality)}`}
+                            aria-label={`${text.quality}: ${getImageQualityLabel(normalizedQuality)}`}
+                        >
+                            <Settings2 size={10} className={accentTextClass} />
+                            <span className="whitespace-nowrap">{getImageQualityLabel(normalizedQuality)}</span>
+                        </button>
+
+                        {showQualityDropdown && (
+                            <div className={`absolute bottom-full mb-2 right-0 w-28 border overflow-hidden z-50 ${dropdownClass}`}>
+                                <div className={`px-3 py-2 text-[10px] font-bold ${dropdownSectionClass}`}>
+                                    {text.quality}
+                                </div>
+                                {qualityOptions.map(quality => (
+                                    <button
+                                        key={quality}
+                                        onClick={() => onQualityChange(quality)}
+                                        aria-label={`${text.quality}: ${getImageQualityLabel(quality)}`}
+                                        className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/45 ${dropdownItemClass(normalizedQuality === quality)}`}
+                                    >
+                                        <span>{getImageQualityLabel(quality)}</span>
+                                        {normalizedQuality === quality && <Check size={12} className={accentTextClass} />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Batch Count */}
                 <div className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2 text-[11px] font-medium ${batchClass}`}>

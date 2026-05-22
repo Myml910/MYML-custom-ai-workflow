@@ -6,13 +6,14 @@
  */
 
 import React from 'react';
-import { NodeData, NodeStatus, NodeType } from '../../types';
+import { NodeData, NodeStatus, NodeType, type ImageQuality } from '../../types';
 import { Language, t } from '../../i18n/translations';
 import { NodeConnectors } from './NodeConnectors';
 import { NodeContent } from './NodeContent';
 import { NodeControls } from './NodeControls';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { Scissors } from 'lucide-react';
+import { normalizeImageQuality } from '../../config/imageModels';
 
 interface CanvasNodeProps {
   data: NodeData;
@@ -42,7 +43,7 @@ interface CanvasNodeProps {
   onImageToVideo?: (nodeId: string) => void;
   onImageToEditor?: (nodeId: string) => void;
   onRemoveBackground?: (nodeId: string) => void;
-  onChangeAngleGenerate?: (nodeId: string) => void;
+  onChangeAngleGenerate?: (nodeId: string, quality?: ImageQuality) => void;
   zoom: number;
   // Mouse event callbacks for chat panel drag functionality
   onMouseEnter?: () => void;
@@ -611,9 +612,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   settings={normalizeAngleSettings(data.angleSettings)}
                   onSettingsChange={(settings) => onUpdate(data.id, { angleSettings: settings })}
                   onClose={() => onUpdate(data.id, { angleMode: false })}
-                  onGenerate={onChangeAngleGenerate ? () => onChangeAngleGenerate(data.id) : () => { }}
+                  onGenerate={onChangeAngleGenerate ? (quality) => onChangeAngleGenerate(data.id, quality) : () => { }}
+                  quality={normalizeImageQuality(data.quality)}
+                  onQualityChange={(quality) => onUpdate(data.id, { quality })}
                   isLoading={isLoading}
                   canvasTheme={canvasTheme}
+                  language={language}
                 />
               </div>
             </div>

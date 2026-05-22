@@ -21,6 +21,8 @@ export enum NodeStatus {
 }
 
 export type GenerationStatus = 'queued' | 'running' | 'polling' | 'completed' | 'failed' | 'timeout' | 'cancelled';
+export const IMAGE_QUALITY_OPTIONS = ['auto', 'low', 'medium', 'high'] as const;
+export type ImageQuality = typeof IMAGE_QUALITY_OPTIONS[number];
 
 export interface NodeData {
   id: string;
@@ -58,6 +60,7 @@ export interface NodeData {
   imageModel?: string; // Project image model id
   aspectRatio: string;
   resolution: string;
+  quality?: ImageQuality; // T8 GPT Image 2 quality preset
   isPromptExpanded?: boolean; // Whether the prompt editing area is expanded
   resultAspectRatio?: string; // Actual aspect ratio of the generated image (e.g., '16/9')
   generationStartTime?: number; // Timestamp when generation started (for recovery race condition prevention)

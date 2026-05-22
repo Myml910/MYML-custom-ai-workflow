@@ -1,3 +1,5 @@
+import { IMAGE_QUALITY_OPTIONS, type ImageQuality } from '../types';
+
 export interface ImageModelOption {
     id: string;
     label: string;
@@ -17,6 +19,8 @@ export interface ImageModelOption {
     status?: 'available' | 'disabled' | 'comingSoon';
     resolutions: string[];
     aspectRatios: string[];
+    supportsQuality?: boolean;
+    qualities?: ImageQuality[];
 }
 
 export const ATLAS_TEXT_TO_IMAGE_MODEL_ID = 'custom-image-atlas-gpt-image-2-text';
@@ -29,6 +33,11 @@ export const T8_GPT_IMAGE_2_MODEL_ID = 'custom-image-t8-gpt-image-2';
 export const T8_NANO_BANANA_3_1_FLASH_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash';
 export const T8_GPT_IMAGE_2_EDIT_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
 export const T8_NANO_BANANA_3_1_FLASH_EDIT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
+
+export const T8_GPT_IMAGE_QUALITY_MODEL_IDS = new Set([
+    T8_GPT_IMAGE_2_MODEL_ID,
+    T8_GPT_IMAGE_2_EDIT_MODEL_ID
+]);
 
 export const HIDDEN_IMAGE_MODEL_IDS = new Set([
     'custom-image-gpt-image-2',
@@ -82,7 +91,9 @@ export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
         recommended: true,
         experimental: true,
         resolutions: ['Auto'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1']
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
+        supportsQuality: true,
+        qualities: [...IMAGE_QUALITY_OPTIONS]
     },
     {
         id: T8_GPT_IMAGE_2_EDIT_MODEL_ID,
@@ -97,7 +108,9 @@ export const FALLBACK_IMAGE_MODELS: ImageModelOption[] = [
         recommended: true,
         experimental: true,
         resolutions: ['Auto'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1']
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16', '3:2', '2:3', '2:1'],
+        supportsQuality: true,
+        qualities: [...IMAGE_QUALITY_OPTIONS]
     }
 ];
 
@@ -124,7 +137,8 @@ export function createLegacyImageModelOption(modelId: string): ImageModelOption 
         disabledReason: LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
         status: 'disabled',
         resolutions: ['Auto'],
-        aspectRatios: ['Auto', '1:1', '16:9', '9:16']
+        aspectRatios: ['Auto', '1:1', '16:9', '9:16'],
+        supportsQuality: false
     };
 }
 
@@ -156,6 +170,51 @@ export function filterVisibleImageModels<T extends ImageModelOption>(models: T[]
 
 export function getDefaultImageModelId(hasReferenceImages = false): string {
     return hasReferenceImages ? T8_GPT_IMAGE_2_EDIT_MODEL_ID : T8_GPT_IMAGE_2_MODEL_ID;
+}
+
+export function normalizeImageQuality(value: unknown): ImageQuality {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    return IMAGE_QUALITY_OPTIONS.includes(normalized as ImageQuality)
+        ? normalized as ImageQuality
+        : 'auto';
+}
+
+export function getImageQualityLabel(value: ImageQuality): string {
+    if (value === 'auto') return 'Auto';
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function normalizeQualityOptions(rawQualities: unknown): ImageQuality[] {
+    if (!Array.isArray(rawQualities)) return [];
+
+    return Array.from(new Set(
+        rawQualities
+            .map(normalizeImageQuality)
+            .filter((quality): quality is ImageQuality => IMAGE_QUALITY_OPTIONS.includes(quality))
+    ));
+}
+
+export function imageModelSupportsQuality(
+    model: Pick<ImageModelOption, 'id' | 'supportsQuality' | 'qualities'> | string | undefined | null
+): boolean {
+    if (!model) return false;
+    if (typeof model === 'string') return T8_GPT_IMAGE_QUALITY_MODEL_IDS.has(model);
+    return Boolean(
+        model.supportsQuality ||
+        (Array.isArray(model.qualities) && model.qualities.length > 0) ||
+        T8_GPT_IMAGE_QUALITY_MODEL_IDS.has(model.id)
+    );
+}
+
+export function getImageQualityOptions(
+    model: Pick<ImageModelOption, 'id' | 'supportsQuality' | 'qualities'> | string | undefined | null
+): ImageQuality[] {
+    if (!imageModelSupportsQuality(model)) return [];
+    if (typeof model !== 'string' && Array.isArray(model.qualities) && model.qualities.length > 0) {
+        return model.qualities;
+    }
+
+    return [...IMAGE_QUALITY_OPTIONS];
 }
 
 export function imageModelSupportsReferenceCount(modelId: string | undefined | null, referenceCount = 0): boolean {
@@ -198,9 +257,12 @@ export function normalizeImageModelOption(raw: any): ImageModelOption {
     const capabilities = Array.isArray(raw?.capabilities) ? raw.capabilities : [];
     const providerChain = Array.isArray(raw?.providerChain) ? raw.providerChain : [];
     const label = String(raw?.label || raw?.name || raw?.id || 'Image model');
+    const id = String(raw?.id || '');
+    const qualities = normalizeQualityOptions(raw?.qualities);
+    const supportsQuality = Boolean(raw?.supportsQuality || qualities.length > 0 || T8_GPT_IMAGE_QUALITY_MODEL_IDS.has(id));
 
     return {
-        id: String(raw?.id || ''),
+        id,
         label,
         name: label,
         description: raw?.description,
@@ -219,6 +281,8 @@ export function normalizeImageModelOption(raw: any): ImageModelOption {
         resolutions: Array.isArray(raw?.resolutions) && raw.resolutions.length > 0 ? raw.resolutions : ['Auto'],
         aspectRatios: Array.isArray(raw?.aspectRatios) && raw.aspectRatios.length > 0
             ? raw.aspectRatios
-            : ['Auto', '1:1', '16:9', '9:16']
+            : ['Auto', '1:1', '16:9', '9:16'],
+        supportsQuality,
+        qualities: supportsQuality ? (qualities.length > 0 ? qualities : [...IMAGE_QUALITY_OPTIONS]) : undefined
     };
 }

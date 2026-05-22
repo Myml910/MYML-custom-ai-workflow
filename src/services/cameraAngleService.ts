@@ -1,16 +1,17 @@
 /**
  * cameraAngleService.ts
  *
- * Service for generating a new camera angle image.
+ * Service for preparing a new camera angle image task.
  *
  * Current implementation:
- * - Uses the existing third-party image generation pipeline.
+ * - Uses the existing asynchronous image task pipeline.
  * - Sends the source image as reference input.
  * - Converts rotation / tilt / zoom / wideAngle into a prompt.
- * - Uses GPT Image 2 by default.
+ * - Uses T8 GPT Image 2 Edit by default.
  */
 
-import { generateImageLegacy } from './generationService';
+import type { ImageQuality } from '../types';
+import { T8_GPT_IMAGE_2_EDIT_MODEL_ID, normalizeImageQuality } from '../config/imageModels';
 
 // ============================================================================
 // TYPES
@@ -23,21 +24,26 @@ export interface CameraAngleSettings {
     wideAngle?: boolean;
 }
 
-export interface CameraAngleResult {
-    imageUrl: string;
-    seed: number;
-    inferenceTimeMs: number;
+export interface CameraAngleTaskInput {
     prompt: string;
-    provider: 'gpt-image-2';
+    imageModel: typeof T8_GPT_IMAGE_2_EDIT_MODEL_ID;
+    aspectRatio: string;
+    resolution: string;
+    quality: ImageQuality;
+    referenceImages: string[];
+    source: 'camera-angle';
+    capability: 'camera-control';
 }
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const DEFAULT_IMAGE_MODEL = 'custom-image-gpt-image-2';
+export const CAMERA_ANGLE_IMAGE_MODEL = T8_GPT_IMAGE_2_EDIT_MODEL_ID;
+export const CAMERA_ANGLE_DISPLAY_MODEL = 'T8 GPT Image 2 Angle Reframe';
 const DEFAULT_ASPECT_RATIO = 'Auto';
-const DEFAULT_RESOLUTION = '2k';
+const DEFAULT_RESOLUTION = 'Auto';
+const DEFAULT_QUALITY: ImageQuality = 'auto';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -46,8 +52,8 @@ const DEFAULT_RESOLUTION = '2k';
 /**
  * Convert a URL / blob URL / data URL to a data URL base64 string.
  *
- * The legacy image generation endpoint in this project already accepts imageBase64,
- * so we keep the data URL format instead of stripping the prefix.
+ * The image task endpoint accepts referenceImages, so we keep the data URL format
+ * instead of stripping the prefix.
  */
 async function urlToBase64(url: string): Promise<string> {
     if (url.startsWith('data:image')) {
@@ -180,7 +186,7 @@ function buildCameraAnglePrompt(settings: CameraAngleSettings): string {
 // ============================================================================
 
 /**
- * Generate a camera-angle-adjusted version of an image using GPT Image 2.
+ * Build the asynchronous T8 GPT Image 2 Edit task input for a camera-angle reframe.
  *
  * @param imageUrl - URL or base64 data URL of the source image
  * @param rotation - Horizontal rotation in degrees
@@ -188,15 +194,18 @@ function buildCameraAnglePrompt(settings: CameraAngleSettings): string {
  * @param zoom - Zoom level from 0 to 100
  * @param wideAngle - Whether to use a mild wide-angle perspective
  */
-export async function generateCameraAngle(
+export async function buildCameraAngleTaskInput(
     imageUrl: string,
     rotation: number,
     tilt: number,
     zoom: number,
-    wideAngle: boolean = false
-): Promise<CameraAngleResult> {
-    const startTime = Date.now();
-
+    wideAngle: boolean = false,
+    options: {
+        aspectRatio?: string;
+        resolution?: string;
+        quality?: ImageQuality;
+    } = {}
+): Promise<CameraAngleTaskInput> {
     if (!imageUrl) {
         throw new Error('Missing source image for camera angle generation.');
     }
@@ -208,15 +217,7 @@ export async function generateCameraAngle(
         !wideAngle;
 
     if (hasNoAngleChange) {
-        console.log('[CameraAngle] No camera movement requested, returning original image.');
-
-        return {
-            imageUrl,
-            seed: 0,
-            inferenceTimeMs: 0,
-            prompt: 'No camera movement requested.',
-            provider: 'gpt-image-2'
-        };
+        throw new Error('No camera movement requested.');
     }
 
     const prompt = buildCameraAnglePrompt({
@@ -226,45 +227,28 @@ export async function generateCameraAngle(
         wideAngle
     });
 
-    console.log('[CameraAngle] Generating with GPT Image 2:', {
+    console.log('[CameraAngle] Preparing T8 GPT Image 2 Edit task:', {
         rotation,
         tilt,
         zoom,
         wideAngle,
-        imageModel: DEFAULT_IMAGE_MODEL,
+        imageModel: CAMERA_ANGLE_IMAGE_MODEL,
+        quality: normalizeImageQuality(options.quality || DEFAULT_QUALITY),
         prompt
     });
 
     const imageBase64 = await urlToBase64(imageUrl);
 
-    try {
-        const resultUrl = await generateImageLegacy({
-            prompt,
-            imageBase64,
-            imageModel: DEFAULT_IMAGE_MODEL,
-            aspectRatio: DEFAULT_ASPECT_RATIO,
-            resolution: DEFAULT_RESOLUTION,
-            legacySource: 'camera-angle'
-        });
-
-        const inferenceTimeMs = Date.now() - startTime;
-
-        console.log('[CameraAngle] GPT Image 2 success:', {
-            inferenceTimeMs,
-            imageModel: DEFAULT_IMAGE_MODEL
-        });
-
-        return {
-            imageUrl: resultUrl,
-            seed: 0,
-            inferenceTimeMs,
-            prompt,
-            provider: 'gpt-image-2'
-        };
-    } catch (error: any) {
-        console.error('[CameraAngle] GPT Image 2 request failed:', error);
-        throw new Error(error?.message || 'GPT Image 2 camera angle generation failed.');
-    }
+    return {
+        prompt,
+        imageModel: CAMERA_ANGLE_IMAGE_MODEL,
+        aspectRatio: options.aspectRatio || DEFAULT_ASPECT_RATIO,
+        resolution: options.resolution || DEFAULT_RESOLUTION,
+        quality: normalizeImageQuality(options.quality || DEFAULT_QUALITY),
+        referenceImages: [imageBase64],
+        source: 'camera-angle',
+        capability: 'camera-control'
+    };
 }
 
 /**

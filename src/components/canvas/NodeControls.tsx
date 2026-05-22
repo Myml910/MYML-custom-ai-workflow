@@ -8,7 +8,7 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { Sparkles, Settings2, Check, ChevronDown, ChevronUp, GripVertical, Image as ImageIcon, Film, Clock, Expand, Shrink, Monitor, Crop, HardDrive, X } from 'lucide-react';
-import { NodeData, NodeStatus, NodeType } from '../../types';
+import { NodeData, NodeStatus, NodeType, type ImageQuality } from '../../types';
 import { ChangeAnglePanel } from './ChangeAnglePanel';
 import { LocalModel, getLocalModels } from '../../services/localModelService';
 import { Language, t } from '../../i18n/translations';
@@ -17,8 +17,12 @@ import { ActionRow, PanelSection, StatusDot } from '../ui';
 import { useImageModels } from '../../hooks/useImageModels';
 import { useRuntimeStatus } from '../../hooks/useRuntimeStatus';
 import {
+    getImageQualityLabel,
+    getImageQualityOptions,
     getDefaultImageModel,
     HIDDEN_IMAGE_MODEL_IDS,
+    imageModelSupportsQuality,
+    normalizeImageQuality,
     withLegacyImageModelOption
 } from '../../config/imageModels';
 
@@ -39,7 +43,7 @@ interface NodeControlsProps {
     }[]; // Connected parent nodes
     onUpdate: (id: string, updates: Partial<NodeData>) => void;
     onGenerate: (id: string) => void;
-    onChangeAngleGenerate?: (nodeId: string) => void;
+    onChangeAngleGenerate?: (nodeId: string, quality?: ImageQuality) => void;
     onSelect: (id: string) => void;
     zoom: number;
     canvasTheme?: 'dark' | 'light';
@@ -155,6 +159,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const [showAspectRatioDropdown, setShowAspectRatioDropdown] = useState(false);
     const [showDurationDropdown, setShowDurationDropdown] = useState(false);
     const [showResolutionDropdown, setShowResolutionDropdown] = useState(false);
+    const [showQualityDropdown, setShowQualityDropdown] = useState(false);
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [localPrompt, setLocalPrompt] = useState(data.prompt || '');
@@ -162,6 +167,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const aspectRatioDropdownRef = useRef<HTMLDivElement>(null);
     const durationDropdownRef = useRef<HTMLDivElement>(null);
     const resolutionDropdownRef = useRef<HTMLDivElement>(null);
+    const qualityDropdownRef = useRef<HTMLDivElement>(null);
     const modelDropdownRef = useRef<HTMLDivElement>(null);
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSentPromptRef = useRef<string | undefined>(data.prompt); // Track what we sent
@@ -209,6 +215,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             }
             if (resolutionDropdownRef.current && !resolutionDropdownRef.current.contains(event.target as Node)) {
                 setShowResolutionDropdown(false);
+            }
+            if (qualityDropdownRef.current && !qualityDropdownRef.current.contains(event.target as Node)) {
+                setShowQualityDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -435,6 +444,13 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
         || imageModelOptions[0];
     const currentImageModelForRatios = currentImageModel || imageModelOptions[0];
     const imageAspectRatioOptions = currentImageModelForRatios?.aspectRatios || IMAGE_RATIOS;
+    const imageQualityOptions = getImageQualityOptions(currentImageModel);
+    const selectedImageQuality = normalizeImageQuality(data.quality);
+    const supportsImageQuality = data.type === NodeType.IMAGE && imageModelSupportsQuality(currentImageModel);
+    const imageResolutionOptions = (currentImageModel as any)?.resolutions || [];
+    const shouldShowImageResolutionControl = !isVideoNode &&
+        (currentImageModel as any).resolutions &&
+        (!supportsImageQuality || imageResolutionOptions.some((res: string) => res.toLowerCase() !== 'auto'));
 
     // sizeOptions: For video nodes use model-specific resolutions, for image nodes use aspect ratios
     const sizeOptions = (data.type === NodeType.VIDEO || data.type === NodeType.LOCAL_VIDEO_MODEL)
@@ -474,6 +490,12 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
             updates.resolution = newModel.resolutions[0] || 'Auto';
         }
 
+        if (imageModelSupportsQuality(newModel) && !data.quality) {
+            updates.quality = 'auto';
+        } else if (!imageModelSupportsQuality(newModel) && data.quality) {
+            updates.quality = undefined;
+        }
+
         onUpdate(data.id, updates);
         setShowModelDropdown(false);
     };
@@ -495,6 +517,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     const handleResolutionSelect = (value: string) => {
         onUpdate(data.id, { resolution: value });
         setShowResolutionDropdown(false);
+    };
+
+    const handleQualitySelect = (value: string) => {
+        onUpdate(data.id, { quality: normalizeImageQuality(value) });
+        setShowQualityDropdown(false);
     };
 
     const shouldShowVariantCount = data.type === NodeType.IMAGE;
@@ -654,9 +681,9 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
     });
 
     // Handle angle mode generate - creates a new connected node
-    const handleAngleGenerate = () => {
+    const handleAngleGenerate = (quality: ImageQuality) => {
         if (onChangeAngleGenerate) {
-            onChangeAngleGenerate(data.id);
+            onChangeAngleGenerate(data.id, quality);
         }
     };
 
@@ -678,8 +705,11 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                     onSettingsChange={(settings) => onUpdate(data.id, { angleSettings: settings })}
                     onClose={() => onUpdate(data.id, { angleMode: false })}
                     onGenerate={handleAngleGenerate}
+                    quality={normalizeImageQuality(data.quality)}
+                    onQualityChange={(quality) => onUpdate(data.id, { quality })}
                     isLoading={isLoading}
                     canvasTheme={canvasTheme}
+                    language={language}
                 />
             </div>
         );
@@ -1070,7 +1100,7 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                         )}
 
                         {/* Image Resolution Dropdown - Only for Image nodes */}
-                        {!isVideoNode && (currentImageModel as any).resolutions && (
+                        {shouldShowImageResolutionControl && (
                             <div className="relative" ref={resolutionDropdownRef}>
                                 <button
                                     onClick={() => setShowResolutionDropdown(!showResolutionDropdown)}
@@ -1097,6 +1127,42 @@ const NodeControlsComponent: React.FC<NodeControlsProps> = ({
                                             >
                                                 <span>{res}</span>
                                                 {(data.resolution || 'Auto') === res && <Check size={12} />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* T8 Image Quality Dropdown */}
+                        {supportsImageQuality && imageQualityOptions.length > 0 && (
+                            <div className="relative" ref={qualityDropdownRef}>
+                                <button
+                                    onClick={() => setShowQualityDropdown(!showQualityDropdown)}
+                                    className={selectorButtonClass}
+                                    aria-label={`${t(language, 'quality')}: ${getImageQualityLabel(selectedImageQuality)}`}
+                                    title={`${t(language, 'quality')}: ${getImageQualityLabel(selectedImageQuality)}`}
+                                >
+                                    <Settings2 size={12} className={isDark ? 'text-[#D8FF00]' : 'text-lime-600'} />
+                                    {getImageQualityLabel(selectedImageQuality)}
+                                </button>
+
+                                {showQualityDropdown && (
+                                    <div
+                                        className={`absolute bottom-full mb-2 right-0 w-28 ${dropdownClass}`}
+                                        onWheel={(e) => e.stopPropagation()}
+                                    >
+                                        <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] ${dropdownSectionHeaderClass}`}>
+                                            {t(language, 'quality')}
+                                        </div>
+                                        {imageQualityOptions.map((quality) => (
+                                            <button
+                                                key={quality}
+                                                onClick={() => handleQualitySelect(quality)}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-xs text-left transition-[background-color,color,opacity] duration-150 ${dropdownItemClass(selectedImageQuality === quality)}`}
+                                            >
+                                                <span>{getImageQualityLabel(quality)}</span>
+                                                {selectedImageQuality === quality && <Check size={12} />}
                                             </button>
                                         ))}
                                     </div>

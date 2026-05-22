@@ -4,6 +4,7 @@ import { getImageProviders, getSupportedImageModelIds } from '../services/ai/mod
 
 const router = express.Router();
 const SUPPORTED_IMAGE_MODELS = new Set(getSupportedImageModelIds());
+const SUPPORTED_IMAGE_QUALITIES = new Set(['auto', 'low', 'medium', 'high']);
 
 function normalizeString(value) {
     return typeof value === 'string' ? value.trim() : '';
@@ -14,6 +15,12 @@ function normalizeReferenceImages(referenceImages) {
     return Array.isArray(referenceImages) ? referenceImages : [referenceImages];
 }
 
+function normalizeImageQuality(quality) {
+    const normalized = normalizeString(quality).toLowerCase();
+    if (!normalized) return null;
+    return SUPPORTED_IMAGE_QUALITIES.has(normalized) ? normalized : undefined;
+}
+
 router.post('/image', async (req, res) => {
     try {
         const nodeId = normalizeString(req.body.nodeId);
@@ -22,6 +29,10 @@ router.post('/image', async (req, res) => {
         const imageModel = normalizeString(req.body.imageModel);
         const aspectRatio = normalizeString(req.body.aspectRatio) || null;
         const resolution = normalizeString(req.body.resolution) || null;
+        const quality = normalizeImageQuality(req.body.quality);
+        const source = normalizeString(req.body.source) || null;
+        const legacySource = normalizeString(req.body.legacySource) || null;
+        const capability = normalizeString(req.body.capability) || null;
         const referenceImages = normalizeReferenceImages(req.body.referenceImages);
 
         if (!req.user?.id) {
@@ -38,6 +49,10 @@ router.post('/image', async (req, res) => {
 
         if (!imageModel) {
             return res.status(400).json({ error: 'imageModel is required' });
+        }
+
+        if (quality === undefined) {
+            return res.status(400).json({ error: 'quality must be one of: auto, low, medium, high' });
         }
 
         if (!SUPPORTED_IMAGE_MODELS.has(imageModel)) {
@@ -61,6 +76,10 @@ router.post('/image', async (req, res) => {
             imageModel,
             aspectRatio,
             resolution,
+            quality,
+            source,
+            legacySource,
+            capability,
             referenceImages,
             taskType: 'image_generation',
             provider: providerConfig.provider

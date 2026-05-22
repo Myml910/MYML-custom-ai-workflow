@@ -7,14 +7,19 @@
  * - Image Editor
  * - Change Angle
  *
- * Change Angle now uses the existing third-party GPT Image 2 image generation path.
+ * Change Angle uses the existing T8 GPT Image 2 Edit image task path.
  */
 
 import React from 'react';
-import { NodeData, NodeType, NodeStatus } from '../types';
-import { generateCameraAngle } from '../services/cameraAngleService';
+import { NodeData, NodeType, NodeStatus, type ImageQuality } from '../types';
+import {
+    buildCameraAngleTaskInput,
+    CAMERA_ANGLE_DISPLAY_MODEL,
+    CAMERA_ANGLE_IMAGE_MODEL
+} from '../services/cameraAngleService';
+import { createImageTask, waitForImageTaskCompletion } from '../services/generationService';
 import { removeImageBackground } from '../services/mattingService';
-import { getCompatibleImageModelId } from '../config/imageModels';
+import { getCompatibleImageModelId, normalizeImageQuality } from '../config/imageModels';
 
 // ============================================================================
 // TYPES
@@ -25,6 +30,7 @@ interface UseImageNodeHandlersOptions {
     setNodes: React.Dispatch<React.SetStateAction<NodeData[]>>;
     setSelectedNodeIds: React.Dispatch<React.SetStateAction<string[]>>;
     onGenerateNode?: (nodeId: string) => void;
+    workflowId?: string | null;
 }
 
 // ============================================================================
@@ -65,6 +71,13 @@ function normalizeAngleSettings(settings: NonNullable<NodeData['angleSettings']>
     };
 }
 
+function hasNoAngleChange(settings: NonNullable<NodeData['angleSettings']>) {
+    return settings.rotation === 0 &&
+        settings.tilt === 0 &&
+        settings.zoom === 0 &&
+        !settings.wideAngle;
+}
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -73,7 +86,8 @@ export const useImageNodeHandlers = ({
     nodes,
     setNodes,
     setSelectedNodeIds,
-    onGenerateNode
+    onGenerateNode,
+    workflowId
 }: UseImageNodeHandlersOptions) => {
     /**
      * Handle "Image to Image" - creates a new Image node connected to this Image node.
@@ -97,6 +111,7 @@ export const useImageNodeHandlers = ({
             imageModel: getCompatibleImageModelId(imageNode.imageModel, 1),
             aspectRatio: imageNode.aspectRatio || 'Auto',
             resolution: imageNode.resolution || 'Auto',
+            quality: imageNode.quality,
             parentIds: [nodeId]
         };
 
@@ -154,6 +169,7 @@ export const useImageNodeHandlers = ({
             imageModel: getCompatibleImageModelId(imageNode.imageModel, 1),
             aspectRatio: imageNode.aspectRatio || 'Auto',
             resolution: imageNode.resolution || 'Auto',
+            quality: imageNode.quality,
             parentIds: [nodeId]
         };
 
@@ -235,7 +251,7 @@ export const useImageNodeHandlers = ({
      * Creates a new CAMERA_ANGLE node immediately in LOADING state,
      * then calls GPT Image 2 through cameraAngleService.
      */
-    const handleChangeAngleGenerate = React.useCallback(async (nodeId: string) => {
+    const handleChangeAngleGenerate = React.useCallback(async (nodeId: string, explicitQuality?: ImageQuality) => {
         const imageNode = nodes.find(n => n.id === nodeId);
 
         if (!imageNode || !imageNode.angleSettings || !imageNode.resultUrl) {
@@ -251,6 +267,7 @@ export const useImageNodeHandlers = ({
         const angleSettings = normalizeAngleSettings(imageNode.angleSettings);
         const newNodeId = crypto.randomUUID();
         const position = getNextNodePosition(imageNode);
+        const selectedQuality = normalizeImageQuality(explicitQuality || imageNode.quality || 'auto');
 
         const newCameraAngleNode: NodeData = {
             id: newNodeId,
@@ -261,12 +278,13 @@ export const useImageNodeHandlers = ({
             status: NodeStatus.LOADING,
 
             // Display model metadata for the node.
-            model: 'GPT Image 2 Camera Angle',
-            imageModel: 'custom-image-gpt-image-2',
+            model: CAMERA_ANGLE_DISPLAY_MODEL,
+            imageModel: CAMERA_ANGLE_IMAGE_MODEL,
 
             // Keep inherited output settings where possible.
             aspectRatio: imageNode.aspectRatio || 'Auto',
-            resolution: imageNode.resolution || '2k',
+            resolution: 'Auto',
+            quality: selectedQuality,
 
             // Keep graph connection.
             parentIds: [nodeId],
@@ -288,25 +306,122 @@ export const useImageNodeHandlers = ({
         setSelectedNodeIds([newNodeId]);
 
         try {
-            console.log('[ChangeAngle] Calling GPT Image 2 camera angle generation:', {
+            if (hasNoAngleChange(angleSettings)) {
+                console.log('[ChangeAngle] No camera movement requested, returning original image:', {
+                    nodeId,
+                    newNodeId
+                });
+
+                setNodes(prev => prev.map(n =>
+                    n.id === newNodeId
+                        ? {
+                            ...n,
+                            status: NodeStatus.SUCCESS,
+                            resultUrl: imageNode.resultUrl,
+                            prompt: 'No camera movement requested.',
+                            model: CAMERA_ANGLE_DISPLAY_MODEL,
+                            imageModel: CAMERA_ANGLE_IMAGE_MODEL,
+                            taskId: undefined,
+                            generationStatus: undefined,
+                            progress: undefined,
+                            errorMessage: undefined
+                        }
+                        : n
+                ));
+                return;
+            }
+
+            console.log('[ChangeAngle] Creating T8 GPT Image 2 Edit camera angle task:', {
                 nodeId,
                 newNodeId,
                 angleSettings,
+                imageModel: CAMERA_ANGLE_IMAGE_MODEL,
+                quality: selectedQuality,
                 sourceImageUrl: imageNode.resultUrl
             });
 
-            const result = await generateCameraAngle(
+            const taskInput = await buildCameraAngleTaskInput(
                 imageNode.resultUrl,
                 angleSettings.rotation,
                 angleSettings.tilt,
                 angleSettings.zoom,
-                angleSettings.wideAngle
+                angleSettings.wideAngle,
+                {
+                    aspectRatio: newCameraAngleNode.aspectRatio,
+                    resolution: newCameraAngleNode.resolution,
+                    quality: selectedQuality
+                }
             );
 
-            console.log('[ChangeAngle] GPT Image 2 camera angle success:', {
+            const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
+            if (isDev) {
+                console.debug('[ChangeAngle] Camera angle task quality payload', {
+                    source: 'camera-angle',
+                    selectedQuality,
+                    payloadQuality: taskInput.quality,
+                    nodeId: newNodeId,
+                    imageModel: taskInput.imageModel
+                });
+            }
+
+            const task = await createImageTask({
+                nodeId: newNodeId,
+                workflowId,
+                prompt: taskInput.prompt,
+                imageModel: taskInput.imageModel,
+                aspectRatio: taskInput.aspectRatio,
+                resolution: taskInput.resolution,
+                quality: taskInput.quality,
+                referenceImages: taskInput.referenceImages,
+                source: taskInput.source,
+                legacySource: taskInput.source,
+                capability: taskInput.capability
+            });
+
+            setNodes(prev => prev.map(n =>
+                n.id === newNodeId
+                    ? {
+                        ...n,
+                        prompt: taskInput.prompt,
+                        status: NodeStatus.LOADING,
+                        taskId: task.taskId,
+                        generationStatus: task.status,
+                        progress: 0,
+                        errorMessage: undefined
+                    }
+                    : n
+            ));
+
+            const completedTask = await waitForImageTaskCompletion(task.taskId, {
+                onTaskUpdate: (nextTask) => {
+                    if (nextTask.status !== 'queued' && nextTask.status !== 'running' && nextTask.status !== 'polling') {
+                        return;
+                    }
+
+                    setNodes(prev => prev.map(n =>
+                        n.id === newNodeId
+                            ? {
+                                ...n,
+                                status: NodeStatus.LOADING,
+                                taskId: nextTask.taskId,
+                                generationStatus: nextTask.status,
+                                progress: nextTask.progress ?? 0,
+                                errorMessage: undefined
+                            }
+                            : n
+                    ));
+                }
+            });
+
+            if (completedTask.status !== 'completed' || !completedTask.resultUrl) {
+                throw new Error(completedTask.errorMessage || `Camera angle task ended with status: ${completedTask.status}`);
+            }
+
+            console.log('[ChangeAngle] T8 GPT Image 2 Edit camera angle success:', {
                 newNodeId,
-                inferenceTimeMs: result.inferenceTimeMs,
-                provider: result.provider
+                taskId: completedTask.taskId,
+                provider: completedTask.provider,
+                model: completedTask.model
             });
 
             setNodes(prev => prev.map(n =>
@@ -314,27 +429,34 @@ export const useImageNodeHandlers = ({
                     ? {
                         ...n,
                         status: NodeStatus.SUCCESS,
-                        resultUrl: result.imageUrl,
-                        prompt: result.prompt || n.prompt,
-                        model: 'GPT Image 2 Camera Angle',
-                        imageModel: 'custom-image-gpt-image-2'
+                        resultUrl: completedTask.resultUrl || undefined,
+                        prompt: taskInput.prompt || n.prompt,
+                        model: CAMERA_ANGLE_DISPLAY_MODEL,
+                        imageModel: CAMERA_ANGLE_IMAGE_MODEL,
+                        taskId: undefined,
+                        generationStatus: undefined,
+                        progress: undefined,
+                        errorMessage: undefined
                     }
                     : n
             ));
         } catch (error: any) {
-            console.error('[ChangeAngle] GPT Image 2 camera angle error:', error);
+            console.error('[ChangeAngle] T8 GPT Image 2 Edit camera angle error:', error);
 
             setNodes(prev => prev.map(n =>
                 n.id === newNodeId
                     ? {
                         ...n,
                         status: NodeStatus.ERROR,
-                        errorMessage: error?.message || 'GPT Image 2 camera angle generation failed.'
+                        taskId: undefined,
+                        generationStatus: 'failed',
+                        progress: undefined,
+                        errorMessage: error?.message || 'T8 GPT Image 2 camera angle generation failed.'
                     }
                     : n
             ));
         }
-    }, [nodes, setNodes, setSelectedNodeIds]);
+    }, [nodes, setNodes, setSelectedNodeIds, workflowId]);
 
     return {
         handleImageToImage,

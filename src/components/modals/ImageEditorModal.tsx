@@ -30,6 +30,8 @@ import {
     HIDDEN_IMAGE_MODEL_IDS,
     LEGACY_IMAGE_MODEL_UNAVAILABLE_MESSAGE,
     T8_GPT_IMAGE_2_EDIT_MODEL_ID,
+    imageModelSupportsQuality,
+    normalizeImageQuality,
     withLegacyImageModelOption,
     isUnavailableLegacyImageModel
 } from '../../config/imageModels';
@@ -96,6 +98,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     initialModel,
     initialAspectRatio,
     initialResolution,
+    initialQuality,
     initialElements,
     initialCanvasData,
     initialCanvasSize,
@@ -115,11 +118,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [showAspectDropdown, setShowAspectDropdown] = useState(false);
     const [showResolutionDropdown, setShowResolutionDropdown] = useState(false);
+    const [showQualityDropdown, setShowQualityDropdown] = useState(false);
 
     // --- Model State ---
     const [selectedModel, setSelectedModel] = useState(getInitialImageModelId(initialModel));
     const [selectedAspectRatio, setSelectedAspectRatio] = useState(initialAspectRatio || 'Auto');
     const [selectedResolution, setSelectedResolution] = useState(initialResolution || '1K');
+    const [selectedQuality, setSelectedQuality] = useState(normalizeImageQuality(initialQuality));
 
     // --- Element State (persisted to node) ---
     const [elements, setElements] = useState<EditorElement[]>(initialElements || []);
@@ -684,6 +689,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setSelectedModel(getInitialImageModelId(initialModel, editorImageModels));
         setSelectedAspectRatio(initialAspectRatio || 'Auto');
         setSelectedResolution(initialResolution || '1K');
+        setSelectedQuality(normalizeImageQuality(initialQuality));
         // Use initialBackgroundUrl (clean image) if available, otherwise imageUrl (might be composite or input)
         setLocalImageUrl(initialBackgroundUrl || imageUrl);
         setElements(initialElements || []);
@@ -692,7 +698,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         hasInitializedRef.current = true;
         initializedNodeIdRef.current = nodeId;
-    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, imageUrl, initialElements, initialBackgroundUrl, editorImageModels]);
+    }, [isOpen, nodeId, initialPrompt, initialModel, initialAspectRatio, initialResolution, initialQuality, imageUrl, initialElements, initialBackgroundUrl, editorImageModels]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -894,17 +900,22 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         try {
             const compositeImageDataUrl = await generateCompositeImage();
+            const taskQuality = imageModelSupportsQuality(currentModel)
+                ? normalizeImageQuality(selectedQuality)
+                : undefined;
 
             onUpdate(nodeId, {
                 prompt: finalPrompt,
                 imageModel: selectedModel,
                 aspectRatio: selectedAspectRatio,
-                resolution: selectedResolution
+                resolution: selectedResolution,
+                quality: taskQuality
             });
             await onGenerate(nodeId, finalPrompt, batchCount, {
                 imageModel: selectedModel,
                 aspectRatio: selectedAspectRatio,
                 resolution: selectedResolution,
+                quality: taskQuality,
                 compositeImageDataUrl: compositeImageDataUrl || undefined
             });
         } finally {
@@ -942,12 +953,20 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }
 
         setSelectedModel(modelId);
+        const modelSupportsQuality = imageModelSupportsQuality(newModel);
 
         if (newModel?.aspectRatios && !newModel.aspectRatios.includes(selectedAspectRatio)) {
             setSelectedAspectRatio('Auto');
         }
 
-        onUpdate(nodeId, { imageModel: modelId });
+        if (!modelSupportsQuality) {
+            setSelectedQuality('auto');
+        }
+
+        onUpdate(nodeId, {
+            imageModel: modelId,
+            quality: modelSupportsQuality ? selectedQuality : undefined
+        });
         setShowModelDropdown(false);
     };
 
@@ -961,6 +980,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         setSelectedResolution(res);
         onUpdate(nodeId, { resolution: res });
         setShowResolutionDropdown(false);
+    };
+
+    const handleQualityChange = (quality: string) => {
+        const normalizedQuality = normalizeImageQuality(quality);
+        setSelectedQuality(normalizedQuality);
+        onUpdate(nodeId, { quality: normalizedQuality });
+        setShowQualityDropdown(false);
     };
 
     // --- Early Return ---
@@ -1442,6 +1468,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     onResolutionChange={handleResolutionChange}
                     showResolutionDropdown={showResolutionDropdown}
                     setShowResolutionDropdown={setShowResolutionDropdown}
+                    selectedQuality={selectedQuality}
+                    onQualityChange={handleQualityChange}
+                    showQualityDropdown={showQualityDropdown}
+                    setShowQualityDropdown={setShowQualityDropdown}
                     batchCount={batchCount}
                     setBatchCount={setBatchCount}
                     onGenerate={handleGenerateClick}
