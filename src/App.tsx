@@ -124,6 +124,34 @@ const getConnectedMediaReference = (node: NodeData | undefined, nodesById: Map<s
 };
 
 
+// Canvas render memo helpers.
+type ConnectedImageNode = {
+  id: string;
+  url: string;
+  type?: NodeType;
+  status?: NodeStatus;
+  resultUrl?: string;
+  referenceSourceId?: string;
+  referenceSourceType?: NodeType;
+  isFallbackReference?: boolean;
+};
+
+interface NodeRenderMeta {
+  inputUrl?: string;
+  connectedImageNodes: ConnectedImageNode[];
+  selected: boolean;
+  showControls: boolean;
+}
+
+const EMPTY_CONNECTED_IMAGE_NODES: ConnectedImageNode[] = [];
+
+const useStableCallback = <T extends (...args: any[]) => any>(callback: T): T => {
+  const callbackRef = React.useRef(callback);
+  callbackRef.current = callback;
+
+  return React.useCallback(((...args: Parameters<T>) => callbackRef.current(...args)) as T, []);
+};
+
 //用于给非https 环境下的crypto兼容
 if (typeof window !== 'undefined') {
   if (!window.crypto) {
@@ -250,6 +278,44 @@ function CanvasApp({
   } = useNodeManagement();
 
   const nodesById = React.useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+  const selectedNodeSet = React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+  const nodeRenderMetaById = React.useMemo(() => {
+    const metaById = new Map<string, NodeRenderMeta>();
+
+    nodes.forEach(node => {
+      let inputUrl: string | undefined;
+
+      if (node.parentIds && node.parentIds.length > 0) {
+        const parent = nodesById.get(node.parentIds[0]);
+
+        if (node.type === NodeType.VIDEO_EDITOR && parent?.type === NodeType.VIDEO) {
+          inputUrl = parent.resultUrl;
+        } else if (parent?.type === NodeType.VIDEO && parent.lastFrame) {
+          inputUrl = parent.lastFrame;
+        } else {
+          inputUrl = parent?.resultUrl;
+        }
+      }
+
+      const connectedImageNodes = node.parentIds && node.parentIds.length > 0
+        ? node.parentIds
+          .map(parentId => nodesById.get(parentId))
+          .map(parent => getConnectedMediaReference(parent, nodesById))
+          .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference))
+        : EMPTY_CONNECTED_IMAGE_NODES;
+
+      const selected = selectedNodeSet.has(node.id);
+
+      metaById.set(node.id, {
+        inputUrl,
+        connectedImageNodes: connectedImageNodes.length > 0 ? connectedImageNodes : EMPTY_CONNECTED_IMAGE_NODES,
+        selected,
+        showControls: selectedNodeSet.size === 1 && selected
+      });
+    });
+
+    return metaById;
+  }, [nodes, nodesById, selectedNodeSet]);
   const canvasHoveredNode = React.useMemo(
     () => canvasHoveredNodeId ? nodesById.get(canvasHoveredNodeId) : undefined,
     [canvasHoveredNodeId, nodesById]
@@ -1325,6 +1391,69 @@ function CanvasApp({
       : 'cursor-grab active:cursor-grabbing';
   const isViewportInteracting = isPanning || isWheelInteracting;
   const disableConnectionSensors = isDragging || isPanning || isDraggingConnection || isWheelInteracting;
+  const selectedNodeIdsRef = React.useRef(selectedNodeIds);
+  selectedNodeIdsRef.current = selectedNodeIds;
+  const isViewportInteractingRef = React.useRef(isViewportInteracting);
+  isViewportInteractingRef.current = isViewportInteracting;
+
+  const stableStartTemporaryPanFromPointer = useStableCallback(startTemporaryPanFromPointer);
+  const stableHandleNodePointerDownBase = useStableCallback(handleNodePointerDown);
+  const stableUpdateNodeWithSync = useStableCallback(updateNodeWithSync);
+  const stableHandleGenerate = useStableCallback(handleGenerate);
+  const stableHandleAddNext = useStableCallback(handleAddNext);
+  const stableHandleNodeContextMenu = useStableCallback(handleNodeContextMenu);
+  const stableHandleConnectorPointerDown = useStableCallback(handleConnectorPointerDown);
+  const stableHandleEdgeClick = useStableCallback(handleEdgeClick);
+  const stableHandleDisconnectConnection = useStableCallback(handleDisconnectConnection);
+  const stableHandleOpenEditor = useStableCallback(handleOpenEditor);
+  const stableHandleUpload = useStableCallback(handleUpload);
+  const stableHandleExpandImage = useStableCallback(handleExpandImage);
+  const stableHandleNodeDragStart = useStableCallback(handleNodeDragStart);
+  const stableHandleNodeDragEnd = useStableCallback(handleNodeDragEnd);
+  const stableHandleWriteContent = useStableCallback(handleWriteContent);
+  const stableHandleTextToVideo = useStableCallback(handleTextToVideo);
+  const stableHandleTextToImage = useStableCallback(handleTextToImage);
+  const stableHandleImageToImage = useStableCallback(handleImageToImage);
+  const stableHandleImageToVideo = useStableCallback(handleImageToVideo);
+  const stableHandleImageToEditor = useStableCallback(handleImageToEditor);
+  const stableHandleRemoveBackground = useStableCallback(handleRemoveBackground);
+  const stableHandleChangeAngleGenerate = useStableCallback(handleChangeAngleGenerate);
+  const stableHandlePostToX = useStableCallback(handlePostToX);
+  const stableHandlePostToTikTok = useStableCallback(handlePostToTikTok);
+  const handleCanvasNodeSelect = React.useCallback((id: string) => {
+    setSelectedNodeIds([id]);
+  }, [setSelectedNodeIds]);
+  const handleCanvasNodePointerDown = React.useCallback((e: React.PointerEvent, nodeId: string) => {
+    if (stableStartTemporaryPanFromPointer(e, true)) {
+      return;
+    }
+
+    const currentSelectedNodeIds = selectedNodeIdsRef.current;
+
+    if (e.shiftKey) {
+      if (currentSelectedNodeIds.includes(nodeId)) {
+        stableHandleNodePointerDownBase(e, nodeId, undefined);
+      } else {
+        setSelectedNodeIds(prev => [...prev, nodeId]);
+        stableHandleNodePointerDownBase(e, nodeId, undefined);
+      }
+    } else {
+      setSelectedNodeIds([nodeId]);
+      stableHandleNodePointerDownBase(e, nodeId, undefined);
+    }
+  }, [
+    setSelectedNodeIds,
+    stableHandleNodePointerDownBase,
+    stableStartTemporaryPanFromPointer
+  ]);
+  const handleCanvasNodeMouseEnter = React.useCallback((nodeId: string) => {
+    if (!isViewportInteractingRef.current) {
+      setCanvasHoveredNodeId(nodeId);
+    }
+  }, []);
+  const handleCanvasNodeMouseLeave = React.useCallback(() => {
+    setCanvasHoveredNodeId(null);
+  }, []);
 
   React.useEffect(() => {
     if (isViewportInteracting) {
@@ -1536,102 +1665,57 @@ function CanvasApp({
               connectionStart={connectionStart}
               tempConnectionEnd={tempConnectionEnd}
               selectedConnection={selectedConnection}
-              onEdgeClick={handleEdgeClick}
-              onDisconnectConnection={handleDisconnectConnection}
+              onEdgeClick={stableHandleEdgeClick}
+              onDisconnectConnection={stableHandleDisconnectConnection}
             />
           </svg>
 
           {/* Nodes Layer */}
           <div className="pointer-events-auto">
-            {nodes.map(node => (
-              <CanvasNode
-                key={node.id}
-                data={node}
-                inputUrl={(() => {
-                  // Get first parent's result for display (multiple inputs handled in generation)
-                  if (!node.parentIds || node.parentIds.length === 0) return undefined;
-                  const parent = nodesById.get(node.parentIds[0]);
+            {nodes.map(node => {
+              const nodeMeta = nodeRenderMetaById.get(node.id);
+              if (!nodeMeta) return null;
 
-                  // VIDEO_EDITOR nodes need the actual video URL from parent Video node
-                  if (node.type === NodeType.VIDEO_EDITOR && parent?.type === NodeType.VIDEO) {
-                    return parent.resultUrl;
-                  }
-
-                  // For other nodes, if parent is video, use lastFrame for image preview
-                  if (parent?.type === NodeType.VIDEO && parent.lastFrame) {
-                    return parent.lastFrame;
-                  }
-                  return parent?.resultUrl;
-                })()}
-                connectedImageNodes={(() => {
-                  // Gather all connected parent nodes (image references or video) with their URLs
-                  if (!node.parentIds || node.parentIds.length === 0) {
-                    return [];
-                  }
-
-                  const parentNodes = node.parentIds.map(parentId => nodesById.get(parentId));
-                  const connectedReferences = parentNodes
-                    .map(parent => getConnectedMediaReference(parent, nodesById))
-                    .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference));
-
-                  return connectedReferences;
-                })()}
-                onUpdate={updateNodeWithSync}
-                onGenerate={handleGenerate}
-                onAddNext={handleAddNext}
-                selected={selectedNodeIds.includes(node.id)}
-                showControls={selectedNodeIds.length === 1 && selectedNodeIds.includes(node.id)}
-                onNodePointerDown={(e) => {
-                  if (startTemporaryPanFromPointer(e, true)) {
-                    return;
-                  }
-
-                  // If shift is held, preserve selection for multi-drag/multi-select
-                  if (e.shiftKey) {
-                    if (selectedNodeIds.includes(node.id)) {
-                      handleNodePointerDown(e, node.id, undefined);
-                    } else {
-                      // Add to selection
-                      setSelectedNodeIds(prev => [...prev, node.id]);
-                      handleNodePointerDown(e, node.id, undefined);
-                    }
-                  } else {
-                    // No shift: always select just this node (to show its controls)
-                    setSelectedNodeIds([node.id]);
-                    handleNodePointerDown(e, node.id, undefined);
-                  }
-                }}
-                onContextMenu={handleNodeContextMenu}
-                onSelect={(id) => setSelectedNodeIds([id])}
-                onConnectorDown={handleConnectorPointerDown}
-                isHoveredForConnection={connectionHoveredNodeId === node.id}
-                onOpenEditor={handleOpenEditor}
-                onUpload={handleUpload}
-                onExpand={handleExpandImage}
-                onDragStart={handleNodeDragStart}
-                onDragEnd={handleNodeDragEnd}
-                onWriteContent={handleWriteContent}
-                onTextToVideo={handleTextToVideo}
-                onTextToImage={handleTextToImage}
-                onImageToImage={handleImageToImage}
-                onImageToVideo={handleImageToVideo}
-                onImageToEditor={handleImageToEditor}
-                onRemoveBackground={handleRemoveBackground}
-                onChangeAngleGenerate={handleChangeAngleGenerate}
-                zoom={viewport.zoom}
-                suppressHoverInteractions={isViewportInteracting}
-                onMouseEnter={() => {
-                  if (!isViewportInteracting) {
-                    setCanvasHoveredNodeId(node.id);
-                  }
-                }}
-                onMouseLeave={() => setCanvasHoveredNodeId(null)}
-                canvasTheme={canvasTheme}
-                language={language}
-                onPostToX={handlePostToX}
-                onPostToTikTok={handlePostToTikTok}
-              />
-            ))}
+              return (
+                <CanvasNode
+                  key={node.id}
+                  data={node}
+                  inputUrl={nodeMeta.inputUrl}
+                  connectedImageNodes={nodeMeta.connectedImageNodes}
+                  onUpdate={stableUpdateNodeWithSync}
+                  onGenerate={stableHandleGenerate}
+                  onAddNext={stableHandleAddNext}
+                  selected={nodeMeta.selected}
+                  showControls={nodeMeta.showControls}
+                  onNodePointerDown={handleCanvasNodePointerDown}
+                  onContextMenu={stableHandleNodeContextMenu}
+                  onSelect={handleCanvasNodeSelect}
+                  onConnectorDown={stableHandleConnectorPointerDown}
+                  isHoveredForConnection={connectionHoveredNodeId === node.id}
+                  onOpenEditor={stableHandleOpenEditor}
+                  onUpload={stableHandleUpload}
+                  onExpand={stableHandleExpandImage}
+                  onDragStart={stableHandleNodeDragStart}
+                  onDragEnd={stableHandleNodeDragEnd}
+                  onWriteContent={stableHandleWriteContent}
+                  onTextToVideo={stableHandleTextToVideo}
+                  onTextToImage={stableHandleTextToImage}
+                  onImageToImage={stableHandleImageToImage}
+                  onImageToVideo={stableHandleImageToVideo}
+                  onImageToEditor={stableHandleImageToEditor}
+                  onRemoveBackground={stableHandleRemoveBackground}
+                  onChangeAngleGenerate={stableHandleChangeAngleGenerate}
+                  zoom={viewport.zoom}
+                  suppressHoverInteractions={isViewportInteracting}
+                  onMouseEnter={handleCanvasNodeMouseEnter}
+                  onMouseLeave={handleCanvasNodeMouseLeave}
+                  canvasTheme={canvasTheme}
+                  language={language}
+                  onPostToX={stableHandlePostToX}
+                  onPostToTikTok={stableHandlePostToTikTok}
+                />
+              );
+            })}
           </div>
 
 

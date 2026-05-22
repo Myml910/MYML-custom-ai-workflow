@@ -725,7 +725,7 @@ interface ConnectionsLayerProps {
 // CONNECTION ITEM
 // ============================================================================
 
-const ConnectionItem: React.FC<{
+interface ConnectionItemProps {
     parent: NodeData;
     child: NodeData;
     path: string;
@@ -735,7 +735,9 @@ const ConnectionItem: React.FC<{
     isSelected: boolean;
     disableInteractiveSensors?: boolean;
     onDisconnectConnection?: (parentId: string, childId: string) => void;
-}> = ({
+}
+
+const ConnectionItemComponent: React.FC<ConnectionItemProps> = ({
     parent,
     child,
     path,
@@ -1007,11 +1009,26 @@ const ConnectionItem: React.FC<{
     );
 };
 
+const areConnectionItemPropsEqual = (prev: ConnectionItemProps, next: ConnectionItemProps) => (
+    prev.parent === next.parent &&
+    prev.child === next.child &&
+    prev.path === next.path &&
+    prev.viewportZoom === next.viewportZoom &&
+    prev.canvasTheme === next.canvasTheme &&
+    prev.densityMode === next.densityMode &&
+    prev.isSelected === next.isSelected &&
+    prev.disableInteractiveSensors === next.disableInteractiveSensors &&
+    prev.onDisconnectConnection === next.onDisconnectConnection
+);
+
+const ConnectionItem = React.memo(ConnectionItemComponent, areConnectionItemPropsEqual);
+ConnectionItem.displayName = 'ConnectionItem';
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
+const ConnectionsLayerComponent: React.FC<ConnectionsLayerProps> = ({
     nodes,
     viewport,
     isDraggingConnection,
@@ -1022,7 +1039,6 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     onDisconnectConnection,
     canvasTheme = 'dark'
 }) => {
-    const connections: React.ReactNode[] = [];
     const nodesById = React.useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
     const connectionCount = React.useMemo(
         () => nodes.reduce((total, node) => {
@@ -1069,44 +1085,59 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
         viewport.zoom
     ]);
 
-    nodes.forEach(node => {
-        if (!node.parentIds || node.parentIds.length === 0) return;
+    const connections = React.useMemo(() => {
+        const nextConnections: React.ReactNode[] = [];
 
-        node.parentIds.forEach(parentId => {
-            const parent = nodesById.get(parentId);
-            if (!parent) return;
+        nodes.forEach(node => {
+            if (!node.parentIds || node.parentIds.length === 0) return;
 
-            const parentSize = getNodeVisualSize(parent, nodesById);
-            const childSize = getNodeVisualSize(node, nodesById, parent);
+            node.parentIds.forEach(parentId => {
+                const parent = nodesById.get(parentId);
+                if (!parent) return;
 
-            const startX = parent.x + parentSize.width;
-            const startY = parent.y + parentSize.height / 2;
-            const endX = node.x;
-            const endY = node.y + childSize.height / 2;
+                const parentSize = getNodeVisualSize(parent, nodesById);
+                const childSize = getNodeVisualSize(node, nodesById, parent);
 
-            const path = calculateConnectionPath(startX, startY, endX, endY, 'right');
-            const edgeKey = `${parent.id}->${node.id}`;
+                const startX = parent.x + parentSize.width;
+                const startY = parent.y + parentSize.height / 2;
+                const endX = node.x;
+                const endY = node.y + childSize.height / 2;
 
-            connections.push(
-                <ConnectionItem
-                    key={edgeKey}
-                    parent={parent}
-                    child={node}
-                    path={path}
-                    viewportZoom={viewport.zoom}
-                    canvasTheme={canvasTheme}
-                    densityMode={densityMode}
-                    isSelected={Boolean(
-                        selectedConnection &&
-                        selectedConnection.parentId === parent.id &&
-                        selectedConnection.childId === node.id
-                    )}
-                    disableInteractiveSensors={disableInteractiveSensors}
-                    onDisconnectConnection={onDisconnectConnection}
-                />
-            );
+                const path = calculateConnectionPath(startX, startY, endX, endY, 'right');
+                const edgeKey = `${parent.id}->${node.id}`;
+
+                nextConnections.push(
+                    <ConnectionItem
+                        key={edgeKey}
+                        parent={parent}
+                        child={node}
+                        path={path}
+                        viewportZoom={viewport.zoom}
+                        canvasTheme={canvasTheme}
+                        densityMode={densityMode}
+                        isSelected={Boolean(
+                            selectedConnection &&
+                            selectedConnection.parentId === parent.id &&
+                            selectedConnection.childId === node.id
+                        )}
+                        disableInteractiveSensors={disableInteractiveSensors}
+                        onDisconnectConnection={onDisconnectConnection}
+                    />
+                );
+            });
         });
-    });
+
+        return nextConnections;
+    }, [
+        canvasTheme,
+        densityMode,
+        disableInteractiveSensors,
+        nodes,
+        nodesById,
+        onDisconnectConnection,
+        selectedConnection,
+        viewport.zoom
+    ]);
 
     let tempLine = null;
 
@@ -1192,3 +1223,25 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
         </>
     );
 };
+
+const areConnectionsLayerPropsEqual = (prev: ConnectionsLayerProps, next: ConnectionsLayerProps) => {
+    const isTempConnectionVisible = prev.isDraggingConnection || next.isDraggingConnection;
+
+    return (
+        prev.nodes === next.nodes &&
+        prev.viewport.zoom === next.viewport.zoom &&
+        (!isTempConnectionVisible ||
+            (prev.viewport.x === next.viewport.x && prev.viewport.y === next.viewport.y)) &&
+        prev.isDraggingConnection === next.isDraggingConnection &&
+        prev.disableInteractiveSensors === next.disableInteractiveSensors &&
+        prev.connectionStart === next.connectionStart &&
+        prev.tempConnectionEnd === next.tempConnectionEnd &&
+        prev.selectedConnection === next.selectedConnection &&
+        prev.onEdgeClick === next.onEdgeClick &&
+        prev.onDisconnectConnection === next.onDisconnectConnection &&
+        prev.canvasTheme === next.canvasTheme
+    );
+};
+
+export const ConnectionsLayer = React.memo(ConnectionsLayerComponent, areConnectionsLayerPropsEqual);
+ConnectionsLayer.displayName = 'ConnectionsLayer';

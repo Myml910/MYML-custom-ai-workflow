@@ -46,8 +46,8 @@ interface CanvasNodeProps {
   onChangeAngleGenerate?: (nodeId: string, quality?: ImageQuality) => void;
   zoom: number;
   // Mouse event callbacks for chat panel drag functionality
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  onMouseEnter?: (nodeId: string) => void;
+  onMouseLeave?: (nodeId: string) => void;
   suppressHoverInteractions?: boolean;
   // Theme
   canvasTheme?: 'dark' | 'light';
@@ -58,7 +58,7 @@ interface CanvasNodeProps {
   onPostToTikTok?: (nodeId: string, mediaUrl: string) => void;
 }
 
-export const CanvasNode: React.FC<CanvasNodeProps> = ({
+const CanvasNodeComponent: React.FC<CanvasNodeProps> = ({
   data,
   inputUrl,
   connectedImageNodes,
@@ -199,12 +199,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     if (suppressHoverInteractions) return;
 
     setIsNodeHovered(true);
-    onMouseEnter?.();
+    onMouseEnter?.(data.id);
   };
 
   const handleNodeMouseLeave = () => {
     setIsNodeHovered(false);
-    onMouseLeave?.();
+    onMouseLeave?.(data.id);
   };
 
   React.useEffect(() => {
@@ -1205,3 +1205,43 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     </div >
   );
 };
+
+const areCanvasNodePropsEqual = (prev: CanvasNodeProps, next: CanvasNodeProps) => (
+  prev.data === next.data &&
+  prev.inputUrl === next.inputUrl &&
+  prev.connectedImageNodes === next.connectedImageNodes &&
+  prev.selected === next.selected &&
+  prev.showControls === next.showControls &&
+  prev.isHoveredForConnection === next.isHoveredForConnection &&
+  prev.zoom === next.zoom &&
+  prev.suppressHoverInteractions === next.suppressHoverInteractions &&
+  prev.canvasTheme === next.canvasTheme &&
+  prev.language === next.language &&
+  prev.onUpdate === next.onUpdate &&
+  prev.onGenerate === next.onGenerate &&
+  prev.onAddNext === next.onAddNext &&
+  prev.onSelect === next.onSelect &&
+  prev.onNodePointerDown === next.onNodePointerDown &&
+  prev.onContextMenu === next.onContextMenu &&
+  prev.onConnectorDown === next.onConnectorDown &&
+  prev.onOpenEditor === next.onOpenEditor &&
+  prev.onUpload === next.onUpload &&
+  prev.onExpand === next.onExpand &&
+  prev.onDragStart === next.onDragStart &&
+  prev.onDragEnd === next.onDragEnd &&
+  prev.onWriteContent === next.onWriteContent &&
+  prev.onTextToVideo === next.onTextToVideo &&
+  prev.onTextToImage === next.onTextToImage &&
+  prev.onImageToImage === next.onImageToImage &&
+  prev.onImageToVideo === next.onImageToVideo &&
+  prev.onImageToEditor === next.onImageToEditor &&
+  prev.onRemoveBackground === next.onRemoveBackground &&
+  prev.onChangeAngleGenerate === next.onChangeAngleGenerate &&
+  prev.onMouseEnter === next.onMouseEnter &&
+  prev.onMouseLeave === next.onMouseLeave &&
+  prev.onPostToX === next.onPostToX &&
+  prev.onPostToTikTok === next.onPostToTikTok
+);
+
+export const CanvasNode = React.memo(CanvasNodeComponent, areCanvasNodePropsEqual);
+CanvasNode.displayName = 'CanvasNode';
