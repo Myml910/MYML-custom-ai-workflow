@@ -186,6 +186,14 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   const nodeGroupClass = suppressHoverInteractions ? '' : 'group/node';
   const nodeCardGroupClass = suppressHoverInteractions ? '' : 'group/nodecard';
   const nodePointerEventsClass = suppressHoverInteractions ? 'pointer-events-none' : 'pointer-events-auto';
+  const nodeRootTransition = suppressHoverInteractions ? 'none' : 'box-shadow 0.2s';
+  const nodeCardTransitionClass = suppressHoverInteractions
+    ? 'transition-none'
+    : 'transition-[background-color,border-color,box-shadow] duration-150';
+  const mainNodeCardTransitionClass = suppressHoverInteractions
+    ? 'transition-none'
+    : 'transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-base)]';
+  const titleTransitionClass = suppressHoverInteractions ? 'transition-none' : 'transition-colors';
 
   const handleNodeMouseEnter = () => {
     if (suppressHoverInteractions) return;
@@ -313,10 +321,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   if (data.type === NodeType.IMAGE_EDITOR) {
     return (
       <div
-        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
+        className={`myml-canvas-node absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
-          transition: 'box-shadow 0.2s',
+          transition: nodeRootTransition,
           zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
@@ -328,7 +336,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Image Editor Node Card */}
         <div
-          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${
+          className={`myml-canvas-node-card relative rounded-xl ${nodeCardTransitionClass} flex flex-col ${
             inputUrl
               ? ''
               : isDark
@@ -395,10 +403,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   if (data.type === NodeType.CAMERA_ANGLE) {
     return (
       <div
-        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
+        className={`myml-canvas-node absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
-          transition: 'box-shadow 0.2s',
+          transition: nodeRootTransition,
           zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
@@ -569,7 +577,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
           {/* Node Card */}
           <div
-            className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''} ${isError && isDark ? 'border-red-500/50 bg-red-500/[0.08] ring-1 ring-red-500/20' : ''}`}
+            className={`myml-canvas-node-card relative rounded-xl ${nodeCardTransitionClass} flex flex-col ${isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? angleSelectedRingClass : ''} ${isError && isDark ? 'border-red-500/50 bg-red-500/[0.08] ring-1 ring-red-500/20' : ''}`}
             style={{
               width: '340px',
             }}
@@ -660,10 +668,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
     return (
       <div
-        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
+        className={`myml-canvas-node absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
-          transition: 'box-shadow 0.2s',
+          transition: nodeRootTransition,
           zIndex: nodeStackIndex
         }}
         onPointerDown={(e) => onNodePointerDown(e, data.id)}
@@ -675,7 +683,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Video Editor Node Card */}
         <div
-          className={`relative rounded-xl transition-[background-color,border-color,box-shadow] duration-150 flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-[#D8FF00]/35 border-[#D8FF00]/45' : ''}`}
+          className={`myml-canvas-node-card relative rounded-xl ${nodeCardTransitionClass} flex flex-col ${videoUrl ? '' : isDark ? 'bg-[#151815] border border-neutral-800 shadow-[0_8px_18px_rgba(0,0,0,0.22)] hover:border-neutral-700' : 'bg-white border border-neutral-200 shadow-lg'} ${selected ? 'ring-1 ring-[#D8FF00]/35 border-[#D8FF00]/45' : ''}`}
           style={{
             width: videoUrl ? 'auto' : '340px',
             maxWidth: videoUrl ? '500px' : 'none'
@@ -732,10 +740,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
   return (
     <div
-      className={`absolute ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
+      className={`myml-canvas-node absolute ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,
-        transition: 'box-shadow 0.2s',
+        transition: nodeRootTransition,
         zIndex: nodeStackIndex,
         transformOrigin: 'top left'
       }}
@@ -1082,7 +1090,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-[var(--myml-radius-panel)] border transition-[background-color,border-color,box-shadow] duration-[var(--myml-motion-base)] flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
+          className={`myml-canvas-node-card relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-[var(--myml-radius-panel)] border ${mainNodeCardTransitionClass} flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark
@@ -1129,7 +1137,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
             />
           ) : (
             <div
-              className={`absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium transition-colors cursor-text whitespace-nowrap ${
+              className={`myml-canvas-node-title absolute top-2 text-sm px-2 py-0.5 rounded-md font-medium ${titleTransitionClass} cursor-text whitespace-nowrap ${
                 selected
                   ? isDark
                     ? 'bg-[var(--myml-node-header)] text-[var(--myml-accent)] border border-[var(--myml-border-active)]'

@@ -137,6 +137,25 @@
     transform var(--connector-reveal-duration) var(--connector-ease);
 }
 
+[data-viewport-interacting="true"] .myml-canvas-node,
+[data-viewport-interacting="true"] .myml-canvas-node *,
+[data-viewport-interacting="true"] .myml-canvas-node-card,
+[data-viewport-interacting="true"] .myml-canvas-node-title,
+[data-viewport-interacting="true"] .connector-transition {
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+}
+
+[data-viewport-interacting="true"] .myml-canvas-node-card,
+[data-viewport-interacting="true"] .connector-transition {
+  transition-property: none !important;
+}
+
+[data-viewport-interacting="true"] .connector-flow-path {
+  animation: none !important;
+  will-change: auto;
+}
+
 .motion-toolbar-reveal {
   transition:
     opacity 180ms cubic-bezier(0.2, 0.8, 0.2, 1),

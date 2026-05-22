@@ -795,10 +795,13 @@ const ConnectionItem: React.FC<{
     const deleteVisualStrokeWidth = isControlActive ? 1.2 : 1.8;
     const deleteGlyphOpacity = isControlActive ? 1 : 0.04;
     const deleteStemOpacity = isControlActive ? 0.34 : 0;
-    const transitionClassName = effects.transitionsEnabled ? 'connector-transition' : '';
-    const visibleClassName = effects.transitionsEnabled
+    const transitionClassName = effects.transitionsEnabled && !disableInteractiveSensors ? 'connector-transition' : '';
+    const visibleClassName = effects.transitionsEnabled && !disableInteractiveSensors
         ? 'connector-transition pointer-events-none'
         : 'pointer-events-none';
+    const flowClassName = disableInteractiveSensors
+        ? 'pointer-events-none'
+        : 'connector-flow-path pointer-events-none';
 
     useEffect(() => {
         const becameDisabled = disableInteractiveSensors && !wasInteractiveSensorsDisabledRef.current;
@@ -848,7 +851,7 @@ const ConnectionItem: React.FC<{
                     strokeLinejoin="round"
                     fill="none"
                     opacity={0.38}
-                    className="connector-flow-path pointer-events-none"
+                    className={flowClassName}
                 />
             )}
 
@@ -1163,7 +1166,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                             strokeLinejoin="round"
                             fill="none"
                             opacity="0.42"
-                            className="connector-flow-path"
+                            className={disableInteractiveSensors ? undefined : 'connector-flow-path'}
                             style={{ pointerEvents: 'none' }}
                         />
                     )}
