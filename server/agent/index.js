@@ -17,6 +17,8 @@ import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { CHATS_DIR, IMAGES_DIR } from '../config/paths.js';
 import { resolveLibraryUrlToPath } from '../utils/userLibrary.js';
 import { sanitizeCanvasContext, summarizeCanvasContext } from './context/canvasContext.js';
+import { executeSkill } from './skills/skillRegistry.js';
+import { routeCanvasSkillIntent } from './skills/intentRouter.js';
 
 const SAFE_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const CHAT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -387,6 +389,29 @@ export async function sendMessage(sessionId, content, media, apiKey, options = {
     const graph = createChatGraph();
     const sanitizedCanvasContext = sanitizeCanvasContext(options.canvasContext);
     const canvasContextSummary = summarizeCanvasContext(sanitizedCanvasContext);
+    const skillIntent = sanitizedCanvasContext.empty
+        ? null
+        : routeCanvasSkillIntent(content);
+    let canvasSkillResult = null;
+
+    if (skillIntent?.skillName) {
+        try {
+            canvasSkillResult = await executeSkill(skillIntent.skillName, {
+                canvasContext: sanitizedCanvasContext,
+                userMessage: content,
+            });
+            canvasSkillResult.intent = {
+                matched: skillIntent.matched,
+                matchedText: skillIntent.matchedText,
+            };
+            console.log(`[Chat] Read-only canvas skill matched: ${skillIntent.skillName}`);
+        } catch (error) {
+            console.warn(
+                `[Chat] Failed to execute read-only canvas skill ${skillIntent.skillName}:`,
+                error?.message || error
+            );
+        }
+    }
 
     // Debug: Log session state
     console.log(`[Chat] Session ${sessionId} has ${session.messages.length} existing messages`);
@@ -451,6 +476,9 @@ export async function sendMessage(sessionId, content, media, apiKey, options = {
     const configurable = { apiKey };
     if (canvasContextSummary) {
         configurable.canvasContextSummary = canvasContextSummary;
+    }
+    if (canvasSkillResult) {
+        configurable.canvasSkillResult = canvasSkillResult;
     }
 
     const result = await graph.invoke(

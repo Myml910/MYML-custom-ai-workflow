@@ -76,6 +76,27 @@ function toOpenAICompatibleMessages(messages) {
     }));
 }
 
+function formatCanvasSkillResult(canvasSkillResult) {
+    if (!canvasSkillResult) return "";
+
+    const result = canvasSkillResult.result ?? {};
+    const serializedResult = JSON.stringify(result, null, 2);
+
+    return `Read-only canvas skill result for this turn:
+
+Skill: ${canvasSkillResult.name}
+Description: ${canvasSkillResult.description || "No description"}
+Read-only: ${canvasSkillResult.readOnly === true ? "true" : "false"}
+
+Use this result to answer the user's canvas question naturally.
+Do not dump raw JSON unless the user explicitly asks for JSON.
+Canvas skills are read-only and cannot create nodes, move nodes, delete nodes, save workflows, run generation, or modify canvas state.
+If the user asked for an action, explain that you can only analyze the current canvas and provide suggested steps.
+
+Result:
+${serializedResult}`;
+}
+
 async function callChatCompletions({
     messages,
     apiKey,
@@ -255,8 +276,16 @@ async function agentNode(state, config) {
         runtimeApiKey: config.configurable?.apiKey,
     });
     const canvasContextSummary = config.configurable?.canvasContextSummary;
+    const canvasSkillResult = config.configurable?.canvasSkillResult;
 
     const systemMessage = new SystemMessage(CHAT_AGENT_SYSTEM_PROMPT);
+    const readOnlyBoundaryMessage = new SystemMessage(`Agent execution boundary:
+
+You may analyze the chat and any supplied read-only canvas context or skill result.
+You must not claim to execute canvas actions.
+You cannot create, delete, move, edit, save, or generate canvas content.
+You cannot modify nodes, workflows, tasks, provider settings, files, or external systems from this chat.
+For action requests, explain that you can only analyze the canvas and provide suggested steps.`);
     const canvasContextMessage = canvasContextSummary
         ? new SystemMessage(`Read-only canvas context for this turn:
 
@@ -269,9 +298,16 @@ If asked to act, explain that you can only analyze the current canvas and provid
 
 ${canvasContextSummary}`)
         : null;
-    const allMessages = canvasContextMessage
-        ? [systemMessage, canvasContextMessage, ...state.messages]
-        : [systemMessage, ...state.messages];
+    const canvasSkillMessage = canvasSkillResult
+        ? new SystemMessage(formatCanvasSkillResult(canvasSkillResult))
+        : null;
+    const allMessages = [
+        systemMessage,
+        readOnlyBoundaryMessage,
+        canvasContextMessage,
+        canvasSkillMessage,
+        ...state.messages,
+    ].filter(Boolean);
 
     const openAIMessages = toOpenAICompatibleMessages(allMessages);
 
