@@ -31,6 +31,7 @@ export const useNodeDragging = () => {
     const pendingNodeDragRef = useRef<PendingNodeDrag | null>(null);
     const nodeDragFrameRef = useRef<number | null>(null);
     const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [isPanningCanvas, setIsPanningCanvas] = useState<boolean>(false);
 
     const applyPendingNodeDrag = () => {
         const pendingDrag = pendingNodeDragRef.current;
@@ -157,6 +158,7 @@ export const useNodeDragging = () => {
      */
     const startPanning = (e: React.PointerEvent) => {
         isPanning.current = true;
+        setIsPanningCanvas(true);
         if (e.target instanceof HTMLElement) {
             e.target.setPointerCapture(e.pointerId);
         }
@@ -186,6 +188,7 @@ export const useNodeDragging = () => {
      */
     const endPanning = () => {
         isPanning.current = false;
+        setIsPanningCanvas(false);
     };
 
     /**
@@ -213,7 +216,7 @@ export const useNodeDragging = () => {
         updatePanning,
         endPanning,
         isDragging,
-        isPanning: isPanning.current,
+        isPanning: isPanningCanvas,
         releasePointerCapture
     };
 };

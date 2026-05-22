@@ -712,6 +712,7 @@ interface ConnectionsLayerProps {
     nodes: NodeData[];
     viewport: Viewport;
     isDraggingConnection: boolean;
+    disableInteractiveSensors?: boolean;
     connectionStart: { nodeId: string; handle: 'left' | 'right' } | null;
     tempConnectionEnd: { x: number; y: number } | null;
     selectedConnection: Connection | null;
@@ -732,6 +733,7 @@ const ConnectionItem: React.FC<{
     canvasTheme: 'dark' | 'light';
     densityMode: ConnectionDensityMode;
     isSelected: boolean;
+    disableInteractiveSensors?: boolean;
     onDisconnectConnection?: (parentId: string, childId: string) => void;
 }> = ({
     parent,
@@ -741,10 +743,12 @@ const ConnectionItem: React.FC<{
     canvasTheme,
     densityMode,
     isSelected,
+    disableInteractiveSensors = false,
     onDisconnectConnection
 }) => {
     const [isDeleteFocus, setIsDeleteFocus] = useState(false);
     const [isDeleteHot, setIsDeleteHot] = useState(false);
+    const wasInteractiveSensorsDisabledRef = useRef(disableInteractiveSensors);
     const effects = getConnectionEffects(densityMode);
     const {
         sensorPathRef,
@@ -795,6 +799,16 @@ const ConnectionItem: React.FC<{
     const visibleClassName = effects.transitionsEnabled
         ? 'connector-transition pointer-events-none'
         : 'pointer-events-none';
+
+    useEffect(() => {
+        const becameDisabled = disableInteractiveSensors && !wasInteractiveSensorsDisabledRef.current;
+        wasInteractiveSensorsDisabledRef.current = disableInteractiveSensors;
+        if (!becameDisabled) return;
+
+        setIsDeleteFocus(false);
+        setIsDeleteHot(false);
+        handleSensorLeave();
+    }, [disableInteractiveSensors]);
 
     return (
         <g className="pointer-events-none" style={{ pointerEvents: 'none' }}>
@@ -869,7 +883,10 @@ const ConnectionItem: React.FC<{
                         setIsDeleteHot(false);
                         handleSensorLeave();
                     }}
-                    style={{ pointerEvents: 'stroke', cursor: 'default' }}
+                    style={{
+                        pointerEvents: disableInteractiveSensors ? 'none' : 'stroke',
+                        cursor: 'default'
+                    }}
                 />
             )}
 
@@ -879,7 +896,7 @@ const ConnectionItem: React.FC<{
                     ref={buttonRootRef}
                     transform="translate(0 0)"
                     style={{
-                        pointerEvents: isControlActive ? 'all' : 'none',
+                        pointerEvents: isControlActive && !disableInteractiveSensors ? 'all' : 'none',
                         transform: 'translate(0px, 0px)',
                         transformOrigin: '0 0',
                         willChange: effects.movingPointEnabled ? 'transform' : undefined
@@ -995,6 +1012,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
     nodes,
     viewport,
     isDraggingConnection,
+    disableInteractiveSensors = false,
     connectionStart,
     tempConnectionEnd,
     selectedConnection,
@@ -1080,6 +1098,7 @@ export const ConnectionsLayer: React.FC<ConnectionsLayerProps> = ({
                         selectedConnection.parentId === parent.id &&
                         selectedConnection.childId === node.id
                     )}
+                    disableInteractiveSensors={disableInteractiveSensors}
                     onDisconnectConnection={onDisconnectConnection}
                 />
             );

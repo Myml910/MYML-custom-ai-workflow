@@ -48,6 +48,7 @@ interface CanvasNodeProps {
   // Mouse event callbacks for chat panel drag functionality
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  suppressHoverInteractions?: boolean;
   // Theme
   canvasTheme?: 'dark' | 'light';
   language?: Language;
@@ -87,6 +88,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   zoom,
   onMouseEnter,
   onMouseLeave,
+  suppressHoverInteractions = false,
   canvasTheme = 'dark',
   language = 'zh',
   onPostToX,
@@ -152,7 +154,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       : 'border-lime-500/35 bg-lime-50 text-lime-700 hover:bg-lime-100 hover:border-lime-500/60'
   }`;
   const mediaSeparatorClass = `h-4 w-px shrink-0 ${isDark ? 'bg-[var(--myml-border-default)]' : 'bg-neutral-200'}`;
-  const mediaToolbarOverlayClass = 'pointer-events-auto absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 translate-y-2 justify-center opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100';
+  const mediaToolbarOverlayClass = 'pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 translate-y-2 justify-center opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/nodecard:pointer-events-auto group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100 group-focus-within/nodecard:pointer-events-auto';
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -170,9 +172,14 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     transform: `scale(${localScale})`,
     transformOrigin: 'bottom center'
   };
-  const nodeStackIndex = selected || isNodeHovered || isHoveredForConnection ? 80 : 10;
+  const nodeStackIndex = selected || (!suppressHoverInteractions && isNodeHovered) || isHoveredForConnection ? 80 : 10;
+  const nodeGroupClass = suppressHoverInteractions ? '' : 'group/node';
+  const nodeCardGroupClass = suppressHoverInteractions ? '' : 'group/nodecard';
+  const nodePointerEventsClass = suppressHoverInteractions ? 'pointer-events-none' : 'pointer-events-auto';
 
   const handleNodeMouseEnter = () => {
+    if (suppressHoverInteractions) return;
+
     setIsNodeHovered(true);
     onMouseEnter?.();
   };
@@ -181,6 +188,12 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
     setIsNodeHovered(false);
     onMouseLeave?.();
   };
+
+  React.useEffect(() => {
+    if (suppressHoverInteractions && isNodeHovered) {
+      setIsNodeHovered(false);
+    }
+  }, [suppressHoverInteractions, isNodeHovered]);
 
   // ============================================================================
   // EFFECTS
@@ -290,7 +303,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   if (data.type === NodeType.IMAGE_EDITOR) {
     return (
       <div
-        className={`absolute flex items-center group/node touch-none pointer-events-auto`}
+        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
@@ -372,7 +385,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
   if (data.type === NodeType.CAMERA_ANGLE) {
     return (
       <div
-        className={`absolute flex items-center group/node touch-none pointer-events-auto`}
+        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
@@ -386,7 +399,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
         {/* Relative wrapper for the Card */}
-        <div className="relative z-0 overflow-visible group/nodecard">
+        <div className={`relative z-0 overflow-visible ${nodeCardGroupClass}`}>
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
             <div
@@ -634,7 +647,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
     return (
       <div
-        className={`absolute flex items-center group/node touch-none pointer-events-auto`}
+        className={`absolute flex items-center ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
         style={{
           transform: `translate(${data.x}px, ${data.y}px)`,
           transition: 'box-shadow 0.2s',
@@ -706,7 +719,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
 
   return (
     <div
-      className={`absolute group/node touch-none pointer-events-auto`}
+      className={`absolute ${nodeGroupClass} touch-none ${nodePointerEventsClass}`}
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,
         transition: 'box-shadow 0.2s',
@@ -721,7 +734,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       <NodeConnectors nodeId={data.id} onConnectorDown={onConnectorDown} forceVisible={isHoveredForConnection} canvasTheme={canvasTheme} language={language} />
 
       {/* Relative wrapper for the Image Card to allow absolute positioning of controls below it */}
-      <div className="relative z-0 overflow-visible group/nodecard">
+      <div className={`relative z-0 overflow-visible ${nodeCardGroupClass}`}>
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
           <div

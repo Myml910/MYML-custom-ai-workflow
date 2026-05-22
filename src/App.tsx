@@ -232,7 +232,8 @@ function CanvasApp({
     canvasRef,
     handleWheel: baseHandleWheel,
     handleZoomWheel,
-    handleSliderZoom
+    handleSliderZoom,
+    isWheelInteracting
   } = useCanvasNavigation();
 
   const {
@@ -280,6 +281,7 @@ function CanvasApp({
     updatePanning,
     endPanning,
     isDragging,
+    isPanning,
     releasePointerCapture
   } = useNodeDragging();
 
@@ -1321,6 +1323,14 @@ function CanvasApp({
     : isSpacePanMode
       ? 'cursor-grab'
       : 'cursor-grab active:cursor-grabbing';
+  const isViewportInteracting = isPanning || isWheelInteracting;
+  const disableConnectionSensors = isDragging || isPanning || isDraggingConnection || isWheelInteracting;
+
+  React.useEffect(() => {
+    if (isViewportInteracting) {
+      setCanvasHoveredNodeId(null);
+    }
+  }, [isViewportInteracting]);
 
   // Context menu handlers provided by useContextMenuHandlers hook
   // handleDoubleClick, handleGlobalContextMenu, handleAddNext, handleNodeContextMenu,
@@ -1330,6 +1340,7 @@ function CanvasApp({
   return (
     <div
       data-theme={canvasTheme}
+      data-viewport-interacting={isViewportInteracting ? 'true' : undefined}
       className={`w-screen h-screen ${canvasTheme === 'dark' ? 'bg-[#030303] text-white' : 'bg-neutral-50 text-neutral-900'} overflow-hidden select-none font-sans transition-colors duration-300`}
     >
       {!storyboardGenerator.isModalOpen && !isTikTokModalOpen && (
@@ -1521,6 +1532,7 @@ function CanvasApp({
               viewport={viewport}
               canvasTheme={canvasTheme}
               isDraggingConnection={isDraggingConnection}
+              disableInteractiveSensors={disableConnectionSensors}
               connectionStart={connectionStart}
               tempConnectionEnd={tempConnectionEnd}
               selectedConnection={selectedConnection}
@@ -1607,7 +1619,12 @@ function CanvasApp({
                 onRemoveBackground={handleRemoveBackground}
                 onChangeAngleGenerate={handleChangeAngleGenerate}
                 zoom={viewport.zoom}
-                onMouseEnter={() => setCanvasHoveredNodeId(node.id)}
+                suppressHoverInteractions={isViewportInteracting}
+                onMouseEnter={() => {
+                  if (!isViewportInteracting) {
+                    setCanvasHoveredNodeId(node.id);
+                  }
+                }}
                 onMouseLeave={() => setCanvasHoveredNodeId(null)}
                 canvasTheme={canvasTheme}
                 language={language}

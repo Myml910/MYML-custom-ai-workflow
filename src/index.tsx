@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/ui-tokens.css';
 import './styles/motion.css';
 
@@ -13,8 +14,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
