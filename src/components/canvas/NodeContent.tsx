@@ -58,13 +58,15 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     language = 'zh'
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Local state for text node textarea to prevent lag
     const [localPrompt, setLocalPrompt] = useState(data.prompt || '');
     const [isCancellingQueuedTask, setIsCancellingQueuedTask] = useState(false);
     const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastSentPromptRef = useRef<string | undefined>(data.prompt); // Track what we sent
+    const previousNodeIdRef = useRef(data.id);
+    const previousTextModeRef = useRef(data.textMode);
 
     // Helper: Check if node is image-type (includes local image model)
     const isImageType = data.type === NodeType.IMAGE || data.type === NodeType.LOCAL_IMAGE_MODEL;
@@ -99,14 +101,26 @@ export const NodeContent: React.FC<NodeContentProps> = ({
         return t(language, 'generating');
     })();
 
-    // Sync local state ONLY when data.prompt changes externally (not from our own update)
+    // Sync local state from node data, but never overwrite the active text draft while editing.
     useEffect(() => {
-        if (data.prompt !== lastSentPromptRef.current) {
-            const nextPrompt = data.prompt || '';
-            setLocalPrompt(prev => prev === nextPrompt ? prev : nextPrompt);
-            lastSentPromptRef.current = data.prompt;
+        const nodeChanged = previousNodeIdRef.current !== data.id;
+        const textModeChanged = previousTextModeRef.current !== data.textMode;
+
+        previousNodeIdRef.current = data.id;
+        previousTextModeRef.current = data.textMode;
+
+        const isFocusedTextEditor =
+            data.type === NodeType.TEXT &&
+            data.textMode === 'editing' &&
+            textareaRef.current === document.activeElement;
+
+        if (isFocusedTextEditor && !nodeChanged && !textModeChanged) {
+            return;
         }
-    }, [data.prompt]);
+
+        const nextPrompt = data.prompt || '';
+        setLocalPrompt(prev => prev === nextPrompt ? prev : nextPrompt);
+    }, [data.id, data.prompt, data.textMode, data.type]);
 
     useEffect(() => {
         setFailedImageUrl(prev => prev === null ? prev : null);
@@ -123,7 +137,6 @@ export const NodeContent: React.FC<NodeContentProps> = ({
 
     const handleTextChange = (value: string) => {
         setLocalPrompt(value); // Update local state immediately
-        lastSentPromptRef.current = value; // Track that we're about to send this
 
         // Debounce parent update
         if (updateTimeoutRef.current) {
@@ -262,6 +275,7 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         /* Editing Mode - Text Area */
                         <div className="p-4">
                             <textarea
+                                ref={textareaRef}
                                 value={localPrompt}
                                 onChange={(e) => handleTextChange(e.target.value)}
                                 onPointerDown={(e) => e.stopPropagation()}
