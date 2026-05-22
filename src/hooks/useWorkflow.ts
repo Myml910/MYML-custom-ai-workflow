@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, Dispatch, SetStateAction } from 'react';
-import { NodeData, NodeGroup, Viewport } from '../types';
+import { NodeData, NodeGroup, NodeType, Viewport } from '../types';
 import { warnIfLargeWorkflowPayload } from '../utils/workflowSnapshot';
 
 interface WorkflowData {
@@ -29,6 +29,21 @@ interface UseWorkflowOptions {
     setEditingTitleValue: (value: string) => void;
     onPanelOpen?: () => void; // Called when workflow panel opens
 }
+
+const normalizeLoadedWorkflowNodes = (workflowNodes: NodeData[] | undefined): NodeData[] => {
+    if (!Array.isArray(workflowNodes)) return [];
+
+    return workflowNodes.map(node => {
+        const isTextNode = node.type === NodeType.TEXT || Boolean(node.textMode);
+        if (!isTextNode || node.textMode !== 'editing') return node;
+
+        return {
+            ...node,
+            // Loaded workflows should open in browse mode. Users can still enter editing explicitly.
+            textMode: 'menu'
+        };
+    });
+};
 
 export const useWorkflow = ({
     nodes,
@@ -97,6 +112,7 @@ export const useWorkflow = ({
             const response = await fetch(endpoint, { credentials: 'include' });
             if (response.ok) {
                 const workflow = await response.json();
+                const loadedNodes = normalizeLoadedWorkflowNodes(workflow.nodes);
 
                 // For public workflows, don't set the workflowId so it saves as a new workflow
                 if (!isPublic) {
@@ -107,7 +123,7 @@ export const useWorkflow = ({
 
                 setCanvasTitle(workflow.title || 'Untitled');
                 setEditingTitleValue(workflow.title || 'Untitled');
-                setNodes(workflow.nodes || []);
+                setNodes(loadedNodes);
                 setGroups(workflow.groups || []); // Restore groups
                 // Reset selection
                 setSelectedNodeIds([]);
@@ -115,7 +131,7 @@ export const useWorkflow = ({
                 console.log(isPublic ? 'Public workflow loaded:' : 'Workflow loaded:', workflowId);
                 // Return info for tracking
                 return {
-                    nodeCount: (workflow.nodes || []).length,
+                    nodeCount: loadedNodes.length,
                     title: workflow.title || 'Untitled'
                 };
             }
