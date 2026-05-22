@@ -154,7 +154,17 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       : 'border-lime-500/35 bg-lime-50 text-lime-700 hover:bg-lime-100 hover:border-lime-500/60'
   }`;
   const mediaSeparatorClass = `h-4 w-px shrink-0 ${isDark ? 'bg-[var(--myml-border-default)]' : 'bg-neutral-200'}`;
-  const mediaToolbarOverlayClass = 'pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 translate-y-2 justify-center opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/nodecard:pointer-events-auto group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100 group-focus-within/nodecard:pointer-events-auto';
+  const mediaToolbarActiveClass = selected && !suppressHoverInteractions
+    ? 'pointer-events-auto translate-y-0 opacity-100'
+    : suppressHoverInteractions
+      ? 'pointer-events-none translate-y-2 opacity-0'
+      : 'pointer-events-none translate-y-2 opacity-0 group-hover/nodecard:pointer-events-auto group-hover/nodecard:translate-y-0 group-hover/nodecard:opacity-100 group-focus-within/nodecard:pointer-events-auto group-focus-within/nodecard:translate-y-0 group-focus-within/nodecard:opacity-100';
+  const mediaToolbarBridgeClass = suppressHoverInteractions
+    ? 'pointer-events-none absolute bottom-full left-1/2 z-[199] h-3 w-[calc(100%+48px)] -translate-x-1/2 bg-transparent'
+    : selected
+      ? 'pointer-events-auto absolute bottom-full left-1/2 z-[199] h-3 w-[calc(100%+48px)] -translate-x-1/2 bg-transparent'
+      : 'pointer-events-none absolute bottom-full left-1/2 z-[199] h-3 w-[calc(100%+48px)] -translate-x-1/2 bg-transparent group-hover/nodecard:pointer-events-auto group-focus-within/nodecard:pointer-events-auto';
+  const mediaToolbarOverlayClass = `absolute bottom-[calc(100%+8px)] left-1/2 z-[200] flex -translate-x-1/2 justify-center transition-[opacity,transform] duration-150 ease-out ${mediaToolbarActiveClass}`;
 
   const normalizeAngleSettings = (settings?: NodeData['angleSettings'] & { scale?: number }) => ({
     rotation: settings?.rotation ?? 0,
@@ -402,13 +412,15 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
         <div className={`relative z-0 overflow-visible ${nodeCardGroupClass}`}>
           {/* Unified Toolbar - Appears above the card on hover */}
           {data.resultUrl && (
-            <div
-              className={mediaToolbarOverlayClass}
-            >
+            <>
+              <div className={mediaToolbarBridgeClass} aria-hidden="true" />
               <div
-                style={mediaToolbarScaleStyle}
+                className={mediaToolbarOverlayClass}
               >
-                <div className={mediaToolbarClass}>
+                <div
+                  style={mediaToolbarScaleStyle}
+                >
+                  <div className={mediaToolbarClass}>
                 {/* Change Angle Button - Re-enable tweaking */}
                 <button
                   onClick={() => onUpdate(data.id, {
@@ -549,9 +561,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                     <circle cx="15" cy="19" r="1" fill="currentColor" />
                   </svg>
                 </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Node Card */}
@@ -737,13 +750,15 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
       <div className={`relative z-0 overflow-visible ${nodeCardGroupClass}`}>
         {/* Unified Toolbar - Appears above the card for Image nodes on hover */}
         {data.type === NodeType.IMAGE && isSuccess && data.resultUrl && (
-          <div
-            className={mediaToolbarOverlayClass}
-          >
+          <>
+            <div className={mediaToolbarBridgeClass} aria-hidden="true" />
             <div
-              style={mediaToolbarScaleStyle}
+              className={mediaToolbarOverlayClass}
             >
-              <div className={mediaToolbarClass}>
+              <div
+                style={mediaToolbarScaleStyle}
+              >
+                <div className={mediaToolbarClass}>
               {/* Change Angle and Upload buttons - Hidden for storyboard-generated scenes */}
               {!(data.prompt && data.prompt.startsWith('Extract panel #')) && (
                 <>
@@ -935,20 +950,23 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <circle cx="15" cy="19" r="1" fill="currentColor" />
                 </svg>
               </div>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Video Toolbar - Appears above the card for Video nodes on hover */}
         {data.type === NodeType.VIDEO && isSuccess && data.resultUrl && (
-          <div
-            className={mediaToolbarOverlayClass}
-          >
+          <>
+            <div className={mediaToolbarBridgeClass} aria-hidden="true" />
             <div
-              style={mediaToolbarScaleStyle}
+              className={mediaToolbarOverlayClass}
             >
-              <div className={mediaToolbarClass}>
+              <div
+                style={mediaToolbarScaleStyle}
+              >
+                <div className={mediaToolbarClass}>
               {/* Expand Button */}
               <button
                 onClick={() => onExpand?.(data.resultUrl!)}
@@ -1056,9 +1074,10 @@ export const CanvasNode: React.FC<CanvasNodeProps> = ({
                   <circle cx="15" cy="19" r="1" fill="currentColor" />
                 </svg>
               </div>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
