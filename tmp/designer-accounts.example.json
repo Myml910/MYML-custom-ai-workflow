@@ -1,0 +1,41 @@
+{
+  "designers": [
+    {
+      "username": "designer01@example.test",
+      "password": "demo-only-change-me-01",
+      "role": "designer",
+      "status": "active",
+      "credentials": [
+        {
+          "provider": "t8",
+          "apiKey": "fake-t8-key-designer01-0001",
+          "label": "primary",
+          "status": "active",
+          "priority": 1
+        },
+        {
+          "provider": "atlas",
+          "apiKey": "fake-atlas-key-designer01-0001",
+          "label": "primary",
+          "status": "active",
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "username": "designer02@example.test",
+      "password": "demo-only-change-me-02",
+      "role": "designer",
+      "status": "active",
+      "credentials": [
+        {
+          "provider": "t8",
+          "apiKey": "fake-t8-key-designer02-0002",
+          "label": "primary",
+          "status": "active",
+          "priority": 1
+        }
+      ]
+    }
+  ]
+}

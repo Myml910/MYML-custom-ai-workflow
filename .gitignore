@@ -62,3 +62,7 @@ MYML-Matting-Engine/
 
 package-lock.json
 .agents/
+
+# Local designer credential seed inputs may contain plaintext passwords/API keys.
+tmp/designer-accounts*.json
+!tmp/designer-accounts.example.json
