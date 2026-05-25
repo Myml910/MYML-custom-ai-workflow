@@ -155,6 +155,12 @@ export async function createTask(input) {
         capability: input.capability || null,
         referenceImages: input.referenceImages || null
     };
+    const credentialContext = {
+        teamId: input.teamId || null,
+        credentialId: input.credentialId || null,
+        credentialSource: input.credentialSource || 'env',
+        apiKeyLast4: input.apiKeyLast4 || null
+    };
 
     try {
         await client.query('BEGIN');
@@ -164,6 +170,8 @@ export async function createTask(input) {
                 id,
                 user_id,
                 username,
+                team_id,
+                credential_id,
                 workflow_id,
                 node_id,
                 task_type,
@@ -175,12 +183,14 @@ export async function createTask(input) {
                 progress,
                 max_attempts
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING *
         `, [
             taskId,
             user.id,
             user.username || null,
+            credentialContext.teamId,
+            credentialContext.credentialId,
             input.workflowId || null,
             input.nodeId,
             input.taskType || 'image_generation',
@@ -206,7 +216,11 @@ export async function createTask(input) {
                 workflowId: input.workflowId || null,
                 model: input.imageModel,
                 provider: input.provider || 'apimart',
-                maxAttempts
+                maxAttempts,
+                teamId: credentialContext.teamId,
+                credentialId: credentialContext.credentialId,
+                credentialSource: credentialContext.credentialSource,
+                apiKeyLast4: credentialContext.apiKeyLast4
             }
         ]);
 

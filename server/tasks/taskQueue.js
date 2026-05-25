@@ -5,6 +5,7 @@ import { serializeTask } from '../db/tasks.js';
 const ACTIVE_TASK_STATUSES = ['running', 'polling'];
 const DEFAULT_SYSTEM_MAX_RUNNING_IMAGE_TASKS = 8;
 const DEFAULT_USER_MAX_RUNNING_IMAGE_TASKS = 2;
+const DEFAULT_CREDENTIAL_MAX_RUNNING_IMAGE_TASKS = 4;
 const DEFAULT_APIMART_MAX_RUNNING_IMAGE_TASKS = 4;
 const DEFAULT_DATALER_MAX_RUNNING_IMAGE_TASKS = 1;
 const DEFAULT_PIKACHU_MAX_RUNNING_IMAGE_TASKS = 1;
@@ -29,6 +30,10 @@ export function getImageTaskConcurrencyOptions(env = process.env) {
             env.USER_MAX_RUNNING_IMAGE_TASKS,
             DEFAULT_USER_MAX_RUNNING_IMAGE_TASKS
         ),
+        credentialMaxRunningImageTasks: parsePositiveInteger(
+            env.CREDENTIAL_MAX_RUNNING_IMAGE_TASKS,
+            DEFAULT_CREDENTIAL_MAX_RUNNING_IMAGE_TASKS
+        ),
         apimartMaxRunningImageTasks: parsePositiveInteger(
             env.PROVIDER_MAX_RUNNING_APIMART || env.APIMART_MAX_RUNNING_IMAGE_TASKS,
             DEFAULT_APIMART_MAX_RUNNING_IMAGE_TASKS
@@ -44,6 +49,10 @@ export function getImageTaskConcurrencyOptions(env = process.env) {
         atlasMaxRunningImageTasks: parsePositiveInteger(
             env.PROVIDER_MAX_RUNNING_ATLAS,
             DEFAULT_ATLAS_MAX_RUNNING_IMAGE_TASKS
+        ),
+        t8MaxRunningImageTasks: parsePositiveInteger(
+            env.PROVIDER_MAX_RUNNING_T8 || env.T8_MAX_RUNNING_IMAGE_TASKS || env.PROVIDER_MAX_RUNNING_IMAGE_TASKS,
+            DEFAULT_PROVIDER_MAX_RUNNING_IMAGE_TASKS
         ),
         providerDefaultMaxRunningImageTasks: parsePositiveInteger(
             env.PROVIDER_MAX_RUNNING_IMAGE_TASKS,
@@ -63,6 +72,7 @@ function getProviderMaxRunning(provider, options) {
     if (provider === 'dataler') return options.datalerMaxRunningImageTasks;
     if (provider === 'pikachu') return options.pikachuMaxRunningImageTasks;
     if (provider === 'atlas') return options.atlasMaxRunningImageTasks;
+    if (provider === 't8') return options.t8MaxRunningImageTasks;
     return options.providerDefaultMaxRunningImageTasks;
 }
 
@@ -87,6 +97,13 @@ async function hasCapacityForTask(client, task, options) {
     const userCount = await countActiveTasks(client, 'AND user_id = $2', [task.user_id]);
     if (userCount >= options.userMaxRunningImageTasks) {
         return false;
+    }
+
+    if (task.credential_id) {
+        const credentialCount = await countActiveTasks(client, 'AND credential_id = $2', [task.credential_id]);
+        if (credentialCount >= options.credentialMaxRunningImageTasks) {
+            return false;
+        }
     }
 
     const providerCount = await countActiveTasks(client, 'AND provider = $2', [task.provider]);
@@ -157,6 +174,7 @@ export async function claimNextImageTask(options = {}) {
                     workerId,
                     provider: candidate.provider,
                     model: candidate.model,
+                    credentialId: candidate.credential_id || null,
                     attemptCount: result.rows[0]?.attempt_count,
                     leaseExpiresAt: result.rows[0]?.lease_expires_at
                 }

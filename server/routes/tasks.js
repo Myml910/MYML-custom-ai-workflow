@@ -1,5 +1,10 @@
 import express from 'express';
 import { cancelTask, createTask, getLatestTaskByNodeId, getTaskById } from '../db/tasks.js';
+import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
+import {
+    PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
+    resolveProviderRuntimeConfig
+} from '../services/ai/credentialResolver.js';
 import { getImageProviders, getSupportedImageModelIds } from '../services/ai/modelRegistry.js';
 
 const router = express.Router();
@@ -19,6 +24,35 @@ function normalizeImageQuality(quality) {
     const normalized = normalizeString(quality).toLowerCase();
     if (!normalized) return null;
     return SUPPORTED_IMAGE_QUALITIES.has(normalized) ? normalized : undefined;
+}
+
+function getCredentialErrorResponse(error) {
+    if (error?.type !== PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE) return null;
+
+    return {
+        status: 403,
+        body: {
+            error: error.message || 'Provider credential is required for this account.',
+            type: error.type,
+            provider: error.provider || null,
+            teamId: error.teamId || null,
+            credentialId: error.credentialId || null,
+            reason: error.reason || null
+        }
+    };
+}
+
+async function resolveImageTaskCredentialContext(req, providerConfig) {
+    const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
+    const runtime = await resolveProviderRuntimeConfig({
+        userId: req.user.id,
+        username: req.user.username,
+        provider: providerConfig.provider,
+        baseConfig: aiProviderConfig?.[providerConfig.provider] || {},
+        credentialId: null
+    });
+
+    return runtime.credentialContext || null;
 }
 
 router.post('/image', async (req, res) => {
@@ -68,6 +102,17 @@ router.post('/image', async (req, res) => {
             });
         }
 
+        let credentialContext = null;
+        try {
+            credentialContext = await resolveImageTaskCredentialContext(req, providerConfig);
+        } catch (error) {
+            const credentialError = getCredentialErrorResponse(error);
+            if (credentialError) {
+                return res.status(credentialError.status).json(credentialError.body);
+            }
+            throw error;
+        }
+
         const task = await createTask({
             user: req.user,
             nodeId,
@@ -82,7 +127,11 @@ router.post('/image', async (req, res) => {
             capability,
             referenceImages,
             taskType: 'image_generation',
-            provider: providerConfig.provider
+            provider: providerConfig.provider,
+            teamId: credentialContext?.teamId || null,
+            credentialId: credentialContext?.credentialId || null,
+            credentialSource: credentialContext?.source || 'env',
+            apiKeyLast4: credentialContext?.apiKeyLast4 || null
         });
 
         return res.status(201).json({
