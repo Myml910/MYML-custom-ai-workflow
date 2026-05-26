@@ -1891,6 +1891,7 @@ function CanvasApp({
 
           const startX = sourceNode.x + 360; // Source width + gap
           const startY = sourceNode.y;
+          const generationStartTime = Date.now();
 
           const newNodes: NodeData[] = [];
 
@@ -1907,6 +1908,10 @@ function CanvasApp({
               y: startY + startYOffset + (i * yStep),
               prompt: prompt,
               status: NodeStatus.LOADING,
+              generationStatus: 'queued',
+              progress: 0,
+              generationStartTime,
+              errorMessage: undefined,
               model: 'Banana Pro',
               imageModel: imageModel,
               aspectRatio: aspectRatio,
@@ -1919,6 +1924,15 @@ function CanvasApp({
           // Add new nodes and edges immediately
           // Note: State updates might be batched
           setNodes(prev => [...prev, ...newNodes]);
+          setSelectedNodeIds(newNodes.map(node => node.id));
+          if (newNodes.length > 0) {
+            const firstNode = newNodes[0];
+            setViewport(prev => ({
+              ...prev,
+              x: Math.round(window.innerWidth * 0.45 - (firstNode.x + 170) * prev.zoom),
+              y: Math.round(window.innerHeight * 0.5 - (firstNode.y + 150) * prev.zoom)
+            }));
+          }
 
           // Prefer the editor's current composite image, then fall back to saved/current node image.
           const editorReferenceUrl =
@@ -2013,6 +2027,7 @@ function CanvasApp({
               imageEditorGenerationAbortRef.current = null;
             }
           });
+          handleCloseImageEditor();
         }}
         canvasTheme={canvasTheme}
         language={language}
