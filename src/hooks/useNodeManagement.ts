@@ -7,6 +7,71 @@
 
 import { useState } from 'react';
 import { NodeData, NodeType, NodeStatus, Viewport } from '../types';
+import { getEffectiveImageReference } from '../utils/imageReferences';
+
+const IMAGE_PROMPT_REVERSE_LIMIT = 6;
+const TEXT_NODE_VERTICAL_GAP = 240;
+const NODE_WIDTH = 340;
+const NODE_GAP = 100;
+const IMAGE_PROMPT_REVERSE_TEMPLATE_VERSION = 'image-prompt-description-v1' as const;
+const IMAGE_PROMPT_REVERSE_READY_TEXT = '\u5df2\u5173\u8054\u53c2\u8003\u56fe\uff0c\u70b9\u51fb\u8fd0\u884c\u751f\u6210\u56fe\u7247\u63d0\u793a\u8bcd\u63cf\u8ff0\u3002';
+
+type ImageSourceRecord = Record<string, unknown>;
+
+function isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
+function collectImageUrlCandidates(value: unknown, addUrl: (url: string) => void) {
+    if (!value) return;
+
+    if (isNonEmptyString(value)) {
+        addUrl(value);
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach(item => collectImageUrlCandidates(item, addUrl));
+        return;
+    }
+
+    if (typeof value === 'object') {
+        const record = value as ImageSourceRecord;
+        [
+            record.url,
+            record.imageUrl,
+            record.image_url,
+            record.resultUrl,
+            record.result_url,
+            record.src
+        ].forEach(candidate => collectImageUrlCandidates(candidate, addUrl));
+    }
+}
+
+function collectImagePromptReverseSources(sourceNode: NodeData, nodesById: Map<string, NodeData>): string[] {
+    const urls: string[] = [];
+    const seen = new Set<string>();
+    const addUrl = (url: string) => {
+        const trimmed = url.trim();
+        if (!trimmed || seen.has(trimmed) || urls.length >= IMAGE_PROMPT_REVERSE_LIMIT) return;
+        seen.add(trimmed);
+        urls.push(trimmed);
+    };
+
+    const effectiveReference = getEffectiveImageReference(sourceNode, nodesById);
+    collectImageUrlCandidates(effectiveReference?.url, addUrl);
+    collectImageUrlCandidates(sourceNode.resultUrl, addUrl);
+    collectImageUrlCandidates(sourceNode.lastFrame, addUrl);
+
+    const extensibleSourceNode = sourceNode as NodeData & ImageSourceRecord;
+    collectImageUrlCandidates(extensibleSourceNode.resultUrls, addUrl);
+    collectImageUrlCandidates(extensibleSourceNode.imageUrls, addUrl);
+    collectImageUrlCandidates(extensibleSourceNode.images, addUrl);
+    collectImageUrlCandidates(extensibleSourceNode.outputs, addUrl);
+    collectImageUrlCandidates(extensibleSourceNode.output, addUrl);
+
+    return urls;
+}
 
 export const useNodeManagement = () => {
     // ============================================================================
@@ -114,9 +179,42 @@ export const useNodeManagement = () => {
             const sourceNode = nodes.find(n => n.id === contextMenu.sourceNodeId);
             if (sourceNode) {
                 const direction = contextMenu.connectorSide || 'right';
+
+                if (type === NodeType.TEXT && direction === 'right') {
+                    const nodesById = new Map(nodes.map(node => [node.id, node]));
+                    const sourceImageUrls = collectImagePromptReverseSources(sourceNode, nodesById);
+
+                    if (sourceImageUrls.length > 0) {
+                        const textNodes = sourceImageUrls.map((imageUrl, index): NodeData => ({
+                            id: crypto.randomUUID(),
+                            type: NodeType.TEXT,
+                            x: sourceNode.x + NODE_WIDTH + NODE_GAP,
+                            y: sourceNode.y + index * TEXT_NODE_VERTICAL_GAP,
+                            prompt: IMAGE_PROMPT_REVERSE_READY_TEXT,
+                            status: NodeStatus.IDLE,
+                            model: 'Banana Pro',
+                            aspectRatio: 'Auto',
+                            resolution: 'Auto',
+                            parentIds: [contextMenu.sourceNodeId],
+                            textMode: 'menu',
+                            textSource: {
+                                type: 'image-prompt-reverse',
+                                parentNodeId: contextMenu.sourceNodeId,
+                                sourceImageUrl: imageUrl,
+                                sourceImageIndex: index,
+                                promptTemplateVersion: IMAGE_PROMPT_REVERSE_TEMPLATE_VERSION,
+                                status: 'idle'
+                            }
+                        }));
+
+                        setNodes(prev => [...prev, ...textNodes]);
+                        setSelectedNodeIds(textNodes.map(node => node.id));
+                        onCloseMenu();
+                        return;
+                    }
+                }
+
                 const newNodeId = crypto.randomUUID();
-                const GAP = 100;
-                const NODE_WIDTH = 340;
 
                 let newNode: NodeData;
 
@@ -125,7 +223,7 @@ export const useNodeManagement = () => {
                     newNode = {
                         id: newNodeId,
                         type,
-                        x: sourceNode.x + NODE_WIDTH + GAP,
+                        x: sourceNode.x + NODE_WIDTH + NODE_GAP,
                         y: sourceNode.y,
                         prompt: '',
                         status: NodeStatus.IDLE,
@@ -139,7 +237,7 @@ export const useNodeManagement = () => {
                     newNode = {
                         id: newNodeId,
                         type,
-                        x: sourceNode.x - NODE_WIDTH - GAP,
+                        x: sourceNode.x - NODE_WIDTH - NODE_GAP,
                         y: sourceNode.y,
                         prompt: '',
                         status: NodeStatus.IDLE,

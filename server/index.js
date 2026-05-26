@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
+import { analyzeImagePromptReverse } from './agent/imagePromptReverse.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import { getDatabaseLabel, getDb } from './db/index.js';
@@ -1663,6 +1664,34 @@ app.post('/api/chat', async (req, res) => {
     } catch (error) {
         console.error("Chat API Error:", error);
         sendAgentError(res, error);
+    }
+});
+
+app.post('/api/agent/image-prompt-reverse', async (req, res) => {
+    try {
+        const { imageUrl, sourceNodeId, sourceImageIndex } = req.body || {};
+        const result = await analyzeImagePromptReverse({
+            imageUrl,
+            user: req.user,
+            sourceNodeId,
+            sourceImageIndex
+        });
+
+        res.json({
+            success: true,
+            text: result.text,
+            model: result.model,
+            promptTemplateVersion: result.promptTemplateVersion
+        });
+    } catch (error) {
+        console.error("Image prompt reverse error:", error?.message || error);
+        const status = Number.isInteger(error?.status) ? error.status : 502;
+        res.status(status).json({
+            success: false,
+            message: '图片分析失败，请重试',
+            error: error?.message || 'Image prompt reverse failed',
+            attemptedModels: Array.isArray(error?.attemptedModels) ? error.attemptedModels : []
+        });
     }
 });
 

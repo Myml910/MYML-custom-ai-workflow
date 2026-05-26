@@ -46,7 +46,7 @@ export const translations = {
 
     // Add nodes menu
     textGeneration: 'Text Generation',
-    textGenerationDesc: 'Script, ad copy, brand text',
+    textGenerationDesc: 'Prompts, image descriptions, copy',
     textNode: 'Text',
     imageGeneration: 'Image Generation',
     imageNode: 'Image',
@@ -491,7 +491,7 @@ export const translations = {
 
     // Add nodes menu
     textGeneration: '文本生成',
-    textGenerationDesc: '脚本、广告文案、品牌文本',
+    textGenerationDesc: '提示词、图片描述、文案',
     textNode: '文本',
     imageGeneration: '图像生成',
     imageNode: '图像',

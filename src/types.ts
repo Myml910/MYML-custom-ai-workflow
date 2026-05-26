@@ -42,6 +42,16 @@ export interface NodeData {
   // Text node specific
   textMode?: 'menu' | 'editing'; // For Text nodes: current mode
   linkedVideoNodeId?: string; // For Text nodes: linked video node for prompt sync
+  textSource?: {
+    type: 'image-prompt-reverse';
+    parentNodeId: string;
+    sourceImageUrl: string;
+    sourceImageIndex: number;
+    promptTemplateVersion: 'image-prompt-description-v1';
+    generatedAt?: string;
+    status?: 'idle' | 'loading' | 'success' | 'error';
+    errorMessage?: string;
+  };
 
   // Video node specific
   videoMode?: 'standard' | 'frame-to-frame' | 'motion-control'; // Video generation mode

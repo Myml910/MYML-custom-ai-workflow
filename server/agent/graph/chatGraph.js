@@ -107,6 +107,7 @@ async function callChatCompletions({
     timeoutMs,
     temperature = 0.7,
     maxTokens = 2048,
+    includeProviderParams = false,
 }) {
     if (!apiKey) {
         throw createAgentChatError(
@@ -124,10 +125,12 @@ async function callChatCompletions({
         stream: false,
     };
 
-    if (provider !== "t8") {
+    if (provider !== "t8" || includeProviderParams) {
         body.temperature = temperature;
         body.max_tokens = maxTokens;
+    }
 
+    if (provider !== "t8") {
         // Your third-party gateway says reasoning_effort supports:
         // none / low / medium / high.
         // If it is set to none, do not send it.
@@ -151,6 +154,7 @@ async function callChatCompletions({
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "Accept": "application/json",
             },
             body: JSON.stringify(body),
             signal: controller.signal,
@@ -239,6 +243,7 @@ async function callTextModel({
     chatConfig,
     temperature = 0.7,
     maxTokens = 2048,
+    includeProviderParams = false,
 }) {
     if (chatConfig.provider === "apimart") {
         console.log("[ChatGraph] Calling APIMart /responses");
@@ -264,6 +269,53 @@ async function callTextModel({
         timeoutMs: chatConfig.timeoutMs,
         temperature,
         maxTokens,
+        includeProviderParams,
+    });
+}
+
+export async function callOneShotAgentChat({
+    messages,
+    runtimeApiKey,
+    provider,
+    model,
+    baseUrl,
+    apiKey,
+    timeoutMs,
+    temperature = 0.2,
+    maxTokens = 2048,
+    includeProviderParams = false,
+} = {}) {
+    const hasOverrides = Boolean(provider || model || baseUrl || apiKey || timeoutMs);
+    let chatConfig;
+
+    if (hasOverrides) {
+        try {
+            chatConfig = getAgentChatConfig({ runtimeApiKey });
+        } catch (error) {
+            if (!apiKey) {
+                throw error;
+            }
+            chatConfig = {};
+        }
+
+        chatConfig = {
+            ...chatConfig,
+            provider: provider || chatConfig.provider || 't8',
+            model: model || chatConfig.model,
+            baseUrl: baseUrl || chatConfig.baseUrl,
+            apiKey: apiKey || chatConfig.apiKey,
+            timeoutMs: timeoutMs || chatConfig.timeoutMs,
+        };
+    } else {
+        chatConfig = getAgentChatConfig({ runtimeApiKey });
+    }
+
+    return await callTextModel({
+        messages,
+        chatConfig,
+        temperature,
+        maxTokens,
+        includeProviderParams,
     });
 }
 

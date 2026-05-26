@@ -237,6 +237,14 @@ AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
 AGENT_CHAT_MODEL=gpt-5.4
 AGENT_CHAT_TIMEOUT_MS=60000
 
+IMAGE_PROMPT_REVERSE_PROVIDER=t8
+IMAGE_PROMPT_REVERSE_MODEL=gemini-3.1-pro-preview
+IMAGE_PROMPT_REVERSE_FALLBACK_MODELS=gpt-5.4
+IMAGE_PROMPT_REVERSE_BASE_URL=https://ai.t8star.org/v1
+IMAGE_PROMPT_REVERSE_TIMEOUT_MS=180000
+IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600
+# IMAGE_PROMPT_REVERSE_API_KEY=
+
 TASK_WORKER_ENABLED=true
 TASK_WORKER_CONCURRENCY=1
 SYSTEM_MAX_RUNNING_IMAGE_TASKS=1
@@ -272,6 +280,28 @@ AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
 AGENT_CHAT_MODEL=gpt-5.4
 AGENT_CHAT_TIMEOUT_MS=60000
 ```
+
+### Image Prompt Reverse Text Nodes
+
+The right-bottom Agent chat uses `AGENT_CHAT_*`. Image-to-Text prompt reverse nodes use `IMAGE_PROMPT_REVERSE_*`, so they can run a separate multimodal model without changing Agent chat behavior.
+
+Recommended T8 multimodal route for image prompt reverse:
+
+```env
+IMAGE_PROMPT_REVERSE_PROVIDER=t8
+IMAGE_PROMPT_REVERSE_MODEL=gemini-3.1-pro-preview
+IMAGE_PROMPT_REVERSE_FALLBACK_MODELS=gpt-5.4
+IMAGE_PROMPT_REVERSE_BASE_URL=https://ai.t8star.org/v1
+IMAGE_PROMPT_REVERSE_TIMEOUT_MS=180000
+IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600
+# IMAGE_PROMPT_REVERSE_API_KEY=
+```
+
+Image prompt reverse can take longer because it sends image input to a multimodal model; set `IMAGE_PROMPT_REVERSE_TIMEOUT_MS` to `120000` to `180000` for test deployments. Keep `IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600` unless a specific workflow needs longer descriptions. If `IMAGE_PROMPT_REVERSE_API_KEY` is unset, the server falls back to `AGENT_CHAT_API_KEY`. Use a model that supports `image_url` inputs; the right-bottom Agent may still use a different text model such as `gpt-5.4`.
+
+Do not use `gemini-3.1-flash-lite-preview-thinking-medium` for image prompt reverse. T8/upstream can map it to the unavailable `models/gemini-3.1-flash-lite-preview` model, so `gemini-3.1-pro-preview` is the recommended default.
+
+If T8 returns a temporary capacity error such as high demand, overloaded, rate limit, temporarily unavailable, busy, capacity, or timeout, the image prompt reverse endpoint can try `IMAGE_PROMPT_REVERSE_FALLBACK_MODELS` in order. The recommended first fallback is `gpt-5.4`. This fallback only affects image prompt reverse Text nodes; it does not change the right-bottom Agent chat model or image generation.
 
 Fallback chain when `AGENT_CHAT_PROVIDER` is unset:
 

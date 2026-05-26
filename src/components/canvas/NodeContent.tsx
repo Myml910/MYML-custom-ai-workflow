@@ -6,10 +6,11 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Loader2, Maximize2, ImageIcon as ImageIcon, Film, Upload, Pencil, Video, GripVertical, Download, Expand, Shrink, HardDrive } from 'lucide-react';
+import { Loader2, Maximize2, ImageIcon as ImageIcon, Film, Upload, Pencil, Video, GripVertical, Download, Expand, Shrink, HardDrive, Copy, Check } from 'lucide-react';
 import { NodeData, NodeStatus, NodeType } from '../../types';
 import { Language, t } from '../../i18n/translations';
 import { cancelTask } from '../../services/generationService';
+import { analyzeImagePromptReverse } from '../../services/imagePromptReverseService';
 
 interface NodeContentProps {
     data: NodeData;
@@ -64,7 +65,10 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const [localPrompt, setLocalPrompt] = useState(data.prompt || '');
     const [isCancellingQueuedTask, setIsCancellingQueuedTask] = useState(false);
     const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+    const [isRunningImagePromptReverse, setIsRunningImagePromptReverse] = useState(false);
+    const [hasCopiedPrompt, setHasCopiedPrompt] = useState(false);
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const copyFeedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const previousNodeIdRef = useRef(data.id);
     const previousTextModeRef = useRef(data.textMode);
 
@@ -77,6 +81,39 @@ export const NodeContent: React.FC<NodeContentProps> = ({
     const isActiveTask = data.generationStatus === 'queued' ||
         data.generationStatus === 'running' ||
         data.generationStatus === 'polling';
+    const isImagePromptReverseText = data.type === NodeType.TEXT && data.textSource?.type === 'image-prompt-reverse';
+    const copyTextLabel = hasCopiedPrompt
+        ? (language === 'zh' ? '\u5df2\u590d\u5236' : 'Copied')
+        : (language === 'zh' ? '\u590d\u5236' : 'Copy');
+    const copyTextDisabledLabel = language === 'zh' ? '\u6682\u65e0\u5185\u5bb9\u53ef\u590d\u5236' : 'No content to copy';
+    const textPromptToCopy = data.textMode === 'editing' ? localPrompt : (data.prompt || '');
+    const canCopyTextPrompt = textPromptToCopy.trim().length > 0;
+    const imagePromptReverseStatus = data.textSource?.status ||
+        (data.status === NodeStatus.LOADING
+            ? 'loading'
+            : data.status === NodeStatus.ERROR
+                ? 'error'
+                : data.status === NodeStatus.SUCCESS
+                    ? 'success'
+                    : 'idle');
+    const isImagePromptReverseLoading = isRunningImagePromptReverse || imagePromptReverseStatus === 'loading';
+    const imagePromptReverseTitle = language === 'zh'
+        ? '\u63d0\u793a\u8bcd\u53cd\u63a8'
+        : 'Image prompt reverse';
+    const imagePromptReverseSubtitle = language === 'zh'
+        ? '\u56fe\u7247\u63cf\u8ff0\u751f\u6210'
+        : 'Image description generation';
+    const imagePromptReverseRunLabel = isImagePromptReverseLoading
+        ? (language === 'zh' ? '\u5206\u6790\u4e2d...' : 'Analyzing...')
+        : imagePromptReverseStatus === 'success'
+            ? (language === 'zh' ? '\u91cd\u65b0\u8fd0\u884c' : 'Run again')
+            : (language === 'zh' ? '\u8fd0\u884c' : 'Run');
+    const imagePromptReverseStatusLabel = (() => {
+        if (imagePromptReverseStatus === 'loading') return language === 'zh' ? '\u5206\u6790\u4e2d' : 'Analyzing';
+        if (imagePromptReverseStatus === 'error') return language === 'zh' ? '\u5206\u6790\u5931\u8d25' : 'Analysis failed';
+        if (imagePromptReverseStatus === 'success') return language === 'zh' ? '\u5df2\u751f\u6210\u63d0\u793a\u8bcd' : 'Prompt generated';
+        return language === 'zh' ? '\u5df2\u5173\u8054\u53c2\u8003\u56fe' : 'Reference image linked';
+    })();
     const displayResultUrl = data.resultUrl;
     const hasImageLoadError = Boolean(displayResultUrl && failedImageUrl === displayResultUrl);
     const resultUrlTail = displayResultUrl
@@ -132,8 +169,52 @@ export const NodeContent: React.FC<NodeContentProps> = ({
             if (updateTimeoutRef.current) {
                 clearTimeout(updateTimeoutRef.current);
             }
+            if (copyFeedbackTimeoutRef.current) {
+                clearTimeout(copyFeedbackTimeoutRef.current);
+            }
         };
     }, []);
+
+    const copyTextToClipboard = async (text: string) => {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+        } finally {
+            document.body.removeChild(textarea);
+        }
+    };
+
+    const handleCopyTextPrompt = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!canCopyTextPrompt) return;
+
+        try {
+            await copyTextToClipboard(textPromptToCopy);
+            setHasCopiedPrompt(true);
+            if (copyFeedbackTimeoutRef.current) {
+                clearTimeout(copyFeedbackTimeoutRef.current);
+            }
+            copyFeedbackTimeoutRef.current = setTimeout(() => {
+                setHasCopiedPrompt(false);
+            }, 1200);
+        } catch (error) {
+            console.error('[TextNode] Failed to copy prompt:', error);
+        }
+    };
 
     const handleTextChange = (value: string) => {
         setLocalPrompt(value); // Update local state immediately
@@ -181,6 +262,59 @@ export const NodeContent: React.FC<NodeContentProps> = ({
             });
         } finally {
             setIsCancellingQueuedTask(false);
+        }
+    };
+
+    const handleRunImagePromptReverse = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        const source = data.textSource;
+        if (!source || source.type !== 'image-prompt-reverse' || !source.sourceImageUrl || !onUpdate || isImagePromptReverseLoading) {
+            return;
+        }
+
+        setIsRunningImagePromptReverse(true);
+        onUpdate(data.id, {
+            status: NodeStatus.LOADING,
+            errorMessage: undefined,
+            textSource: {
+                ...source,
+                status: 'loading',
+                errorMessage: undefined
+            }
+        });
+
+        try {
+            const text = await analyzeImagePromptReverse({
+                imageUrl: source.sourceImageUrl,
+                sourceNodeId: source.parentNodeId,
+                sourceImageIndex: source.sourceImageIndex
+            });
+
+            onUpdate(data.id, {
+                prompt: text,
+                status: NodeStatus.SUCCESS,
+                errorMessage: undefined,
+                textSource: {
+                    ...source,
+                    status: 'success',
+                    errorMessage: undefined,
+                    generatedAt: new Date().toISOString()
+                }
+            });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '\u56fe\u7247\u5206\u6790\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
+            onUpdate(data.id, {
+                prompt: message,
+                status: NodeStatus.ERROR,
+                errorMessage: message,
+                textSource: {
+                    ...source,
+                    status: 'error',
+                    errorMessage: message
+                }
+            });
+        } finally {
+            setIsRunningImagePromptReverse(false);
         }
     };
 
@@ -294,9 +428,21 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 style={{ minHeight: data.isPromptExpanded ? '300px' : '150px' }}
                                 autoFocus
                             />
-                            {/* Expand/Shrink Button */}
-                            <div className="flex justify-end mt-2">
+                            <div className="mt-2 flex items-center justify-between gap-2">
                                 <button
+                                    type="button"
+                                    onClick={handleCopyTextPrompt}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    disabled={!canCopyTextPrompt}
+                                    className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                    title={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                    aria-label={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                >
+                                    {hasCopiedPrompt ? <Check size={12} /> : <Copy size={12} />}
+                                    <span>{copyTextLabel}</span>
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => onUpdate?.(data.id, { isPromptExpanded: !data.isPromptExpanded })}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     className="flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-[10px] text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
@@ -308,6 +454,89 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                                 </button>
                             </div>
                         </div>
+                    ) : isImagePromptReverseText ? (
+                        <div className="flex max-h-[420px] flex-col gap-3 overflow-hidden p-4">
+                            {data.textSource?.sourceImageUrl && (
+                                <div className="relative aspect-[4/3] overflow-hidden rounded-md border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)]">
+                                    <img
+                                        src={data.textSource.sourceImageUrl}
+                                        alt={language === 'zh' ? '\u53c2\u8003\u56fe' : 'Reference image'}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                        draggable={false}
+                                    />
+                                    <div className="absolute left-2 top-2 rounded bg-black/60 px-2 py-1 text-[10px] font-medium text-white">
+                                        {language === 'zh' ? '\u53c2\u8003\u56fe' : 'Reference'}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-[var(--myml-text-primary)]">
+                                        {imagePromptReverseTitle}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] text-[var(--myml-text-muted)]">
+                                        {imagePromptReverseSubtitle}
+                                    </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyTextPrompt}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        disabled={!canCopyTextPrompt}
+                                        className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                        title={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                        aria-label={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                    >
+                                        {hasCopiedPrompt ? <Check size={12} /> : <Copy size={12} />}
+                                        <span>{copyTextLabel}</span>
+                                    </button>
+                                    {data.status !== NodeStatus.LOADING && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onWriteContent?.(data.id)}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                            title={t(language, 'writeOwnContent')}
+                                            aria-label={t(language, 'writeOwnContent')}
+                                        >
+                                            <Pencil size={12} />
+                                            <span>{language === 'zh' ? '\u7f16\u8f91' : 'Edit'}</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleRunImagePromptReverse}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        disabled={isImagePromptReverseLoading || !onUpdate}
+                                        className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-[#D8FF00] px-2.5 text-[10px] font-semibold text-black transition-colors hover:bg-[#c8f000] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                        title={imagePromptReverseRunLabel}
+                                        aria-label={imagePromptReverseRunLabel}
+                                    >
+                                        {isImagePromptReverseLoading && <Loader2 size={12} className="animate-spin" />}
+                                        <span>{imagePromptReverseRunLabel}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className={`flex items-center gap-2 text-[11px] font-medium ${
+                                imagePromptReverseStatus === 'error' ? 'text-red-300' : 'text-[var(--myml-text-muted)]'
+                            }`}>
+                                {isImagePromptReverseLoading && (
+                                    <Loader2 size={13} className="animate-spin text-[#D8FF00]" />
+                                )}
+                                <span>{imagePromptReverseStatusLabel}</span>
+                            </div>
+                            <div className="min-h-[120px] overflow-y-auto whitespace-pre-wrap rounded-md border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs leading-relaxed text-[var(--myml-text-primary)]">
+                                {data.prompt}
+                            </div>
+                            {imagePromptReverseStatus === 'error' && (data.textSource?.errorMessage || data.errorMessage) && (
+                                <div className="text-[11px] leading-snug text-red-300">
+                                    {data.textSource?.errorMessage || data.errorMessage}
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         /* Menu Mode - Show Options */
                         <div className="p-5 flex flex-col gap-4">
@@ -315,6 +544,31 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                             <div className="text-[var(--myml-text-muted)] text-sm font-medium">
                                 {t(language, 'tryTo')}
                             </div>
+
+                            {data.prompt.trim().length > 0 && (
+                                <div className="rounded-md border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span className="text-[11px] font-medium text-[var(--myml-text-muted)]">
+                                            {language === 'zh' ? '\u5f53\u524d\u5185\u5bb9' : 'Current content'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyTextPrompt}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            disabled={!canCopyTextPrompt}
+                                            className="flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-[10px] text-[var(--myml-text-muted)] transition-colors hover:bg-[var(--myml-surface-hover)] hover:text-[var(--myml-text-primary)] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D8FF00]/35"
+                                            title={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                            aria-label={canCopyTextPrompt ? copyTextLabel : copyTextDisabledLabel}
+                                        >
+                                            {hasCopiedPrompt ? <Check size={12} /> : <Copy size={12} />}
+                                            <span>{copyTextLabel}</span>
+                                        </button>
+                                    </div>
+                                    <div className="max-h-24 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-[var(--myml-text-primary)]">
+                                        {data.prompt}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Menu Options */}
                             <div className="flex flex-col gap-1">
