@@ -5,7 +5,7 @@ import {
 } from '../../services/ai/aiProviderConfig.js';
 
 const DEFAULT_AGENT_CHAT_BASE_URL = 'https://ai.t8star.org/v1';
-const DEFAULT_AGENT_CHAT_MODEL = 'gemini-3.1-flash-lite-preview-thinking-high';
+const DEFAULT_AGENT_CHAT_MODEL = 'gpt-5.4';
 const DEFAULT_AGENT_CHAT_TIMEOUT_MS = 60000;
 
 export const AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE =
