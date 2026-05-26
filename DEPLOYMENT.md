@@ -234,7 +234,7 @@ T8_REFERENCE_IMAGE_MAX_BYTES=15728640
 AGENT_CHAT_PROVIDER=t8
 AGENT_CHAT_API_KEY=your_t8_agent_chat_key
 AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
-AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-medium
+AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-high
 AGENT_CHAT_TIMEOUT_MS=60000
 
 TASK_WORKER_ENABLED=true
@@ -269,7 +269,7 @@ Recommended T8 Agent chat route:
 AGENT_CHAT_PROVIDER=t8
 AGENT_CHAT_API_KEY=your_t8_agent_chat_key
 AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
-AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-medium
+AGENT_CHAT_MODEL=gemini-3.1-flash-lite-preview-thinking-high
 AGENT_CHAT_TIMEOUT_MS=60000
 ```
 
