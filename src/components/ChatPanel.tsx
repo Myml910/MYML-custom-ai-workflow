@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, History, Paperclip, Globe, Settings, Send, Sparkles, Plus, Loader2, ChevronLeft, Trash2, MessageSquare } from 'lucide-react';
+import { X, History, Paperclip, Globe, Settings, Send, Sparkles, Plus, Loader2, ChevronLeft, ChevronDown, ChevronUp, Trash2, MessageSquare } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { useChatAgent } from '../hooks/useChatAgent';
 import type { ChatMessage as ChatMessageType, ChatSession, HermesRunPayload } from '../hooks/useChatAgent';
@@ -55,13 +55,69 @@ function estimateBase64Bytes(value?: string): number {
     return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
 }
 
+const SENSITIVE_HERMES_FIELD_PATTERN = /(api_?key|token|authorization|password|secret|credential)/i;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isEmptyProjectValue(value: unknown): boolean {
+    return value === undefined || value === null || value === '';
+}
+
+function getProjectField(project: Record<string, unknown>, keys: string[]): unknown {
+    for (const key of keys) {
+        const value = project[key];
+        if (!isEmptyProjectValue(value)) return value;
+    }
+    return undefined;
+}
+
+function isSensitiveHermesField(key: string): boolean {
+    return SENSITIVE_HERMES_FIELD_PATTERN.test(key);
+}
+
+function maskHermesValue(value: unknown): string {
+    if (typeof value !== 'string') return '[masked]';
+    const trimmed = value.trim();
+    return trimmed.length > 4 ? `[masked:${trimmed.slice(-4)}]` : '[masked]';
+}
+
+function formatHermesFieldLabel(key: string): string {
+    return key
+        .replace(/[_-]+/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function formatHermesValue(
+    value: unknown,
+    options: { sensitive?: boolean; compact?: boolean } = {}
+): string {
+    if (options.sensitive) return maskHermesValue(value);
+    if (value === null) return 'null';
+    if (value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+    try {
+        const formatted = JSON.stringify(value, null, options.compact ? 0 : 2);
+        if (typeof formatted !== 'string') return String(value);
+        return options.compact ? formatted.replace(/\s+/g, ' ') : formatted;
+    } catch {
+        return '[Unsupported value]';
+    }
+}
+
 const HermesResultCard: React.FC<{
     hermesRun: HermesRunPayload;
     canvasTheme: 'dark' | 'light';
     language: Language;
 }> = ({ hermesRun, canvasTheme, language }) => {
+    const [showAllProjectFields, setShowAllProjectFields] = useState(false);
     const isDark = canvasTheme === 'dark';
-    const project = hermesRun.project || {};
+    const project = isRecord(hermesRun.project) ? hermesRun.project : {};
     const strategy = hermesRun.strategy || {};
     const designTask = hermesRun.designTask || {};
     const assets = hermesRun.assets || [];
@@ -100,14 +156,33 @@ const HermesResultCard: React.FC<{
             prompt: 'Design Task',
             placeholder: 'Mock image asset',
         };
-    const rows = [
-        [text.code, project.code || hermesRun.projectCode],
-        [text.category, project.category],
-        [text.customer, project.customer],
-        [text.craft, project.craft],
-        [text.size, project.sizeRequirement],
-        [text.quantity, project.quantityRequirement],
-    ].filter(([, value]) => Boolean(value));
+    const fieldText = language === 'zh'
+        ? {
+            name: '\u9879\u76ee\u540d\u79f0',
+            deadline: '\u4ea4\u671f',
+            requirement: '\u5f00\u53d1\u9700\u6c42',
+            allFields: '\u67e5\u770b\u5168\u90e8\u9879\u76ee\u5b57\u6bb5',
+            hideFields: '\u6536\u8d77\u9879\u76ee\u5b57\u6bb5',
+        }
+        : {
+            name: 'Project Name',
+            deadline: 'Deadline',
+            requirement: 'Requirement',
+            allFields: 'View all project fields',
+            hideFields: 'Hide project fields',
+        };
+    const rows = ([
+        [text.code, getProjectField(project, ['code']) || hermesRun.projectCode],
+        [fieldText.name, getProjectField(project, ['name', 'projectName'])],
+        [text.customer, getProjectField(project, ['customer', 'customerName'])],
+        [text.category, getProjectField(project, ['category'])],
+        [text.craft, getProjectField(project, ['craft'])],
+        [text.size, getProjectField(project, ['sizeRequirement'])],
+        [text.quantity, getProjectField(project, ['quantityRequirement'])],
+        [fieldText.deadline, getProjectField(project, ['deadline'])],
+        [fieldText.requirement, getProjectField(project, ['developmentRequirement', 'brief', 'objective'])],
+    ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value));
+    const allProjectFields = Object.entries(project);
 
     return (
         <div className={`ml-2 mb-4 max-w-[86%] rounded-xl border p-3 text-xs leading-5 ${
@@ -134,11 +209,58 @@ const HermesResultCard: React.FC<{
                         {rows.map(([label, value]) => (
                             <React.Fragment key={label}>
                                 <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{label}</span>
-                                <span className="min-w-0 truncate">{value}</span>
+                                <span className="min-w-0 truncate">{formatHermesValue(value, {
+                                    sensitive: isSensitiveHermesField(String(label)),
+                                    compact: true,
+                                })}</span>
                             </React.Fragment>
                         ))}
                     </div>
                 </div>
+
+                {allProjectFields.length > 0 && (
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => setShowAllProjectFields(value => !value)}
+                            className={`flex w-full items-center justify-between rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition-colors ${
+                                isDark
+                                    ? 'border-neutral-800 bg-neutral-950/60 text-neutral-200 hover:bg-neutral-900'
+                                    : 'border-neutral-200 bg-white/70 text-neutral-700 hover:bg-white'
+                            }`}
+                        >
+                            <span>{showAllProjectFields ? fieldText.hideFields : fieldText.allFields}</span>
+                            {showAllProjectFields ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+
+                        {showAllProjectFields && (
+                            <div className={`mt-2 max-h-64 overflow-auto rounded-lg border p-2 ${
+                                isDark ? 'border-neutral-800 bg-neutral-950/70' : 'border-neutral-200 bg-white/80'
+                            }`}>
+                                <div className="space-y-2">
+                                    {allProjectFields.map(([key, value]) => {
+                                        const sensitive = isSensitiveHermesField(key);
+                                        const formattedValue = formatHermesValue(value, { sensitive });
+                                        return (
+                                            <div key={key} className="grid grid-cols-[minmax(84px,0.42fr)_minmax(0,1fr)] gap-2">
+                                                <span className={`break-words text-[10px] ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
+                                                    {formatHermesFieldLabel(key)}
+                                                </span>
+                                                <span className={`min-w-0 whitespace-pre-wrap break-words text-[10px] ${
+                                                    sensitive
+                                                        ? isDark ? 'text-amber-300' : 'text-amber-700'
+                                                        : isDark ? 'text-neutral-300' : 'text-neutral-700'
+                                                }`}>
+                                                    {formattedValue}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div>
                     <div className={`mb-1 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>{text.strategy}</div>

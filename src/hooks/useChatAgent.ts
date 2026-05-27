@@ -28,15 +28,20 @@ export interface HermesRunPayload {
     id: string;
     status: 'queued' | 'running' | 'completed' | 'failed';
     projectCode: string;
-    project?: {
+    project?: Record<string, unknown> & {
         code?: string;
         name?: string;
+        projectName?: string;
         category?: string;
         customer?: string;
+        customerName?: string;
         developmentRequirement?: string;
+        brief?: string;
+        objective?: string;
         craft?: string;
         sizeRequirement?: string;
         quantityRequirement?: string;
+        deadline?: string;
     } | null;
     strategy?: {
         selectedModel?: string;
