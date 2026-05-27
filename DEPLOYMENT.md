@@ -245,9 +245,11 @@ AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
 AGENT_CHAT_MODEL=gpt-5.4
 AGENT_CHAT_TIMEOUT_MS=60000
 
-# Reserved for the Hermes execution layer. The P0 mock does not call this yet.
-HERMES_BASE_URL=https://ai.t8star.org/v1
-HERMES_MODEL=gpt-5.4
+# Hermes execution layer. Keep mock mode unless the local Hermes API server is
+# running and intentionally enabled.
+HERMES_CLIENT_MODE=mock
+HERMES_BASE_URL=http://127.0.0.1:8642/v1
+HERMES_MODEL=hermes-agent
 HERMES_TIMEOUT_MS=180000
 # HERMES_API_KEY=
 
@@ -305,14 +307,17 @@ Compatibility fallback order for normal Agent chat:
 
 Normal Agent chat uses a focused canvas context by default, so it can use `gemini-3.1-pro-preview` without reading the whole canvas on every turn. Do not rely on `AGENT_CHAT_MODEL=gpt-5.4` for normal Agent chat; `gpt-5.4` is reserved for heavier execution paths such as Hermes.
 
-Reserved Hermes execution model configuration:
+Hermes execution layer configuration:
 
 ```env
-HERMES_BASE_URL=https://ai.t8star.org/v1
-HERMES_MODEL=gpt-5.4
+HERMES_CLIENT_MODE=mock
+HERMES_BASE_URL=http://127.0.0.1:8642/v1
+HERMES_MODEL=hermes-agent
 HERMES_TIMEOUT_MS=180000
 # HERMES_API_KEY=
 ```
+
+Set `HERMES_CLIENT_MODE=api` only when the local Hermes API Server is running on `127.0.0.1` and `HERMES_API_KEY` matches its `API_SERVER_KEY`. MYML Canvas calls `${HERMES_BASE_URL}/chat/completions` from the server only; the browser never receives the Hermes key and never calls Hermes directly. P1 still uses mock company fields and mock image URLs such as `/workflow-sample-1.png`; it does not query real company systems, download external images, or trigger real image generation.
 
 Normal Agent canvas context is focused by default. For ordinary prompts such as "help me improve this node", the server receives the selected node, one-hop parent nodes, one-hop child nodes, direct connections between those nodes, task/status metadata, and compact workflow counts. If no node is selected, only a lightweight overview is sent and node prompts are omitted. Full workflow context is sent only when the user explicitly asks for the whole canvas, such as "总结整个画布", "分析整个工作流", "查看所有节点", "整理当前画布完整流程", or "workflow summary".
 

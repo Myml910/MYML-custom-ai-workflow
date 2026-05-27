@@ -4,6 +4,7 @@ import path from 'path';
 import { getAvailableImageModels } from '../services/ai/modelRegistry.js';
 import { getAgentChatStartupSummary, getAgentTextStartupSummary } from '../agent/config/chatConfig.js';
 import { getImagePromptReverseStartupSummary } from '../agent/imagePromptReverse.js';
+import { getHermesStartupSummary } from '../services/hermes/client.js';
 
 export function safeValue(value, fallback = 'unknown') {
     if (value === undefined || value === null || value === '') return fallback;
@@ -89,6 +90,7 @@ export function logStartupSummary(options = {}) {
         const agentChat = getAgentChatStartupSummary(process.env);
         const agentText = getAgentTextStartupSummary(process.env);
         const imagePromptReverse = getImagePromptReverseStartupSummary(process.env);
+        const hermes = getHermesStartupSummary(process.env);
         const libraryDir = safeValue(options.libraryDir || process.env.LIBRARY_DIR);
         const libraryStatus = await checkLibraryDirStatus(libraryDir);
         const summary = {
@@ -120,6 +122,11 @@ export function logStartupSummary(options = {}) {
             imagePromptReverseTimeoutMs: imagePromptReverse.imagePromptReverseTimeoutMs,
             imagePromptReverseMaxTokens: imagePromptReverse.imagePromptReverseMaxTokens,
             imagePromptReverseFallbackModels: imagePromptReverse.imagePromptReverseFallbackModels,
+            hermesClientMode: hermes.hermesClientMode,
+            hermesBaseUrl: hermes.hermesBaseUrl,
+            hermesModel: hermes.hermesModel,
+            hermesConfigured: hermes.hermesConfigured,
+            hermesTimeoutMs: hermes.hermesTimeoutMs,
             gitCommit: readGitCommit(),
             entrypoint: getStartupEntry()
         };

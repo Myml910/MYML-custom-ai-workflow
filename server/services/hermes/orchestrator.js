@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getDb } from '../../db/index.js';
 import { getUserPrimaryTeam } from '../../db/providerCredentials.js';
 import { assertValidYxfProjectCode } from './projectCode.js';
-import { runHermesProjectMock } from './client.js';
+import { getHermesClientConfig, runHermesProjectClient } from './client.js';
 
 function requireUser(user) {
     if (!user?.id) {
@@ -63,7 +63,18 @@ function serializeHermesAsset(row) {
     };
 }
 
-async function insertHermesRun({ client, runId, user, team, projectCode, chatSessionId, workflowId, message, idempotencyKey }) {
+async function insertHermesRun({
+    client,
+    runId,
+    user,
+    team,
+    projectCode,
+    chatSessionId,
+    workflowId,
+    message,
+    idempotencyKey,
+    hermesClientMode
+}) {
     const result = await client.query(`
         INSERT INTO hermes_runs (
             id,
@@ -95,7 +106,8 @@ async function insertHermesRun({ client, runId, user, team, projectCode, chatSes
             userId: user.id,
             username: user.username || null,
             teamId: team?.id || null,
-            mock: true
+            hermesClientMode,
+            mock: hermesClientMode === 'mock'
         }
     ]);
     return result.rows[0];
@@ -207,6 +219,7 @@ async function insertHermesAssets({ client, run, response }) {
             item.prompt || response.designTask?.prompt || null,
             {
                 mock: true,
+                hermesClientMode: response.hermesClientMode || null,
                 remoteDownloadSkipped: true
             }
         ]);
@@ -216,16 +229,45 @@ async function insertHermesAssets({ client, run, response }) {
     return assets;
 }
 
+async function markHermesRunFailed({ db, runId, error }) {
+    const failClient = await db.connect();
+    try {
+        await failClient.query('BEGIN');
+        const failedRun = await failHermesRun({
+            client: failClient,
+            runId,
+            error
+        });
+        await failClient.query('COMMIT');
+        const hermesRun = serializeHermesRun(failedRun, []);
+        return {
+            hermesRun,
+            responseText: `Hermes 执行失败：${error?.message || '未知错误'}`,
+            reused: false
+        };
+    } catch (failError) {
+        await failClient.query('ROLLBACK');
+        throw failError;
+    } finally {
+        failClient.release();
+    }
+}
+
 export function buildHermesAssistantText(hermesRun) {
     const project = hermesRun.project || {};
     const strategy = hermesRun.strategy || {};
     const assetCount = Array.isArray(hermesRun.assets) ? hermesRun.assets.length : 0;
+    const clientMode = hermesRun.strategy?.mode || 'mock-pattern-generation';
+
+    if (hermesRun.status === 'failed') {
+        return `Hermes 执行失败：${hermesRun.errorMessage || '请稍后重试'}`;
+    }
 
     return [
         `已为 ${hermesRun.projectCode} 创建 Hermes 执行记录。`,
         `项目：${project.name || hermesRun.projectCode}`,
-        `策略：${strategy.mode || 'mock-pattern-generation'}，模型 ${strategy.selectedModel || 'hermes-mock-image-strategy-v1'}，图片 ${assetCount} 张。`,
-        '当前是 P0 mock 闭环：已记录项目字段、生成策略、设计任务和 mock 图片资产。'
+        `策略：${clientMode}，模型 ${strategy.selectedModel || 'hermes-mock-image-strategy-v1'}，图片 ${assetCount} 张。`,
+        '当前是 P1 Hermes API 闭环：已记录项目字段、生成策略、设计任务和 mock 图片资产。'
     ].join('\n');
 }
 
@@ -240,6 +282,7 @@ export async function runHermesProject({ user, projectCode, message, chatSession
         message
     });
     const db = getDb();
+    const hermesClientConfig = getHermesClientConfig();
     const client = await db.connect();
     const runId = crypto.randomUUID();
     let insertedRun = null;
@@ -267,7 +310,8 @@ export async function runHermesProject({ user, projectCode, message, chatSession
             chatSessionId,
             workflowId,
             message,
-            idempotencyKey
+            idempotencyKey,
+            hermesClientMode: hermesClientConfig.mode
         });
         await client.query('COMMIT');
     } catch (error) {
@@ -277,11 +321,21 @@ export async function runHermesProject({ user, projectCode, message, chatSession
         client.release();
     }
 
-    const response = await runHermesProjectMock({
-        user: currentUser,
-        projectCode: normalizedProjectCode,
-        message
-    });
+    let response;
+    try {
+        response = await runHermesProjectClient({
+            user: currentUser,
+            projectCode: normalizedProjectCode,
+            message
+        });
+        response.hermesClientMode = hermesClientConfig.mode;
+    } catch (error) {
+        return await markHermesRunFailed({
+            db,
+            runId: insertedRun.id,
+            error
+        });
+    }
 
     const completeClient = await db.connect();
     try {
@@ -305,27 +359,11 @@ export async function runHermesProject({ user, projectCode, message, chatSession
         };
     } catch (error) {
         await completeClient.query('ROLLBACK');
-        const failClient = await db.connect();
-        try {
-            await failClient.query('BEGIN');
-            const failedRun = await failHermesRun({
-                client: failClient,
-                runId: insertedRun.id,
-                error
-            });
-            await failClient.query('COMMIT');
-            const hermesRun = serializeHermesRun(failedRun, []);
-            return {
-                hermesRun,
-                responseText: `Hermes 执行失败：${error?.message || '未知错误'}`,
-                reused: false
-            };
-        } catch (failError) {
-            await failClient.query('ROLLBACK');
-            throw failError;
-        } finally {
-            failClient.release();
-        }
+        return await markHermesRunFailed({
+            db,
+            runId: insertedRun.id,
+            error
+        });
     } finally {
         completeClient.release();
     }
@@ -335,4 +373,3 @@ export default {
     runHermesProject,
     buildHermesAssistantText
 };
-
