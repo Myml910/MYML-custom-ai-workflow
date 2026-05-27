@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { getAvailableImageModels } from '../services/ai/modelRegistry.js';
-import { getAgentChatStartupSummary } from '../agent/config/chatConfig.js';
+import { getAgentChatStartupSummary, getAgentTextStartupSummary } from '../agent/config/chatConfig.js';
 import { getImagePromptReverseStartupSummary } from '../agent/imagePromptReverse.js';
 
 export function safeValue(value, fallback = 'unknown') {
@@ -87,6 +87,7 @@ export function logStartupSummary(options = {}) {
     return (async () => {
         const imageModels = readImageModelSummary();
         const agentChat = getAgentChatStartupSummary(process.env);
+        const agentText = getAgentTextStartupSummary(process.env);
         const imagePromptReverse = getImagePromptReverseStartupSummary(process.env);
         const libraryDir = safeValue(options.libraryDir || process.env.LIBRARY_DIR);
         const libraryStatus = await checkLibraryDirStatus(libraryDir);
@@ -109,6 +110,10 @@ export function logStartupSummary(options = {}) {
             agentChatModel: agentChat.agentChatModel,
             agentChatBaseUrl: agentChat.agentChatBaseUrl,
             agentChatConfigured: agentChat.agentChatConfigured,
+            agentTextProvider: agentText.agentTextProvider,
+            agentTextModel: agentText.agentTextModel,
+            agentTextTimeoutMs: agentText.agentTextTimeoutMs,
+            agentTextConfigured: agentText.agentTextConfigured,
             imagePromptReverseProvider: imagePromptReverse.imagePromptReverseProvider,
             imagePromptReverseModel: imagePromptReverse.imagePromptReverseModel,
             imagePromptReverseConfigured: imagePromptReverse.imagePromptReverseConfigured,

@@ -122,6 +122,10 @@ function formatAgentError(payload: ApiErrorPayload, fallback: string): string {
         return 'Agent 文本模型未配置。T8 图像 Key 只负责图片生成，聊天 Agent 需要单独配置文本模型 Key。';
     }
 
+    if (payload.code === 'AGENT_TEXT_MODEL_TIMEOUT') {
+        return 'Agent 回复超时，请稍后重试，或切换更快的 AGENT_TEXT_MODEL。';
+    }
+
     if (payload.code === 'AGENT_MEDIA_TOO_LARGE') {
         return payload.message || payload.error || '图片太大，请压缩后再发送。';
     }

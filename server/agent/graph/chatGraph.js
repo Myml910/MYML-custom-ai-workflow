@@ -12,7 +12,7 @@ import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { CHAT_AGENT_SYSTEM_PROMPT, TOPIC_GENERATION_PROMPT } from "../prompts/system.js";
 import { createTextResponse, extractResponseText } from "../../services/ai/providers/apimartProvider.js";
-import { createAgentChatError, getAgentChatConfig } from "../config/chatConfig.js";
+import { createAgentChatError, getAgentChatConfig, getAgentTextConfig } from "../config/chatConfig.js";
 
 // ============================================================================
 // MODEL CONFIGURATION
@@ -112,7 +112,7 @@ async function callChatCompletions({
     if (!apiKey) {
         throw createAgentChatError(
             "AGENT_TEXT_MODEL_NOT_CONFIGURED",
-            "Agent text model is not configured. Configure AGENT_CHAT_PROVIDER=t8 with AGENT_CHAT_API_KEY, or configure APIMART_API_KEY or CHAT_API_KEY/OPENAI_API_KEY.",
+            "Agent text model is not configured. Configure AGENT_TEXT_PROVIDER=t8 with AGENT_TEXT_API_KEY, or configure AGENT_CHAT_API_KEY for compatibility, APIMART_API_KEY, or CHAT_API_KEY/OPENAI_API_KEY.",
             503
         );
     }
@@ -163,7 +163,7 @@ async function callChatCompletions({
         if (error?.name === "AbortError") {
             throw createAgentChatError(
                 "AGENT_TEXT_MODEL_TIMEOUT",
-                `${provider} chat completion timed out after ${timeoutMs}ms.`,
+                "Agent 回复超时，请稍后重试，或切换更快的 AGENT_TEXT_MODEL。",
                 504
             );
         }
@@ -324,7 +324,7 @@ export async function callOneShotAgentChat({
 // ============================================================================
 
 async function agentNode(state, config) {
-    const chatConfig = getAgentChatConfig({
+    const chatConfig = getAgentTextConfig({
         runtimeApiKey: config.configurable?.apiKey,
     });
     const canvasContextSummary = config.configurable?.canvasContextSummary;
@@ -393,7 +393,7 @@ export function createChatGraph() {
 // ============================================================================
 
 export async function generateTopicTitle(messages, apiKey) {
-    const chatConfig = getAgentChatConfig({
+    const chatConfig = getAgentTextConfig({
         runtimeApiKey: apiKey,
     });
 

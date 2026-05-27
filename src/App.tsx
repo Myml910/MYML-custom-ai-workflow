@@ -603,13 +603,14 @@ function CanvasApp({
     workflowId
   });
 
-  const getAgentCanvasContext = React.useCallback(() => buildAgentCanvasContext({
+  const getAgentCanvasContext = React.useCallback((userMessage?: string) => buildAgentCanvasContext({
     nodes,
     groups,
     selectedNodeIds,
     viewport,
     workflowId,
-    canvasTitle
+    canvasTitle,
+    userMessage
   }), [nodes, groups, selectedNodeIds, viewport, workflowId, canvasTitle]);
 
   // Video Frame Extraction (auto-extract lastFrame for videos missing thumbnails)

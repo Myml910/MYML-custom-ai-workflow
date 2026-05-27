@@ -44,7 +44,7 @@ import { getAiProviderConfig, isApimartTextConfigured } from './services/ai/aiPr
 import { createTextResponse, extractResponseText } from './services/ai/providers/apimartProvider.js';
 import {
     AGENT_TEXT_MODEL_NOT_CONFIGURED_MESSAGE,
-    getAgentChatConfig
+    getAgentTextConfig
 } from './agent/config/chatConfig.js';
 import { resolveImageToBase64 } from './utils/imageHelpers.js';
 import twitterRoutes from './routes/twitter.js';
@@ -1658,9 +1658,9 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
-        let agentChatConfig;
+        let agentTextConfig;
         try {
-            agentChatConfig = getAgentChatConfig({
+            agentTextConfig = getAgentTextConfig({
                 env: process.env,
                 aiConfig: aiProviderConfig,
             });
@@ -1675,7 +1675,7 @@ app.post('/api/chat', async (req, res) => {
             throw error;
         }
 
-        const chatApiKey = agentChatConfig.provider === 'legacy' ? agentChatConfig.apiKey : undefined;
+        const chatApiKey = agentTextConfig.provider === 'legacy' ? agentTextConfig.apiKey : undefined;
 
         const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey, {
             chatsDir: libraryDirs.chatsDir,

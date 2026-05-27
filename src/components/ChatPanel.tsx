@@ -34,7 +34,7 @@ interface ChatPanelProps {
     onNodeDrop?: (nodeId: string, url: string, type: 'image' | 'video') => void;
     canvasTheme?: 'dark' | 'light';
     language?: Language;
-    getCanvasContext?: () => AgentCanvasContext;
+    getCanvasContext?: (message?: string) => AgentCanvasContext;
 }
 
 const CHAT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
@@ -356,7 +356,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     base64: m.base64,
                 }))
                 : undefined,
-            getCanvasContext?.()
+            getCanvasContext?.(currentMessage)
         );
     };
 

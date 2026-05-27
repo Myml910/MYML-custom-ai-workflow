@@ -231,11 +231,25 @@ T8_GPT_IMAGE_MODEL=gpt-image-2
 T8_NANO_BANANA_MODEL=gemini-3.1-flash-image-preview
 T8_REFERENCE_IMAGE_MAX_BYTES=15728640
 
+AGENT_TEXT_PROVIDER=t8
+AGENT_TEXT_API_KEY=your_t8_agent_text_key
+AGENT_TEXT_BASE_URL=https://ai.t8star.org/v1
+AGENT_TEXT_MODEL=gemini-3.1-pro-preview
+AGENT_TEXT_TIMEOUT_MS=90000
+
+# Compatibility fallback for older deployments. AGENT_CHAT_MODEL is not used
+# as the normal Agent text model fallback.
 AGENT_CHAT_PROVIDER=t8
-AGENT_CHAT_API_KEY=your_t8_agent_chat_key
+AGENT_CHAT_API_KEY=your_t8_agent_text_key
 AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
 AGENT_CHAT_MODEL=gpt-5.4
 AGENT_CHAT_TIMEOUT_MS=60000
+
+# Reserved for the Hermes execution layer. The P0 mock does not call this yet.
+HERMES_BASE_URL=https://ai.t8star.org/v1
+HERMES_MODEL=gpt-5.4
+HERMES_TIMEOUT_MS=180000
+# HERMES_API_KEY=
 
 IMAGE_PROMPT_REVERSE_PROVIDER=t8
 IMAGE_PROMPT_REVERSE_MODEL=gemini-3.1-pro-preview
@@ -269,21 +283,42 @@ Until team-scoped provider credentials and data isolation are rolled out, T8 use
 
 ### Agent Chat Text Model
 
-The right-bottom Agent chat is separate from T8 image generation. `T8_API_KEY` is for image generation; `AGENT_CHAT_API_KEY` is for text chat. Configure one of these before expecting Agent replies:
+The right-bottom Agent chat is separate from T8 image generation and Hermes execution. `T8_API_KEY` is for image generation; `AGENT_TEXT_API_KEY` is for normal Agent text chat. Configure one of these before expecting Agent replies:
 
 Recommended T8 Agent chat route:
 
 ```env
-AGENT_CHAT_PROVIDER=t8
-AGENT_CHAT_API_KEY=your_t8_agent_chat_key
-AGENT_CHAT_BASE_URL=https://ai.t8star.org/v1
-AGENT_CHAT_MODEL=gpt-5.4
-AGENT_CHAT_TIMEOUT_MS=60000
+AGENT_TEXT_PROVIDER=t8
+AGENT_TEXT_API_KEY=your_t8_agent_text_key
+AGENT_TEXT_BASE_URL=https://ai.t8star.org/v1
+AGENT_TEXT_MODEL=gemini-3.1-pro-preview
+AGENT_TEXT_TIMEOUT_MS=90000
 ```
+
+Compatibility fallback order for normal Agent chat:
+
+- provider: `AGENT_TEXT_PROVIDER` -> `AGENT_CHAT_PROVIDER` -> legacy fallback
+- api key: `AGENT_TEXT_API_KEY` -> `AGENT_CHAT_API_KEY`
+- base URL: `AGENT_TEXT_BASE_URL` -> `AGENT_CHAT_BASE_URL` -> `https://ai.t8star.org/v1`
+- timeout: `AGENT_TEXT_TIMEOUT_MS` -> `AGENT_CHAT_TIMEOUT_MS` -> `60000`
+- model: `AGENT_TEXT_MODEL` -> `gemini-3.1-pro-preview`
+
+Normal Agent chat uses a focused canvas context by default, so it can use `gemini-3.1-pro-preview` without reading the whole canvas on every turn. Do not rely on `AGENT_CHAT_MODEL=gpt-5.4` for normal Agent chat; `gpt-5.4` is reserved for heavier execution paths such as Hermes.
+
+Reserved Hermes execution model configuration:
+
+```env
+HERMES_BASE_URL=https://ai.t8star.org/v1
+HERMES_MODEL=gpt-5.4
+HERMES_TIMEOUT_MS=180000
+# HERMES_API_KEY=
+```
+
+Normal Agent canvas context is focused by default. For ordinary prompts such as "help me improve this node", the server receives the selected node, one-hop parent nodes, one-hop child nodes, direct connections between those nodes, task/status metadata, and compact workflow counts. If no node is selected, only a lightweight overview is sent and node prompts are omitted. Full workflow context is sent only when the user explicitly asks for the whole canvas, such as "总结整个画布", "分析整个工作流", "查看所有节点", "整理当前画布完整流程", or "workflow summary".
 
 ### Image Prompt Reverse Text Nodes
 
-The right-bottom Agent chat uses `AGENT_CHAT_*`. Image-to-Text prompt reverse nodes use `IMAGE_PROMPT_REVERSE_*`, so they can run a separate multimodal model without changing Agent chat behavior.
+The right-bottom Agent chat uses `AGENT_TEXT_*`. Image-to-Text prompt reverse nodes use `IMAGE_PROMPT_REVERSE_*`, so they can run a separate multimodal model without changing Agent chat behavior.
 
 Recommended T8 multimodal route for image prompt reverse:
 
@@ -297,13 +332,13 @@ IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600
 # IMAGE_PROMPT_REVERSE_API_KEY=
 ```
 
-Image prompt reverse can take longer because it sends image input to a multimodal model; set `IMAGE_PROMPT_REVERSE_TIMEOUT_MS` to `120000` to `180000` for test deployments. Keep `IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600` unless a specific workflow needs longer descriptions. If `IMAGE_PROMPT_REVERSE_API_KEY` is unset, the server falls back to `AGENT_CHAT_API_KEY`. Use a model that supports `image_url` inputs; the right-bottom Agent may still use a different text model such as `gpt-5.4`.
+Image prompt reverse can take longer because it sends image input to a multimodal model; set `IMAGE_PROMPT_REVERSE_TIMEOUT_MS` to `120000` to `180000` for test deployments. Keep `IMAGE_PROMPT_REVERSE_MAX_TOKENS=1600` unless a specific workflow needs longer descriptions. If `IMAGE_PROMPT_REVERSE_API_KEY` is unset, the server falls back to `AGENT_CHAT_API_KEY`. Use a model that supports `image_url` inputs; the right-bottom Agent may still use a different text model such as `gemini-3.1-pro-preview`.
 
 Do not use `gemini-3.1-flash-lite-preview-thinking-medium` for image prompt reverse. T8/upstream can map it to the unavailable `models/gemini-3.1-flash-lite-preview` model, so `gemini-3.1-pro-preview` is the recommended default.
 
 If T8 returns a temporary capacity error such as high demand, overloaded, rate limit, temporarily unavailable, busy, capacity, or timeout, the image prompt reverse endpoint can try `IMAGE_PROMPT_REVERSE_FALLBACK_MODELS` in order. The recommended first fallback is `gpt-5.4`. This fallback only affects image prompt reverse Text nodes; it does not change the right-bottom Agent chat model or image generation.
 
-Fallback chain when `AGENT_CHAT_PROVIDER` is unset:
+Fallback chain when `AGENT_TEXT_PROVIDER` and `AGENT_CHAT_PROVIDER` are unset:
 
 - APIMart text route: `APIMART_BASE_URL`, `APIMART_API_KEY`, and optionally `APIMART_TEXT_MODEL`
 - Legacy OpenAI-compatible route: `CHAT_API_KEY` or `OPENAI_API_KEY`, plus optional `CHAT_API_BASE_URL`, `CHAT_MODEL`, and `CHAT_REASONING_EFFORT`

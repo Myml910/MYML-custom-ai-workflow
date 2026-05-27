@@ -56,6 +56,21 @@ function sanitizeCounts(value) {
     return output;
 }
 
+function sanitizeContextMode(value) {
+    return value === "workflow_summary" ? "workflow_summary" : "focused";
+}
+
+function sanitizeFocus(value) {
+    const focus = isPlainObject(value) ? value : {};
+    return {
+        selectedNodeIds: sanitizeStringArray(focus.selectedNodeIds, NODE_LIMIT),
+        parentNodeIds: sanitizeStringArray(focus.parentNodeIds, NODE_LIMIT),
+        childNodeIds: sanitizeStringArray(focus.childNodeIds, NODE_LIMIT),
+        includedNodeIds: sanitizeStringArray(focus.includedNodeIds, NODE_LIMIT),
+        noSelectionOverview: Boolean(focus.noSelectionOverview),
+    };
+}
+
 function stripDangerousFields(value) {
     if (Array.isArray(value)) {
         return value.map(stripDangerousFields);
@@ -144,6 +159,7 @@ function sanitizeTask(input) {
 function emptyCanvasContext(reason = "empty_or_invalid") {
     return {
         version: 1,
+        contextMode: "focused",
         empty: true,
         reason,
         workflow: {
@@ -160,6 +176,13 @@ function emptyCanvasContext(reason = "empty_or_invalid") {
             nodesIncluded: 0,
             connectionsIncluded: 0,
             truncated: false,
+        },
+        focus: {
+            selectedNodeIds: [],
+            parentNodeIds: [],
+            childNodeIds: [],
+            includedNodeIds: [],
+            noSelectionOverview: true,
         },
         selectedNodes: [],
         nodes: [],
@@ -188,6 +211,7 @@ export function sanitizeCanvasContext(input) {
         const stripped = stripDangerousFields(input);
         const workflow = isPlainObject(stripped.workflow) ? stripped.workflow : {};
         const limits = isPlainObject(stripped.limits) ? stripped.limits : {};
+        const focus = sanitizeFocus(stripped.focus);
         const stats = isPlainObject(stripped.stats) ? stripped.stats : {};
 
         const nodes = Array.isArray(stripped.nodes)
@@ -208,6 +232,7 @@ export function sanitizeCanvasContext(input) {
 
         return {
             version: 1,
+            contextMode: sanitizeContextMode(stripped.contextMode),
             workflow: {
                 id: truncate(workflow.id, TITLE_LIMIT) || null,
                 title: truncate(workflow.title, TITLE_LIMIT),
@@ -230,6 +255,7 @@ export function sanitizeCanvasContext(input) {
                 ),
                 truncated: Boolean(limits.truncated || nodes.length >= NODE_LIMIT || connections.length >= CONNECTION_LIMIT),
             },
+            focus,
             selectedNodes,
             nodes,
             connections,
@@ -279,6 +305,7 @@ export function summarizeCanvasContext(context) {
 
     const lines = [
         "Current MYML Canvas context (read-only metadata only):",
+        `Context mode: ${safeContext.contextMode}`,
         `Workflow: ${safeContext.workflow.title || "Untitled"} (${safeContext.workflow.id || "unsaved"})`,
         `Counts: ${safeContext.stats.nodeCount} nodes, ${safeContext.stats.connectionCount} connections, ${safeContext.stats.groupCount} groups`,
         `Selected: ${safeContext.workflow.selectedNodeIds.length ? safeContext.workflow.selectedNodeIds.join(", ") : "none"}`,
@@ -289,6 +316,13 @@ export function summarizeCanvasContext(context) {
 
     if (safeContext.limits.truncated) {
         lines.push(`Context truncated: included ${safeContext.nodes.length}/${safeContext.stats.nodeCount} nodes and ${safeContext.connections.length}/${safeContext.stats.connectionCount} connections.`);
+    }
+
+    if (safeContext.contextMode === "focused") {
+        lines.push(`Focused context: selected=${safeContext.focus.selectedNodeIds.join(", ") || "none"}; parents=${safeContext.focus.parentNodeIds.join(", ") || "none"}; children=${safeContext.focus.childNodeIds.join(", ") || "none"}.`);
+        if (safeContext.focus.noSelectionOverview) {
+            lines.push("No node is selected. Included nodes are a lightweight overview and omit prompts unless explicitly selected.");
+        }
     }
 
     if (safeContext.selectedNodes.length) {
