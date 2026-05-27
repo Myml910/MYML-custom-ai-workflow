@@ -20,7 +20,49 @@ export interface ChatMessage {
         type: 'image' | 'video';
         url: string;
     }[]; // Array of media attachments
+    hermesRun?: HermesRunPayload;
     timestamp: Date;
+}
+
+export interface HermesRunPayload {
+    id: string;
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    projectCode: string;
+    project?: {
+        code?: string;
+        name?: string;
+        category?: string;
+        customer?: string;
+        developmentRequirement?: string;
+        craft?: string;
+        sizeRequirement?: string;
+        quantityRequirement?: string;
+    } | null;
+    strategy?: {
+        selectedModel?: string;
+        reason?: string;
+        imageCount?: number;
+        size?: string;
+        mode?: string;
+    } | null;
+    designTask?: {
+        task_type?: string;
+        theme?: string;
+        prompt?: string;
+        negative_prompt?: string;
+    } | null;
+    assets?: {
+        id: string;
+        imageId?: string;
+        url?: string;
+        localUrl?: string;
+        sourceUrl?: string;
+        model?: string;
+        prompt?: string;
+    }[];
+    errorMessage?: string | null;
+    createdAt?: string;
+    completedAt?: string;
 }
 
 export interface ChatSession {
@@ -166,6 +208,7 @@ export function useChatAgent(): UseChatAgentReturn {
                 role: msg.role,
                 content: msg.content,
                 media: msg.media,
+                hermesRun: msg.hermesRun,
                 timestamp: new Date(msg.timestamp || data.createdAt),
             }));
 
@@ -255,6 +298,7 @@ export function useChatAgent(): UseChatAgentReturn {
                 id: generateMessageId(),
                 role: 'assistant',
                 content: data.response,
+                hermesRun: data.hermesRun,
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, aiMessage]);

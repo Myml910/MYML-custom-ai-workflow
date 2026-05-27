@@ -10,7 +10,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, History, Paperclip, Globe, Settings, Send, Sparkles, Plus, Loader2, ChevronLeft, Trash2, MessageSquare } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
-import { useChatAgent, ChatMessage as ChatMessageType, ChatSession } from '../hooks/useChatAgent';
+import { useChatAgent } from '../hooks/useChatAgent';
+import type { ChatMessage as ChatMessageType, ChatSession, HermesRunPayload } from '../hooks/useChatAgent';
 import { Language, t } from '../i18n/translations';
 import type { AgentCanvasContext } from '../utils/agentCanvasContext';
 
@@ -53,6 +54,137 @@ function estimateBase64Bytes(value?: string): number {
     const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
     return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
 }
+
+const HermesResultCard: React.FC<{
+    hermesRun: HermesRunPayload;
+    canvasTheme: 'dark' | 'light';
+    language: Language;
+}> = ({ hermesRun, canvasTheme, language }) => {
+    const isDark = canvasTheme === 'dark';
+    const project = hermesRun.project || {};
+    const strategy = hermesRun.strategy || {};
+    const designTask = hermesRun.designTask || {};
+    const assets = hermesRun.assets || [];
+    const text = language === 'zh'
+        ? {
+            title: 'Hermes 项目执行',
+            fields: '项目字段',
+            strategy: '生成策略',
+            assets: '图片结果',
+            code: '项目编号',
+            category: '品类',
+            customer: '客户',
+            craft: '工艺',
+            size: '尺寸',
+            quantity: '数量',
+            model: '模型',
+            mode: '模式',
+            reason: '原因',
+            prompt: '设计任务',
+            placeholder: 'Mock 图片资产',
+        }
+        : {
+            title: 'Hermes Project Run',
+            fields: 'Project Fields',
+            strategy: 'Generation Strategy',
+            assets: 'Image Results',
+            code: 'Project Code',
+            category: 'Category',
+            customer: 'Customer',
+            craft: 'Craft',
+            size: 'Size',
+            quantity: 'Quantity',
+            model: 'Model',
+            mode: 'Mode',
+            reason: 'Reason',
+            prompt: 'Design Task',
+            placeholder: 'Mock image asset',
+        };
+    const rows = [
+        [text.code, project.code || hermesRun.projectCode],
+        [text.category, project.category],
+        [text.customer, project.customer],
+        [text.craft, project.craft],
+        [text.size, project.sizeRequirement],
+        [text.quantity, project.quantityRequirement],
+    ].filter(([, value]) => Boolean(value));
+
+    return (
+        <div className={`ml-2 mb-4 max-w-[86%] rounded-xl border p-3 text-xs leading-5 ${
+            isDark
+                ? 'border-[#D8FF00]/20 bg-[#101210] text-neutral-200'
+                : 'border-lime-200 bg-lime-50 text-neutral-800'
+        }`}>
+            <div className="mb-2 flex items-center gap-2">
+                <Sparkles size={14} className={isDark ? 'text-[#D8FF00]' : 'text-lime-700'} />
+                <span className="font-semibold">{text.title}</span>
+                <span className={`rounded-md px-1.5 py-0.5 text-[10px] uppercase ${
+                    hermesRun.status === 'completed'
+                        ? isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
+                        : isDark ? 'bg-amber-500/15 text-amber-300' : 'bg-amber-100 text-amber-700'
+                }`}>
+                    {hermesRun.status}
+                </span>
+            </div>
+
+            <div className="space-y-2">
+                <div>
+                    <div className={`mb-1 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>{text.fields}</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        {rows.map(([label, value]) => (
+                            <React.Fragment key={label}>
+                                <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{label}</span>
+                                <span className="min-w-0 truncate">{value}</span>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <div className={`mb-1 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>{text.strategy}</div>
+                    <div className={isDark ? 'text-neutral-300' : 'text-neutral-700'}>
+                        <div>{text.model}: {strategy.selectedModel || '-'}</div>
+                        <div>{text.mode}: {strategy.mode || '-'}</div>
+                        {strategy.reason && <div>{text.reason}: {strategy.reason}</div>}
+                    </div>
+                </div>
+
+                {designTask.prompt && (
+                    <div>
+                        <div className={`mb-1 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>{text.prompt}</div>
+                        <p className={`line-clamp-4 ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>{designTask.prompt}</p>
+                    </div>
+                )}
+
+                {assets.length > 0 && (
+                    <div>
+                        <div className={`mb-2 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>{text.assets}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                            {assets.map(asset => (
+                                <div key={asset.id} className={`overflow-hidden rounded-lg border ${
+                                    isDark ? 'border-neutral-800 bg-neutral-950' : 'border-neutral-200 bg-white'
+                                }`}>
+                                    {asset.url ? (
+                                        <img src={asset.url} alt={asset.imageId || text.placeholder} className="h-24 w-full object-cover" />
+                                    ) : (
+                                        <div className={`flex h-24 items-center justify-center px-2 text-center ${
+                                            isDark ? 'text-neutral-500' : 'text-neutral-500'
+                                        }`}>
+                                            {text.placeholder}
+                                        </div>
+                                    )}
+                                    <div className="truncate px-2 py-1 text-[10px] text-neutral-500">
+                                        {asset.imageId || asset.model || text.placeholder}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // ============================================================================
 // COMPONENT
@@ -518,15 +650,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 ) : (
                     <div className="space-y-1">
                         {messages.map((msg: ChatMessageType) => (
-                            <ChatMessage
-                                key={msg.id}
-                                role={msg.role}
-                                content={msg.content}
-                                media={msg.media}
-                                timestamp={msg.timestamp}
-                                canvasTheme={canvasTheme}
-                                language={language}
-                            />
+                            <React.Fragment key={msg.id}>
+                                <ChatMessage
+                                    role={msg.role}
+                                    content={msg.content}
+                                    media={msg.media}
+                                    timestamp={msg.timestamp}
+                                    canvasTheme={canvasTheme}
+                                    language={language}
+                                />
+                                {msg.role === 'assistant' && msg.hermesRun && (
+                                    <HermesResultCard
+                                        hermesRun={msg.hermesRun}
+                                        canvasTheme={canvasTheme}
+                                        language={language}
+                                    />
+                                )}
+                            </React.Fragment>
                         ))}
 
                         {/* Loading indicator */}

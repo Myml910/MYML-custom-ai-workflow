@@ -191,6 +191,7 @@ function serializeMessages(messages) {
         role: msg._getType?.() === 'human' ? 'user' : 'assistant',
         content: contentToText(msg.content),
         media: msg.additional_kwargs?.media,
+        hermesRun: msg.additional_kwargs?.hermesRun,
         timestamp: new Date().toISOString()
     }));
 }
@@ -208,7 +209,11 @@ function deserializeMessages(messages) {
             }
             return message;
         } else {
-            return new AIMessage(msg.content);
+            const message = new AIMessage(msg.content);
+            if (msg.hermesRun) {
+                message.additional_kwargs = { hermesRun: msg.hermesRun };
+            }
+            return message;
         }
     });
 }
@@ -529,6 +534,37 @@ export async function sendMessage(sessionId, content, media, apiKey, options = {
     };
 }
 
+export function recordHermesExchange(sessionId, content, responseText, hermesRun, options = {}) {
+    const session = getSession(sessionId, options);
+    const userMessage = new HumanMessage(content || '');
+    const aiMessage = new AIMessage(responseText || '');
+
+    if (hermesRun) {
+        aiMessage.additional_kwargs = {
+            ...aiMessage.additional_kwargs,
+            hermesRun
+        };
+    }
+
+    session.messages.push(userMessage);
+    session.messages.push(aiMessage);
+
+    if (!session.topic) {
+        session.topic = hermesRun?.projectCode
+            ? `Hermes ${hermesRun.projectCode}`
+            : 'Hermes Project';
+    }
+
+    saveSession(sessionId, session, options.chatsDir);
+
+    return {
+        response: aiMessage.content.toString(),
+        topic: session.topic,
+        messageCount: session.messages.length,
+        hermesRun
+    };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -541,6 +577,7 @@ export default {
     listSessions,
     getSessionData,
     sendMessage,
+    recordHermesExchange,
     createChatGraph,
     generateTopicTitle,
 };

@@ -15,6 +15,8 @@ import crypto from 'crypto';
 import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
 import { analyzeImagePromptReverse } from './agent/imagePromptReverse.js';
+import { extractYxfProjectCode, isHermesProjectStartIntent } from './services/hermes/projectCode.js';
+import { runHermesProject } from './services/hermes/orchestrator.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import { getDatabaseLabel, getDb } from './db/index.js';
@@ -1620,6 +1622,41 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { sessionId, message, media, canvasContext } = req.body;
 
+        if (!sessionId) {
+            return res.status(400).json({ error: "sessionId is required" });
+        }
+
+        if (!message && !media) {
+            return res.status(400).json({ error: "message or media is required" });
+        }
+
+        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
+        if (isHermesProjectStartIntent(message)) {
+            const projectCode = extractYxfProjectCode(message);
+            const hermesResult = await runHermesProject({
+                user: req.user,
+                projectCode,
+                message,
+                chatSessionId: sessionId,
+                workflowId: canvasContext?.workflow?.id || null
+            });
+            const recorded = chatAgent.recordHermesExchange(
+                sessionId,
+                message,
+                hermesResult.responseText,
+                hermesResult.hermesRun,
+                { chatsDir: libraryDirs.chatsDir }
+            );
+
+            return res.json({
+                success: true,
+                response: recorded.response,
+                topic: recorded.topic,
+                messageCount: recorded.messageCount,
+                hermesRun: recorded.hermesRun
+            });
+        }
+
         const aiProviderConfig = getAiProviderConfig(process.env, req.app.locals);
         let agentChatConfig;
         try {
@@ -1640,15 +1677,6 @@ app.post('/api/chat', async (req, res) => {
 
         const chatApiKey = agentChatConfig.provider === 'legacy' ? agentChatConfig.apiKey : undefined;
 
-        if (!sessionId) {
-            return res.status(400).json({ error: "sessionId is required" });
-        }
-
-        if (!message && !media) {
-            return res.status(400).json({ error: "message or media is required" });
-        }
-
-        const libraryDirs = req.library || ensureUserLibraryDirs(req.user);
         const result = await chatAgent.sendMessage(sessionId, message, media, chatApiKey, {
             chatsDir: libraryDirs.chatsDir,
             user: req.user,

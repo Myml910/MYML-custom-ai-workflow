@@ -130,6 +130,59 @@ export async function runMigrations(db) {
         );
     `);
 
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS hermes_runs (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            username TEXT,
+            team_id TEXT REFERENCES teams(id),
+            project_code TEXT NOT NULL,
+            chat_session_id TEXT,
+            workflow_id TEXT,
+            status TEXT NOT NULL DEFAULT 'queued'
+                CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+            idempotency_key TEXT,
+            hermes_request_id TEXT,
+            hermes_run_id TEXT,
+            request_payload JSONB,
+            project_fields JSONB,
+            generation_strategy JSONB,
+            design_task JSONB,
+            response_payload JSONB,
+            error_type TEXT,
+            error_message TEXT,
+            started_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ,
+            failed_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+    `);
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS hermes_assets (
+            id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES hermes_runs(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            team_id TEXT REFERENCES teams(id),
+            project_code TEXT NOT NULL,
+            hermes_asset_id TEXT,
+            source_url TEXT,
+            local_url TEXT,
+            filename TEXT,
+            mime_type TEXT,
+            file_size INTEGER,
+            width INTEGER,
+            height INTEGER,
+            checksum TEXT,
+            asset_index INTEGER NOT NULL DEFAULT 0,
+            model TEXT,
+            prompt TEXT,
+            metadata JSONB,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+    `);
+
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_user_id ON generation_tasks(user_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_node_id ON generation_tasks(node_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_generation_tasks_workflow_id ON generation_tasks(workflow_id);');
@@ -150,4 +203,13 @@ export async function runMigrations(db) {
     await db.query('CREATE INDEX IF NOT EXISTS idx_provider_usage_logs_task ON provider_usage_logs(task_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_provider_usage_logs_user_id ON provider_usage_logs(user_id);');
     await db.query('CREATE INDEX IF NOT EXISTS idx_provider_usage_logs_team_id ON provider_usage_logs(team_id);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_runs_user_id ON hermes_runs(user_id);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_runs_team_id ON hermes_runs(team_id);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_runs_project_code ON hermes_runs(project_code);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_runs_status ON hermes_runs(status);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_runs_created_at ON hermes_runs(created_at);');
+    await db.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_hermes_runs_idempotency_key ON hermes_runs(idempotency_key) WHERE idempotency_key IS NOT NULL;');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_assets_run_id ON hermes_assets(run_id);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_assets_user_id ON hermes_assets(user_id);');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_hermes_assets_project_code ON hermes_assets(project_code);');
 }
