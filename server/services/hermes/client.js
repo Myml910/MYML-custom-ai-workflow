@@ -9,21 +9,85 @@ const MOCK_IMAGE_URLS = [
     '/day-mode-with-chat-window.png'
 ];
 
-const HERMES_API_SYSTEM_PROMPT = `You are the Hermes execution gateway for MYML Canvas P1 integration.
+const HERMES_API_SYSTEM_PROMPT = `You are the Hermes execution gateway for MYML Canvas.
 
-Return exactly one JSON object. Do not use markdown. Do not explain.
-The JSON object must match this schema:
+You must load and follow the company-system project lookup skill:
+Load skill_view(name="company-system:project-lookup")
+
+Execution rules:
+1. Extract projectCode from the user payload.
+2. You must call company_project_lookup with projectCode.
+3. The final output must be exactly one JSON object. Do not use markdown. Do not explain.
+4. Do not query any other external system.
+5. Do not generate real images.
+6. Do not return external image URLs.
+7. Do not include API keys, headers, authorization values, raw upstream debug payloads, or internal secrets.
+
+Project preservation rules:
+- Let toolProject be the complete object returned by company_project_lookup.
+- The final project object must preserve every field from toolProject.
+- The final project.companyFields must equal the complete toolProject object, not the simplified project object.
+- Do not summarize, compress, omit, rename, or flatten unknown company fields.
+- Preserve arrays and objects such as targetAudience, deliverables, constraints, styleReferences, assetHints, lookupStatus, source, mock, and updatedAt.
+
+Add these MYML aliases to project without removing the original tool fields:
+- code = projectCode
+- name = projectName
+- customer = customerName
+- developmentRequirement = brief || objective
+- craft = process || constraints.channels[0] || "\u6570\u7801\u5370\u82b1"
+- sizeRequirement = "2K" if deliverables mentions 2K, otherwise "" or "2K"
+- quantityRequirement = 4 if deliverables mentions 4 \u5f20, otherwise 1
+
+The JSON object must match this MYML-compatible schema:
 {
   "status": "completed",
   "project": {
+    "projectCode": "YXF...",
+    "projectId": "...",
+    "projectName": "...",
+    "customerName": "...",
+    "brandName": "...",
+    "businessUnit": "...",
+    "category": "...",
+    "objective": "...",
+    "brief": "...",
+    "targetAudience": [],
+    "deliverables": [],
+    "constraints": {},
+    "styleReferences": [],
+    "assetHints": [],
+    "lookupStatus": "found",
+    "source": "mock",
+    "mock": true,
+    "updatedAt": "...",
     "code": "YXF...",
     "name": "...",
-    "category": "...",
     "customer": "...",
     "developmentRequirement": "...",
     "craft": "...",
     "sizeRequirement": "...",
-    "quantityRequirement": 1
+    "quantityRequirement": 1,
+    "companyFields": {
+      "projectCode": "YXF...",
+      "projectId": "...",
+      "projectName": "...",
+      "customerName": "...",
+      "brandName": "...",
+      "businessUnit": "...",
+      "category": "...",
+      "objective": "...",
+      "brief": "...",
+      "targetAudience": [],
+      "deliverables": [],
+      "constraints": {},
+      "styleReferences": [],
+      "assetHints": [],
+      "lookupStatus": "found",
+      "source": "mock",
+      "mock": true,
+      "updatedAt": "..."
+    }
   },
   "strategy": {
     "selectedModel": "...",
@@ -40,7 +104,7 @@ The JSON object must match this schema:
   },
   "results": [
     {
-      "imageId": "mock_img_xxx",
+      "imageId": "mock_img_yxf1234567890_001",
       "url": "/workflow-sample-1.png",
       "model": "hermes-api-mock-image-strategy-v1",
       "prompt": "..."
@@ -48,12 +112,11 @@ The JSON object must match this schema:
   ]
 }
 
-P1 boundaries:
-- Use mock company/project fields only.
-- Do not query external company systems.
-- Do not generate real images.
-- Use a local public mock image URL such as "/workflow-sample-1.png".
-- Do not return external image URLs.`;
+Required result rules:
+- results[0].url must be "/workflow-sample-1.png".
+- results[0].imageId must be a string like "mock_img_yxf1234567890_001".
+- strategy must include selectedModel, reason, imageCount, size, and mode.
+- designTask must include task_type, theme, prompt, and negative_prompt.`;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -143,6 +206,87 @@ function isPlainObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+const SENSITIVE_FIELD_PATTERN = /(api_?key|token|authorization|password|secret|credential|headers?)/i;
+
+function sanitizeJsonForStorage(value) {
+    if (Array.isArray(value)) {
+        return value.map(sanitizeJsonForStorage);
+    }
+
+    if (!isPlainObject(value)) {
+        return value;
+    }
+
+    const output = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+        if (SENSITIVE_FIELD_PATTERN.test(key)) {
+            output[key] = '[redacted]';
+            continue;
+        }
+        output[key] = sanitizeJsonForStorage(nestedValue);
+    }
+    return output;
+}
+
+function firstNonEmpty(...values) {
+    for (const value of values) {
+        if (value !== undefined && value !== null && value !== '') return value;
+    }
+    return undefined;
+}
+
+function inferCraftFromConstraints(constraints) {
+    if (!isPlainObject(constraints)) return undefined;
+    const channels = constraints.channels;
+    if (Array.isArray(channels) && channels.length > 0) {
+        return channels
+            .filter(item => typeof item === 'string' && item.trim())
+            .join(', ') || undefined;
+    }
+    return undefined;
+}
+
+function removeGeneratedCompanyFields(rawProject) {
+    if (!isPlainObject(rawProject)) return {};
+    const { companyFields: _generatedCompanyFields, ...projectFields } = rawProject;
+    return projectFields;
+}
+
+function normalizeHermesProjectFields(rawProject, requestProjectCode) {
+    const companyFields = sanitizeJsonForStorage(removeGeneratedCompanyFields(rawProject));
+    const code = firstNonEmpty(companyFields.code, companyFields.projectCode, requestProjectCode);
+    const name = firstNonEmpty(companyFields.name, companyFields.projectName);
+    const customer = firstNonEmpty(companyFields.customer, companyFields.customerName);
+    const developmentRequirement = firstNonEmpty(
+        companyFields.developmentRequirement,
+        companyFields.brief,
+        companyFields.objective
+    );
+    const craft = firstNonEmpty(
+        companyFields.craft,
+        companyFields.process,
+        inferCraftFromConstraints(companyFields.constraints)
+    );
+    const sizeRequirement = firstNonEmpty(companyFields.sizeRequirement, companyFields.size);
+    const quantityRequirement = firstNonEmpty(
+        companyFields.quantityRequirement,
+        companyFields.imageCount,
+        1
+    );
+
+    return {
+        ...companyFields,
+        code,
+        name,
+        customer,
+        developmentRequirement,
+        craft,
+        sizeRequirement,
+        quantityRequirement,
+        companyFields
+    };
+}
+
 function validateHermesP1Response(payload) {
     if (!isPlainObject(payload)) {
         throw createHermesError(
@@ -178,15 +322,13 @@ function validateHermesP1Response(payload) {
 
 function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     validateHermesP1Response(payload);
+    const project = normalizeHermesProjectFields(payload.project, projectCode);
 
     return {
         status: payload.status,
         hermesRequestId: payload.hermesRequestId || envelope?.id || null,
         hermesRunId: payload.hermesRunId || payload.runId || null,
-        project: {
-            ...payload.project,
-            code: payload.project?.code || projectCode,
-        },
+        project,
         strategy: payload.strategy,
         designTask: payload.designTask,
         results: payload.results.map((item, index) => ({
