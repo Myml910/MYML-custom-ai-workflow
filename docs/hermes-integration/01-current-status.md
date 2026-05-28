@@ -78,8 +78,21 @@ P3-C scope:
 - Hermes may return structured `references.images`, `references.links`, and `references.notes`.
 - MYML Canvas may identify and display company reference image URLs, reference links, Amazon URLs, and product URLs.
 - Current company View reference fields include `design_img`, `design_link`, `oper_img`, and `oper_link`.
+- MYML Canvas merges references from Hermes LLM output, `companyFields.references`, and raw company fields such as `design_img`, `oper_img`, `design_link`, and `oper_link`.
+- Reference items may include `resolvedUrl`, `url`, or `rawValue`; only http/https values are opened as links.
+- Reference image merge prefers complete `companyFields.references.images` records with `resolvedUrl` / `url` / `safeToDisplay=true`; raw `design_img` / `oper_img` fields are only fallback records.
 - MYML Canvas does not download external reference images, crawl Amazon, visit `ref_link`, or import references into the asset library in P3-C.
 - Moving references into the canvas, safe downloading, and using them as image-generation inputs are reserved for later P4/P5 work.
+
+P3-E scope:
+
+- Hermes may return `designTasks[].structuredPromptDescription` as a structured intermediate layer for image-generation prompts.
+- `structuredPromptDescription` records subject, product context, art style, color, composition, layered details, typography, production constraints, reference usage, and negative constraints.
+- `designTasks[].prompt` remains the final English prompt intended for later MYML Canvas image workers.
+- MYML Canvas displays the structured prompt description for review and copying only. It does not execute image generation in P3-E.
+- Designers can copy the final prompt, negative prompt, structured prompt Markdown, or a full generation package from each task card.
+- Hermes should align total design demand with explicit project requirements when present. Response payload may include `expectedDesignTaskCount`, `actualDesignTaskCount`, `maxDesignsPerGeneration`, `countReason`, and `batchPlan`.
+- `maxDesignsPerGeneration` is currently 6. If the project requires more than 6 directions, Hermes should plan only the first batch of 6 directions and return `batchPlan` for the remaining directions.
 
 ## Current Non-Goals
 
@@ -93,9 +106,11 @@ Do not do these during this migration preparation phase:
 - Do not visit `design_link` or `oper_link`.
 - Do not create real canvas nodes from Hermes results.
 - Do not execute image generation from P3-A design tasks.
+- Do not execute image generation from P3-E task batches. P4 is expected to route approved prompts through MYML Canvas workers later.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
 - Do not download or proxy P3-C reference images.
 - Do not crawl Amazon or any product reference URL.
+- Do not submit P3-E prompts to image generation workers yet.
 - Do not store real passwords, keys, internal connection strings, or customer-sensitive raw debug data in Git.
 - Do not expose `API_SERVER_KEY`, `HERMES_API_KEY`, database credentials, or internal hostnames to the frontend.
 

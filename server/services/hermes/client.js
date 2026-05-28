@@ -3,6 +3,7 @@ import crypto from 'crypto';
 const DEFAULT_HERMES_BASE_URL = 'http://127.0.0.1:8642/v1';
 const DEFAULT_HERMES_MODEL = 'hermes-agent';
 const DEFAULT_HERMES_TIMEOUT_MS = 180000;
+const MAX_DESIGNS_PER_GENERATION = 6;
 
 const MOCK_IMAGE_URLS = [
     '/workflow-sample-1.png',
@@ -44,13 +45,29 @@ Design proposal rules:
 - If the user asks for "\u56fe\u6848\u8bbe\u8ba1\u63d0\u6848", "\u8bbe\u8ba1\u65b9\u6848", "\u8bbe\u8ba1\u7b56\u7565", "design task", "prompt", or any project-start request, create a pattern design proposal after project lookup.
 - The proposal must be for pattern design, home product pattern direction, and production-ready repeatable surface design. Do not generate marketing copy.
 - If category_label or usage_scenario_label is missing, infer conservatively from existing fields and record the uncertainty in constraints or task notes.
-- Generate 3 to 6 designTasks. Every design task must include prompt and negativePrompt.
+- Determine expectedDesignTaskCount from project fields including projectName, designRequirement, developmentRequirement, quantityRequirement, sizeRequirement, brief, developmentKeywords, and operationKeywords.
+- Treat explicit phrases such as "6\u4e2a\u56fe", "6\u5f20\u56fe", "6\u6b3e", "6 designs", "six images", "12pcs", "12\u4e2a", "\u591a\u6b3e\u5f0f", and similar count instructions as design-count intent.
+- maxDesignsPerGeneration must be ${MAX_DESIGNS_PER_GENERATION}.
+- If expectedDesignTaskCount <= ${MAX_DESIGNS_PER_GENERATION}, actualDesignTaskCount must equal expectedDesignTaskCount and designTasks.length must equal actualDesignTaskCount.
+- If expectedDesignTaskCount > ${MAX_DESIGNS_PER_GENERATION}, actualDesignTaskCount must be ${MAX_DESIGNS_PER_GENERATION}, designTasks.length must be ${MAX_DESIGNS_PER_GENERATION}, and batchPlan must describe the split plan.
+- For expectedDesignTaskCount > ${MAX_DESIGNS_PER_GENERATION}, countReason must explain that the model single-batch limit is ${MAX_DESIGNS_PER_GENERATION}, so this response only plans the first ${MAX_DESIGNS_PER_GENERATION} design directions.
+- batchPlan must include totalRequired, maxPerBatch, totalBatches, currentBatch, batchLabel, remainingCount, and reason.
+- If the required count is unclear, output 3 to 4 designTasks and explain in countReason that the project did not specify an exact count.
+- Return expectedDesignTaskCount, actualDesignTaskCount, maxDesignsPerGeneration, countReason, and batchPlan at the top level when task count intent is known.
+- Every designTask must have a clearly distinct creative direction. Do not only change the title.
+- For badge, rug, set, mixed-size, multi-pcs, or multi-style projects, split tasks by product size, pattern theme, use scenario, core elements, style difference, or size.
+- Every design task must include structuredPromptDescription, prompt, and negativePrompt.
+- For each designTask, first create structuredPromptDescription, then derive the final English prompt and negativePrompt from it.
+- structuredPromptDescription must include: Core Subject & Theme, Product Context & Usage, Art Style & Medium, Color Palette & Mood, Composition & Layout, Detailed Visual Elements, Text & Typography, Pattern / Production Constraints, Reference Usage, and Negative Constraints.
+- prompt must be an English image-generation prompt for pattern design, home product pattern direction, and production-ready repeatable surface design.
+- negativePrompt must avoid cluttered composition, unreadable small text, low clarity, trademarks/logos, photorealistic faces, extra background clutter, incorrect text, and elements unrelated to the product.
 - generationReadiness.readyForImageGeneration must be false in P3-A.
 - Do not call image generation. Do not create generated image URLs. Do not claim images have been generated.
 
 Reference material rules:
 - Extract reference images and reference links from company_project_lookup fields such as ref_img, ref_link, reference_image, reference_url, amazon_url, amazon_link, product_url, design_img, design_link, oper_img, and oper_link.
 - If reference images or Amazon/product/reference links exist, put them into references.images or references.links.
+- Preserve companyFields.references items when present, including rawValue, resolvedUrl, url, isHttpUrl, safeToDisplay, and safeToOpen.
 - Do not download reference images. Do not visit reference links. Do not crawl Amazon.
 - references only describes external pointers for the designer to inspect later.
 - If references exist, designTasks should include referenceRequired, referenceIds, and referenceUsage.
@@ -149,6 +166,23 @@ The JSON object must match this MYML-compatible schema:
       "title": "...",
       "targetSize": "2K",
       "purpose": "...",
+      "structuredPromptDescription": {
+        "coreSubjectAndTheme": "...",
+        "productContextAndUsage": "...",
+        "artStyleAndMedium": "...",
+        "colorPaletteAndMood": "...",
+        "compositionAndLayout": "...",
+        "detailedVisualElements": {
+          "mainFocus": "...",
+          "backgroundAtmosphere": "...",
+          "foregroundFraming": "...",
+          "specificDetailsProps": "..."
+        },
+        "textAndTypography": "None",
+        "patternProductionConstraints": "...",
+        "referenceUsage": "...",
+        "negativeConstraints": "..."
+      },
       "prompt": "...",
       "negativePrompt": "...",
       "modelRecommendation": "custom-image-gpt-image-2",
@@ -158,6 +192,19 @@ The JSON object must match this MYML-compatible schema:
       "notes": []
     }
   ],
+  "expectedDesignTaskCount": 12,
+  "actualDesignTaskCount": 6,
+  "maxDesignsPerGeneration": 6,
+  "countReason": "The project requests more than 6 designs. The single-batch limit is 6, so this response prepares the first 6 design directions only.",
+  "batchPlan": {
+    "totalRequired": 12,
+    "maxPerBatch": 6,
+    "totalBatches": 2,
+    "currentBatch": 1,
+    "batchLabel": "Batch 1 / 2",
+    "remainingCount": 6,
+    "reason": "The project requests more than 6 designs. This batch prepares the first 6 design directions only."
+  },
   "references": {
     "images": [
       {
@@ -292,7 +339,7 @@ function isPlainObject(value) {
 }
 
 const REDACTED_VALUE = '[REDACTED]';
-const SENSITIVE_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|身份证|手机号|电话|邮箱|客户联系方式|联系人电话|credential|headers?)/i;
+const SENSITIVE_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|\u8eab\u4efd\u8bc1|\u624b\u673a\u53f7|\u7535\u8bdd|\u90ae\u7bb1|\u5ba2\u6237\u8054\u7cfb\u65b9\u5f0f|\u8054\u7cfb\u4eba\u7535\u8bdd|credential|headers?)/i;
 
 function redactSensitiveFieldsDeep(value) {
     if (Array.isArray(value)) {
@@ -334,8 +381,13 @@ function inferCraftFromConstraints(constraints) {
 
 function removeGeneratedCompanyFields(rawProject) {
     if (!isPlainObject(rawProject)) return {};
-    const { companyFields: _generatedCompanyFields, ...projectFields } = rawProject;
-    return projectFields;
+    const { companyFields: generatedCompanyFields, ...projectFields } = rawProject;
+    if (!isPlainObject(generatedCompanyFields)) return projectFields;
+    const { companyFields: _nestedGeneratedCompanyFields, ...nestedCompanyFields } = generatedCompanyFields;
+    return {
+        ...nestedCompanyFields,
+        ...projectFields
+    };
 }
 
 function normalizeHermesProjectFields(rawProject, requestProjectCode) {
@@ -490,7 +542,7 @@ function normalizeReferenceFieldKey(key) {
 function cleanUrlCandidate(value) {
     return String(value || '')
         .trim()
-        .replace(/[)\]}.,，。;；]+$/g, '');
+        .replace(/[)\]}.,\uFF0C\u3002\uFF1B]+$/g, '');
 }
 
 function isHttpUrl(value) {
@@ -542,6 +594,46 @@ function extractHttpUrls(value) {
     return [];
 }
 
+function getFirstHttpReferenceUrl(value) {
+    return extractHttpUrls(value)[0];
+}
+
+function extractReferenceRawValues(value) {
+    if (typeof value === 'string') {
+        return value
+            .split(/[\n,;\uFF0C\uFF1B]+/g)
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    if (Array.isArray(value)) {
+        return value.flatMap(extractReferenceRawValues);
+    }
+
+    if (isPlainObject(value)) {
+        const directValue = firstNonEmpty(
+            value.rawValue,
+            value.resolvedUrl,
+            value.url,
+            value.src,
+            value.href,
+            value.link,
+            value.path,
+            value.value
+        );
+        if (directValue) return extractReferenceRawValues(directValue);
+    }
+
+    return [];
+}
+
+function collectStructuredReferenceItems(value, bucket) {
+    if (!isPlainObject(value)) return;
+    if (Array.isArray(value.images)) bucket.images.push(...value.images);
+    if (Array.isArray(value.links)) bucket.links.push(...value.links);
+    if (Array.isArray(value.notes)) bucket.notes.push(...value.notes);
+}
+
 function collectProjectReferenceUrls(value, bucket) {
     if (Array.isArray(value)) {
         value.forEach(item => collectProjectReferenceUrls(item, bucket));
@@ -556,23 +648,67 @@ function collectProjectReferenceUrls(value, bucket) {
         const fieldMetadata = REFERENCE_FIELD_METADATA[normalizedKey] || {};
 
         if (IMAGE_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
-            bucket.images.push(...urls.map(url => ({
-                url,
-                source: 'company_system',
-                label: fieldMetadata.label,
-                role: fieldMetadata.role
-            })));
+            if (urls.length > 0) {
+                bucket.images.push(...urls.map(url => ({
+                    url,
+                    resolvedUrl: url,
+                    isHttpUrl: true,
+                    source: 'company_system',
+                    label: fieldMetadata.label,
+                    role: fieldMetadata.role,
+                    field: key
+                })));
+            } else {
+                bucket.images.push(...extractReferenceRawValues(nestedValue).map(rawValue => ({
+                    rawValue,
+                    isHttpUrl: false,
+                    safeToDisplay: false,
+                    safeToOpen: false,
+                    source: 'company_system',
+                    label: fieldMetadata.label,
+                    role: fieldMetadata.role,
+                    field: key,
+                    message: 'Company image field was returned, but it is not a directly accessible http/https URL.'
+                })));
+            }
         } else if (LINK_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
-            bucket.links.push(...urls.map(url => ({
-                url,
-                source: 'company_system',
-                label: fieldMetadata.label,
-                type: fieldMetadata.type
-            })));
+            if (urls.length > 0) {
+                bucket.links.push(...urls.map(url => ({
+                    url,
+                    resolvedUrl: url,
+                    isHttpUrl: true,
+                    source: 'company_system',
+                    label: fieldMetadata.label,
+                    type: fieldMetadata.type,
+                    field: key
+                })));
+            } else {
+                bucket.notes.push(...extractReferenceRawValues(nestedValue).map(rawValue => ({
+                    rawValue,
+                    source: 'company_system',
+                    label: fieldMetadata.label,
+                    type: fieldMetadata.type,
+                    field: key,
+                    message: 'Company reference link field was returned, but it is not a directly accessible http/https URL.'
+                })));
+            }
         } else if (MIXED_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
+            collectStructuredReferenceItems(nestedValue, bucket);
             for (const url of urls) {
-                if (looksLikeImageUrl(url)) bucket.images.push(url);
-                else bucket.links.push(url);
+                if (looksLikeImageUrl(url)) bucket.images.push({
+                    url,
+                    resolvedUrl: url,
+                    isHttpUrl: true,
+                    source: 'company_system',
+                    field: key
+                });
+                else bucket.links.push({
+                    url,
+                    resolvedUrl: url,
+                    isHttpUrl: true,
+                    source: 'company_system',
+                    field: key
+                });
             }
         }
 
@@ -580,46 +716,228 @@ function collectProjectReferenceUrls(value, bucket) {
     }
 }
 
-function dedupeReferencesByUrl(items) {
-    const seen = new Set();
-    return items.filter(item => {
-        if (!item?.url || seen.has(item.url)) return false;
-        seen.add(item.url);
-        return true;
-    });
+function getReferenceIdentity(item) {
+    const field = isPlainObject(item) ? firstNonEmpty(item.field, item.label, item.role, item.type, '') : '';
+    const rawValue = isPlainObject(item) ? firstNonEmpty(item.rawValue, '') : '';
+    if (field && rawValue) return `${String(field).trim()}|raw:${String(rawValue).trim()}`;
+    const value = isPlainObject(item)
+        ? firstNonEmpty(item.url, item.resolvedUrl, item.rawValue, item.src, item.href, item.link, '')
+        : firstNonEmpty(item, '');
+    return `${String(field).trim()}|${String(value).trim()}`;
+}
+
+function getReferenceCompletenessScore(item) {
+    if (!isPlainObject(item)) return 0;
+    const hasUrl = Boolean(firstNonEmpty(item.url, item.resolvedUrl));
+    const role = String(item.role || '').toLowerCase();
+    const field = String(item.field || '').toLowerCase();
+    const label = String(item.label || '');
+    return [
+        hasUrl ? 1000 : 0,
+        item.safeToDisplay === true ? 500 : 0,
+        item.isHttpUrl === true ? 250 : 0,
+        item.safeToOpen === true ? 125 : 0,
+        role === 'design_reference' || role === 'operation_reference' ? 80 : 0,
+        role === 'visual_reference' ? -10 : 0,
+        field === 'design_img' || field === 'oper_img' ? 60 : 0,
+        field === 'references' ? -10 : 0,
+        label === '\u8bbe\u8ba1\u53c2\u8003\u56fe' || label === '\u8fd0\u8425\u53c2\u8003\u56fe' ? 20 : 0,
+        item.rawValue ? 5 : 0,
+        item.label ? 2 : 0,
+        item.role || item.type ? 2 : 0,
+        item.id ? 1 : 0
+    ].reduce((sum, value) => sum + value, 0);
+}
+
+function normalizeReferenceIdentityPart(value) {
+    return String(value || '').trim();
+}
+
+function getUrlTempPathIdentity(value) {
+    try {
+        const parsed = new URL(String(value || ''));
+        const match = parsed.pathname.match(/\/temp\/.+$/i);
+        return match ? normalizeReferenceIdentityPart(match[0].replace(/^\/+/, '')) : '';
+    } catch {
+        const rawValue = normalizeReferenceIdentityPart(value);
+        const match = rawValue.match(/(?:^|[\\/])temp[\\/].+$/i);
+        return match ? normalizeReferenceIdentityPart(match[0].replace(/^[\\/]+/, '').replace(/\\/g, '/')) : '';
+    }
+}
+
+function getImageReferenceIdentities(item) {
+    if (!isPlainObject(item)) return [];
+    const field = normalizeReferenceIdentityPart(item.field);
+    const values = [
+        normalizeReferenceIdentityPart(item.url),
+        normalizeReferenceIdentityPart(item.resolvedUrl),
+        normalizeReferenceIdentityPart(item.rawValue)
+    ].filter(Boolean);
+    const tempValues = [
+        getUrlTempPathIdentity(item.url),
+        getUrlTempPathIdentity(item.resolvedUrl),
+        getUrlTempPathIdentity(item.rawValue)
+    ].filter(Boolean);
+    const identities = new Set();
+
+    for (const value of values) {
+        identities.add(`value:${value}`);
+        if (field) identities.add(`field:${field}|value:${value}`);
+    }
+    for (const value of tempValues) {
+        identities.add(`temp:${value}`);
+        if (field) identities.add(`field:${field}|temp:${value}`);
+    }
+
+    return Array.from(identities);
+}
+
+function mergeImageReferenceItems(current, next) {
+    const currentScore = getReferenceCompletenessScore(current);
+    const nextScore = getReferenceCompletenessScore(next);
+    const winner = nextScore > currentScore ? next : current;
+    const fallback = winner === next ? current : next;
+    const merged = {
+        ...fallback,
+        ...winner,
+        rawValue: firstNonEmpty(winner.rawValue, fallback.rawValue),
+        url: firstNonEmpty(winner.url, fallback.url),
+        resolvedUrl: firstNonEmpty(winner.resolvedUrl, fallback.resolvedUrl),
+        safeToDisplay: winner.safeToDisplay === true || fallback.safeToDisplay === true,
+        safeToOpen: winner.safeToOpen === true || fallback.safeToOpen === true,
+        isHttpUrl: winner.isHttpUrl === true || fallback.isHttpUrl === true
+    };
+
+    const fallbackRole = String(fallback.role || '').toLowerCase();
+    const mergedRole = String(merged.role || '').toLowerCase();
+    if ((fallbackRole === 'design_reference' || fallbackRole === 'operation_reference') && mergedRole === 'visual_reference') {
+        merged.role = fallback.role;
+    }
+
+    const fallbackField = String(fallback.field || '').toLowerCase();
+    const mergedField = String(merged.field || '').toLowerCase();
+    if ((fallbackField === 'design_img' || fallbackField === 'oper_img') && mergedField === 'references') {
+        merged.field = fallback.field;
+    }
+
+    const fallbackLabel = String(fallback.label || '');
+    if ((fallbackLabel === '\u8bbe\u8ba1\u53c2\u8003\u56fe' || fallbackLabel === '\u8fd0\u8425\u53c2\u8003\u56fe') && merged.label === '\u9879\u76ee\u53c2\u8003\u56fe') {
+        merged.label = fallback.label;
+    }
+
+    return merged;
+}
+
+function dedupeReferences(items) {
+    const byIdentity = new Map();
+    for (const item of items) {
+        const key = getReferenceIdentity(item);
+        if (!key) continue;
+        const current = byIdentity.get(key);
+        if (!current || getReferenceCompletenessScore(item) > getReferenceCompletenessScore(current)) {
+            byIdentity.set(key, item);
+        }
+    }
+    return Array.from(byIdentity.values());
+}
+
+function dedupeImageReferences(items) {
+    const byIdentity = new Map();
+    const output = [];
+    for (const item of items) {
+        const identities = getImageReferenceIdentities(item);
+        if (identities.length === 0) continue;
+        const existingIndex = identities
+            .map(identity => byIdentity.get(identity))
+            .find(index => index !== undefined);
+
+        if (existingIndex === undefined) {
+            const nextIndex = output.length;
+            output.push(item);
+            identities.forEach(identity => byIdentity.set(identity, nextIndex));
+            continue;
+        }
+
+        const merged = mergeImageReferenceItems(output[existingIndex], item);
+        output[existingIndex] = merged;
+        getImageReferenceIdentities(merged)
+            .concat(identities)
+            .forEach(identity => byIdentity.set(identity, existingIndex));
+    }
+    return output;
 }
 
 function normalizeReferenceImage(item, index) {
-    const url = isPlainObject(item)
-        ? firstNonEmpty(item.url, item.src, item.imageUrl, item.referenceImage, extractHttpUrls(item)[0])
-        : extractHttpUrls(item)[0];
-    if (!isHttpUrl(url)) return null;
+    const candidate = getFirstHttpReferenceUrl(isPlainObject(item)
+        ? [
+            item.resolvedUrl,
+            item.url,
+            item.src,
+            item.imageUrl,
+            item.referenceImage,
+            item.rawValue
+        ]
+        : item);
+    const rawValue = isPlainObject(item)
+        ? firstNonEmpty(item.rawValue, item.path, item.value, item.url, item.resolvedUrl, candidate)
+        : firstNonEmpty(item, candidate);
+    const resolvedUrl = isHttpUrl(candidate) ? sanitizeReferenceUrl(candidate) : undefined;
+
+    if (!resolvedUrl && !rawValue) return null;
 
     return {
         id: firstNonEmpty(isPlainObject(item) ? item.id : null, `ref_${String(index + 1).padStart(2, '0')}`),
-        url,
+        ...(resolvedUrl ? { url: resolvedUrl, resolvedUrl } : {}),
+        ...(rawValue ? { rawValue } : {}),
+        isHttpUrl: Boolean(resolvedUrl),
         source: firstNonEmpty(isPlainObject(item) ? item.source : null, 'company_system'),
         label: firstNonEmpty(isPlainObject(item) ? item.label : null, '\u9879\u76ee\u53c2\u8003\u56fe'),
         role: firstNonEmpty(isPlainObject(item) ? item.role : null, 'visual_reference'),
-        safeToDisplay: isPlainObject(item) && item.safeToDisplay === false ? false : true,
+        safeToDisplay: Boolean(resolvedUrl) && !(isPlainObject(item) && item.safeToDisplay === false),
+        safeToOpen: Boolean(resolvedUrl) && !(isPlainObject(item) && item.safeToOpen === false),
+        ...(isPlainObject(item) && item.field ? { field: item.field } : {}),
+        ...(isPlainObject(item) && item.message ? { message: item.message } : {}),
         importedAssetId: null
     };
 }
 
 function normalizeReferenceLink(item, index) {
-    const url = isPlainObject(item)
-        ? firstNonEmpty(item.url, item.href, item.link, item.referenceUrl, extractHttpUrls(item)[0])
-        : extractHttpUrls(item)[0];
-    if (!isHttpUrl(url)) return null;
+    const candidate = getFirstHttpReferenceUrl(isPlainObject(item)
+        ? [
+            item.resolvedUrl,
+            item.url,
+            item.href,
+            item.link,
+            item.referenceUrl,
+            item.rawValue
+        ]
+        : item);
+    const rawValue = isPlainObject(item)
+        ? firstNonEmpty(item.rawValue, item.path, item.value, item.url, item.resolvedUrl, candidate)
+        : firstNonEmpty(item, candidate);
+    const resolvedUrl = isHttpUrl(candidate) ? sanitizeReferenceUrl(candidate) : undefined;
+
+    if (!resolvedUrl && !rawValue) return null;
 
     return {
         id: firstNonEmpty(isPlainObject(item) ? item.id : null, `link_${String(index + 1).padStart(2, '0')}`),
-        url,
+        ...(resolvedUrl ? { url: resolvedUrl, resolvedUrl } : {}),
+        ...(rawValue ? { rawValue } : {}),
+        isHttpUrl: Boolean(resolvedUrl),
         source: firstNonEmpty(isPlainObject(item) ? item.source : null, 'company_system'),
         label: firstNonEmpty(isPlainObject(item) ? item.label : null, '\u53c2\u8003\u94fe\u63a5'),
         type: firstNonEmpty(isPlainObject(item) ? item.type : null, 'product_reference'),
-        safeToOpen: isPlainObject(item) && item.safeToOpen === false ? false : true
+        safeToOpen: Boolean(resolvedUrl) && !(isPlainObject(item) && item.safeToOpen === false),
+        ...(isPlainObject(item) && item.field ? { field: item.field } : {}),
+        ...(isPlainObject(item) && item.message ? { message: item.message } : {})
     };
+}
+
+function normalizeReferenceNote(item) {
+    if (typeof item === 'string') return item.trim();
+    if (item === null || item === undefined) return '';
+    if (isPlainObject(item)) return item;
+    return String(item).trim();
 }
 
 function normalizeHermesReferences(value, project) {
@@ -633,15 +951,16 @@ function normalizeHermesReferences(value, project) {
         if (Array.isArray(value.notes)) notes.push(...value.notes);
     }
 
-    const projectReferenceUrls = { images: [], links: [] };
+    const projectReferenceUrls = { images: [], links: [], notes: [] };
     collectProjectReferenceUrls(project, projectReferenceUrls);
     imageItems.push(...projectReferenceUrls.images);
     linkItems.push(...projectReferenceUrls.links);
+    notes.push(...projectReferenceUrls.notes);
 
-    const images = dedupeReferencesByUrl(imageItems
+    const images = dedupeImageReferences(imageItems
         .map(normalizeReferenceImage)
         .filter(Boolean));
-    const links = dedupeReferencesByUrl(linkItems
+    const links = dedupeReferences(linkItems
         .map(normalizeReferenceLink)
         .filter(Boolean));
 
@@ -664,11 +983,7 @@ function normalizeHermesReferences(value, project) {
     return {
         images: stableImages,
         links: stableLinks,
-        notes: notes.map(item => {
-            if (typeof item === 'string') return item.trim();
-            if (item === null || item === undefined) return '';
-            return String(item).trim();
-        }).filter(Boolean)
+        notes: dedupeReferences(notes.map(normalizeReferenceNote).filter(Boolean))
     };
 }
 
@@ -708,6 +1023,29 @@ function normalizeHermesDesignStrategy(value) {
     };
 }
 
+function normalizeHermesStructuredPromptDescription(value) {
+    if (!isPlainObject(value)) return null;
+    const details = isPlainObject(value.detailedVisualElements) ? value.detailedVisualElements : {};
+
+    return {
+        coreSubjectAndTheme: firstNonEmpty(value.coreSubjectAndTheme, ''),
+        productContextAndUsage: firstNonEmpty(value.productContextAndUsage, ''),
+        artStyleAndMedium: firstNonEmpty(value.artStyleAndMedium, ''),
+        colorPaletteAndMood: firstNonEmpty(value.colorPaletteAndMood, ''),
+        compositionAndLayout: firstNonEmpty(value.compositionAndLayout, ''),
+        detailedVisualElements: {
+            mainFocus: firstNonEmpty(details.mainFocus, ''),
+            backgroundAtmosphere: firstNonEmpty(details.backgroundAtmosphere, ''),
+            foregroundFraming: firstNonEmpty(details.foregroundFraming, ''),
+            specificDetailsProps: firstNonEmpty(details.specificDetailsProps, '')
+        },
+        textAndTypography: firstNonEmpty(value.textAndTypography, 'None'),
+        patternProductionConstraints: firstNonEmpty(value.patternProductionConstraints, ''),
+        referenceUsage: firstNonEmpty(value.referenceUsage, ''),
+        negativeConstraints: firstNonEmpty(value.negativeConstraints, '')
+    };
+}
+
 function normalizeHermesDesignTasks(value, references = { images: [], links: [] }) {
     if (!Array.isArray(value)) return [];
     const availableReferenceIds = [
@@ -720,8 +1058,10 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
         .filter(isPlainObject)
         .map((item, index) => {
             const referenceIds = normalizeStringArray(item.referenceIds);
+            const structuredPromptDescription = normalizeHermesStructuredPromptDescription(item.structuredPromptDescription);
             const referenceUsage = firstNonEmpty(
                 item.referenceUsage,
+                structuredPromptDescription?.referenceUsage,
                 hasAvailableReferences
                     ? 'Use the project reference materials for composition, pattern density, color direction, product proportion, and craft suitability. Do not claim external pages or images were crawled, and do not copy trademarks, logos, or protected elements.'
                     : ''
@@ -732,6 +1072,7 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
                 title: firstNonEmpty(item.title, `Concept ${index + 1}`),
                 targetSize: firstNonEmpty(item.targetSize, ''),
                 purpose: firstNonEmpty(item.purpose, ''),
+                ...(structuredPromptDescription ? { structuredPromptDescription } : {}),
                 prompt: firstNonEmpty(item.prompt, ''),
                 negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
                 modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-gpt-image-2'),
@@ -757,6 +1098,39 @@ function normalizeHermesGenerationReadiness(value) {
     };
 }
 
+function normalizeOptionalPositiveInteger(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeOptionalNonNegativeInteger(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function normalizeHermesBatchPlan(value) {
+    if (!isPlainObject(value)) return null;
+    const totalRequired = normalizeOptionalPositiveInteger(value.totalRequired);
+    const maxPerBatch = normalizeOptionalPositiveInteger(value.maxPerBatch) || MAX_DESIGNS_PER_GENERATION;
+    const totalBatches = normalizeOptionalPositiveInteger(value.totalBatches);
+    const currentBatch = normalizeOptionalPositiveInteger(value.currentBatch);
+    const remainingCount = normalizeOptionalNonNegativeInteger(value.remainingCount);
+    const batchLabel = firstNonEmpty(value.batchLabel, '');
+    const reason = firstNonEmpty(value.reason, '');
+
+    return {
+        ...(totalRequired ? { totalRequired } : {}),
+        maxPerBatch,
+        ...(totalBatches ? { totalBatches } : {}),
+        ...(currentBatch ? { currentBatch } : {}),
+        ...(batchLabel ? { batchLabel } : {}),
+        ...(remainingCount !== null ? { remainingCount } : {}),
+        ...(reason ? { reason } : {})
+    };
+}
+
 function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     validateHermesP1Response(payload);
     const project = normalizeHermesProjectFields(payload.project, projectCode);
@@ -765,6 +1139,15 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     const references = normalizeHermesReferences(payload.references, project);
     const designTasks = normalizeHermesDesignTasks(payload.designTasks, references);
     const results = Array.isArray(payload.results) ? payload.results : [];
+    const expectedDesignTaskCount = normalizeOptionalPositiveInteger(
+        firstNonEmpty(payload.expectedDesignTaskCount, payload.generationReadiness?.expectedDesignTaskCount)
+    );
+    const actualDesignTaskCount = designTasks.length;
+    const maxDesignsPerGeneration = normalizeOptionalPositiveInteger(
+        firstNonEmpty(payload.maxDesignsPerGeneration, payload.generationReadiness?.maxDesignsPerGeneration)
+    ) || MAX_DESIGNS_PER_GENERATION;
+    const countReason = firstNonEmpty(payload.countReason, payload.generationReadiness?.countReason);
+    const batchPlan = normalizeHermesBatchPlan(payload.batchPlan || payload.generationReadiness?.batchPlan);
 
     const normalized = {
         status: payload.status,
@@ -789,6 +1172,11 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     if (references.images.length > 0 || references.links.length > 0 || references.notes.length > 0) {
         normalized.references = references;
     }
+    if (expectedDesignTaskCount) normalized.expectedDesignTaskCount = expectedDesignTaskCount;
+    normalized.actualDesignTaskCount = actualDesignTaskCount;
+    normalized.maxDesignsPerGeneration = maxDesignsPerGeneration;
+    if (countReason) normalized.countReason = countReason;
+    if (batchPlan) normalized.batchPlan = batchPlan;
     if (projectBrief || designStrategy || designTasks.length > 0 || payload.generationReadiness) {
         normalized.generationReadiness = normalizeHermesGenerationReadiness(payload.generationReadiness);
     }

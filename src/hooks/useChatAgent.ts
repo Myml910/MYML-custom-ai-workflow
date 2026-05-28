@@ -84,6 +84,23 @@ export interface HermesRunPayload {
         title?: string;
         targetSize?: string;
         purpose?: string;
+        structuredPromptDescription?: {
+            coreSubjectAndTheme?: string;
+            productContextAndUsage?: string;
+            artStyleAndMedium?: string;
+            colorPaletteAndMood?: string;
+            compositionAndLayout?: string;
+            detailedVisualElements?: {
+                mainFocus?: string;
+                backgroundAtmosphere?: string;
+                foregroundFraming?: string;
+                specificDetailsProps?: string;
+            };
+            textAndTypography?: string;
+            patternProductionConstraints?: string;
+            referenceUsage?: string;
+            negativeConstraints?: string;
+        } | null;
         prompt?: string;
         negativePrompt?: string;
         modelRecommendation?: string;
@@ -96,21 +113,45 @@ export interface HermesRunPayload {
         images?: {
             id?: string;
             url?: string;
+            resolvedUrl?: string;
+            rawValue?: string;
+            isHttpUrl?: boolean;
             source?: string;
             label?: string;
             role?: string;
             safeToDisplay?: boolean;
+            safeToOpen?: boolean;
+            field?: string;
+            message?: string;
             importedAssetId?: string | null;
         }[];
         links?: {
             id?: string;
             url?: string;
+            resolvedUrl?: string;
+            rawValue?: string;
+            isHttpUrl?: boolean;
             source?: string;
             label?: string;
             type?: string;
             safeToOpen?: boolean;
+            field?: string;
+            message?: string;
         }[];
         notes?: unknown[];
+    } | null;
+    expectedDesignTaskCount?: number | null;
+    actualDesignTaskCount?: number | null;
+    maxDesignsPerGeneration?: number | null;
+    countReason?: string | null;
+    batchPlan?: {
+        totalRequired?: number;
+        maxPerBatch?: number;
+        totalBatches?: number;
+        currentBatch?: number;
+        batchLabel?: string;
+        remainingCount?: number;
+        reason?: string;
     } | null;
     generationReadiness?: {
         readyForImageGeneration?: boolean;

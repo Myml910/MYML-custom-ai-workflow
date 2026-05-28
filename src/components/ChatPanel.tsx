@@ -37,11 +37,13 @@ interface ChatPanelProps {
     getCanvasContext?: (message?: string) => AgentCanvasContext;
 }
 
+type HermesDesignTask = NonNullable<HermesRunPayload['designTasks']>[number];
+
 const CHAT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
 
 function getMediaTooLargeMessage(language: Language): string {
     return language === 'zh'
-        ? '图片太大，请压缩后再发送。'
+        ? '\u56fe\u7247\u592a\u5927\uff0c\u8bf7\u538b\u7f29\u540e\u518d\u53d1\u9001\u3002'
         : 'The image is too large. Please compress it before sending.';
 }
 
@@ -56,7 +58,7 @@ function estimateBase64Bytes(value?: string): number {
 }
 
 const HERMES_REDACTED_VALUE = '[REDACTED]';
-const SENSITIVE_HERMES_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|身份证|手机号|电话|邮箱|客户联系方式|联系人电话|credential)/i;
+const SENSITIVE_HERMES_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|\u8eab\u4efd\u8bc1|\u624b\u673a\u53f7|\u7535\u8bdd|\u90ae\u7bb1|\u5ba2\u6237\u8054\u7cfb\u65b9\u5f0f|\u8054\u7cfb\u4eba\u7535\u8bdd|credential)/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -139,7 +141,7 @@ function getHermesStringList(value: unknown): string[] {
 const HERMES_REFERENCE_TEXT_LIMIT = 180;
 
 function truncateHermesText(value: string, limit = HERMES_REFERENCE_TEXT_LIMIT): string {
-    return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+    return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
 }
 
 function isSafeHttpReferenceUrl(value?: string): boolean {
@@ -157,6 +159,10 @@ function getReferenceDomain(value?: string): string {
     } catch {
         return value || '-';
     }
+}
+
+function getReferenceUrl(item: { url?: string; resolvedUrl?: string } | null | undefined): string | undefined {
+    return item?.url || item?.resolvedUrl || undefined;
 }
 
 function isRelativeTempReference(value: string): boolean {
@@ -197,7 +203,98 @@ function formatReferenceNote(note: unknown, language: Language): string {
         note.rawValue !== undefined ? formatReferenceRawValue(note.rawValue, language) : '',
     ].map(part => part.trim()).filter(Boolean);
 
-    return truncateHermesText(parts.length > 0 ? parts.join(' · ') : formatHermesValue(note, { compact: true }));
+    return truncateHermesText(parts.length > 0 ? parts.join(' / ') : formatHermesValue(note, { compact: true }));
+}
+
+async function writeClipboardText(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+}
+
+function safeHermesCopyValue(value: unknown): string {
+    return formatHermesValue(value).trim();
+}
+
+function buildStructuredPromptMarkdown(task: HermesDesignTask): string {
+    const structuredPrompt = isRecord(task.structuredPromptDescription) ? task.structuredPromptDescription : {};
+    const details = isRecord(structuredPrompt.detailedVisualElements) ? structuredPrompt.detailedVisualElements : {};
+
+    return [
+        '## Pattern Design Prompt Description',
+        '',
+        '**1. Core Subject & Theme (\u6838\u5fc3\u4e3b\u4f53\u4e0e\u4e3b\u9898):**',
+        safeHermesCopyValue(structuredPrompt.coreSubjectAndTheme),
+        '',
+        '**2. Product Context & Usage (\u4ea7\u54c1\u8bed\u5883\u4e0e\u7528\u9014):**',
+        safeHermesCopyValue(structuredPrompt.productContextAndUsage),
+        '',
+        '**3. Art Style & Medium (\u827a\u672f\u98ce\u683c\u4e0e\u5a92\u4ecb):**',
+        safeHermesCopyValue(structuredPrompt.artStyleAndMedium),
+        '',
+        '**4. Color Palette & Mood (\u914d\u8272\u4e0e\u6c1b\u56f4):**',
+        safeHermesCopyValue(structuredPrompt.colorPaletteAndMood),
+        '',
+        '**5. Composition & Layout (\u6784\u56fe\u4e0e\u5e03\u5c40):**',
+        safeHermesCopyValue(structuredPrompt.compositionAndLayout),
+        '',
+        '**6. Detailed Visual Elements (\u5206\u5c42\u7ec6\u8282\u63cf\u8ff0):**',
+        `* **Main Focus (Center/Midground):** ${safeHermesCopyValue(details.mainFocus)}`,
+        `* **Background & Atmosphere:** ${safeHermesCopyValue(details.backgroundAtmosphere)}`,
+        `* **Foreground & Framing:** ${safeHermesCopyValue(details.foregroundFraming)}`,
+        `* **Specific Details/Props:** ${safeHermesCopyValue(details.specificDetailsProps)}`,
+        '',
+        '**7. Text & Typography (\u6587\u5b57\u4e0e\u5b57\u4f53\uff0c\u5982\u6709):**',
+        safeHermesCopyValue(structuredPrompt.textAndTypography || 'None'),
+        '',
+        '**8. Pattern / Production Constraints (\u56fe\u6848\u4e0e\u751f\u4ea7\u7ea6\u675f):**',
+        safeHermesCopyValue(structuredPrompt.patternProductionConstraints),
+        '',
+        '**9. Reference Usage (\u53c2\u8003\u8d44\u6599\u4f7f\u7528\u8bf4\u660e):**',
+        safeHermesCopyValue(structuredPrompt.referenceUsage || task.referenceUsage),
+        '',
+        '**10. Negative Constraints (\u8d1f\u9762\u7ea6\u675f):**',
+        safeHermesCopyValue(structuredPrompt.negativeConstraints),
+        '',
+        '## Final Image Generation Prompt',
+        safeHermesCopyValue(task.prompt),
+        '',
+        '## Negative Prompt',
+        safeHermesCopyValue(task.negativePrompt),
+    ].join('\n');
+}
+
+function buildTaskGenerationPackage(task: HermesDesignTask): string {
+    const referenceIds = getHermesStringList(task.referenceIds).join(', ');
+    const notes = getHermesStringList(task.notes);
+
+    return [
+        `# ${safeHermesCopyValue(task.title || task.taskId || 'Pattern Design Task')}`,
+        '',
+        `- Task ID: ${safeHermesCopyValue(task.taskId)}`,
+        `- Target Size: ${safeHermesCopyValue(task.targetSize)}`,
+        `- Purpose: ${safeHermesCopyValue(task.purpose)}`,
+        `- Model Recommendation: ${safeHermesCopyValue(task.modelRecommendation)}`,
+        `- Reference Required: ${task.referenceRequired ? 'true' : 'false'}`,
+        `- Reference IDs: ${referenceIds}`,
+        `- Reference Usage: ${safeHermesCopyValue(task.referenceUsage)}`,
+        '',
+        buildStructuredPromptMarkdown(task),
+        '',
+        notes.length > 0 ? `## Notes\n- ${notes.join('\n- ')}` : '## Notes\nNone',
+    ].join('\n');
 }
 
 const HermesResultCard: React.FC<{
@@ -206,6 +303,9 @@ const HermesResultCard: React.FC<{
     language: Language;
 }> = ({ hermesRun, canvasTheme, language }) => {
     const [showAllProjectFields, setShowAllProjectFields] = useState(false);
+    const [expandedStructuredPrompts, setExpandedStructuredPrompts] = useState<Set<string>>(() => new Set());
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const copyResetTimerRef = useRef<number | null>(null);
     const isDark = canvasTheme === 'dark';
     const project = isRecord(hermesRun.project) ? hermesRun.project : {};
     const strategy = hermesRun.strategy || {};
@@ -214,15 +314,15 @@ const HermesResultCard: React.FC<{
     const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
     const references = hermesRun.references || {};
     const referenceImages = Array.isArray(references.images)
-        ? references.images.filter(item => item?.url)
+        ? references.images.filter(item => item && (item.url || item.resolvedUrl || item.rawValue))
         : [];
     const referenceLinks = Array.isArray(references.links)
-        ? references.links.filter(item => item?.url && item.safeToOpen !== false)
+        ? references.links.filter(item => item && (item.url || item.resolvedUrl || item.rawValue))
         : [];
     const referenceNotes = Array.isArray(references.notes)
         ? references.notes.map(note => formatReferenceNote(note, language)).filter(Boolean)
         : [];
-    const hasReferences = referenceImages.length > 0 || referenceLinks.length > 0;
+    const hasReferences = referenceImages.length > 0 || referenceLinks.length > 0 || referenceNotes.length > 0;
     const generationReadiness = hermesRun.generationReadiness || null;
     const assets = hermesRun.assets || [];
     const text = language === 'zh'
@@ -299,11 +399,39 @@ const HermesResultCard: React.FC<{
             referenceImages: '\u53c2\u8003\u56fe',
             referenceLinks: '\u53c2\u8003\u94fe\u63a5',
             noReferences: '\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53c2\u8003\u56fe\u6216\u53c2\u8003\u94fe\u63a5',
+            openImageReference: '\u6253\u5f00\u53c2\u8003\u56fe',
             openReference: '\u6253\u5f00\u94fe\u63a5',
             addToCanvasSoon: '\u6dfb\u52a0\u5230\u753b\u5e03\uff08\u540e\u7eed\uff09',
             referenceUnavailable: '\u6682\u4e0d\u53ef\u76f4\u63a5\u5c55\u793a\uff1a\u9700\u8981\u516c\u53f8\u7cfb\u7edf\u56fe\u7247\u8bbf\u95ee\u89c4\u5219',
             referenceIds: 'Reference IDs',
             referenceUsage: '\u53c2\u8003\u7528\u6cd5',
+            structuredPromptDescription: '\u7ed3\u6784\u5316\u63d0\u793a\u8bcd\u63cf\u8ff0',
+            coreSubjectAndTheme: '\u6838\u5fc3\u4e3b\u4f53\u4e0e\u4e3b\u9898',
+            productContextAndUsage: '\u4ea7\u54c1\u8bed\u5883\u4e0e\u7528\u9014',
+            artStyleAndMedium: '\u827a\u672f\u98ce\u683c\u4e0e\u5a92\u4ecb',
+            colorPaletteAndMood: '\u914d\u8272\u4e0e\u6c1b\u56f4',
+            compositionAndLayout: '\u6784\u56fe\u4e0e\u5e03\u5c40',
+            detailedVisualElements: '\u5206\u5c42\u7ec6\u8282',
+            mainFocus: '\u4e3b\u89c6\u89c9',
+            backgroundAtmosphere: '\u80cc\u666f\u4e0e\u6c1b\u56f4',
+            foregroundFraming: '\u524d\u666f\u4e0e\u6846\u67b6',
+            specificDetailsProps: '\u5177\u4f53\u7ec6\u8282/\u5143\u7d20',
+            textAndTypography: '\u6587\u5b57\u4e0e\u5b57\u4f53',
+            patternProductionConstraints: '\u56fe\u6848\u4e0e\u751f\u4ea7\u7ea6\u675f',
+            negativeConstraints: '\u8d1f\u9762\u7ea6\u675f',
+            copy: '\u590d\u5236',
+            copied: '\u5df2\u590d\u5236',
+            copyPrompt: '\u590d\u5236 Prompt',
+            copyNegativePrompt: '\u590d\u5236 Negative',
+            copyStructuredPrompt: '\u590d\u5236\u7ed3\u6784\u63cf\u8ff0',
+            copyPackage: '\u590d\u5236\u5b8c\u6574\u5305',
+            taskCountMatched: '\u65b9\u5411\u6570\u91cf\u5df2\u5339\u914d\u9879\u76ee\u9700\u6c42\u3002',
+            taskCountShort: '\u5f53\u524d\u9879\u76ee\u9700\u6c42\u8d85\u8fc7\u5355\u6279\u4e0a\u9650\uff0c\u672c\u6b21\u4ec5\u51c6\u5907\u7b2c\u4e00\u6279\u8bbe\u8ba1\u65b9\u5411\u3002',
+            plannedDirections: '\u8ba1\u5212\u751f\u6210\u65b9\u5411',
+            returnedDirections: '\u5f53\u524d\u8fd4\u56de',
+            maxDirectionsPerBatch: '\u5355\u6279\u4e0a\u9650',
+            batch: '\u6279\u6b21',
+            remainingDirections: '\u5269\u4f59\u65b9\u5411',
             missingReferences: '\u6b64\u4efb\u52a1\u6807\u8bb0\u9700\u8981\u53c2\u8003\u8d44\u6599\uff0c\u4f46\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53ef\u7528\u53c2\u8003\u56fe/\u94fe\u63a5\u3002',
             yes: '\u662f',
             no: '\u5426',
@@ -331,11 +459,39 @@ const HermesResultCard: React.FC<{
             referenceImages: 'Reference Images',
             referenceLinks: 'Reference Links',
             noReferences: 'This project did not return reference images or links.',
+            openImageReference: 'Open Reference Image',
             openReference: 'Open Link',
             addToCanvasSoon: 'Add to Canvas (soon)',
             referenceUnavailable: 'Cannot display directly yet: company image access rules are required.',
             referenceIds: 'Reference IDs',
             referenceUsage: 'Reference Usage',
+            structuredPromptDescription: 'Structured Prompt Description',
+            coreSubjectAndTheme: 'Core Subject & Theme',
+            productContextAndUsage: 'Product Context & Usage',
+            artStyleAndMedium: 'Art Style & Medium',
+            colorPaletteAndMood: 'Color Palette & Mood',
+            compositionAndLayout: 'Composition & Layout',
+            detailedVisualElements: 'Detailed Visual Elements',
+            mainFocus: 'Main Focus',
+            backgroundAtmosphere: 'Background & Atmosphere',
+            foregroundFraming: 'Foreground & Framing',
+            specificDetailsProps: 'Specific Details/Props',
+            textAndTypography: 'Text & Typography',
+            patternProductionConstraints: 'Pattern / Production Constraints',
+            negativeConstraints: 'Negative Constraints',
+            copy: 'Copy',
+            copied: 'Copied',
+            copyPrompt: 'Copy Prompt',
+            copyNegativePrompt: 'Copy Negative',
+            copyStructuredPrompt: 'Copy Structure',
+            copyPackage: 'Copy Package',
+            taskCountMatched: 'Direction count matches the project requirement.',
+            taskCountShort: 'Project demand exceeds the single-batch limit. This run prepares the first batch only.',
+            plannedDirections: 'Planned directions',
+            returnedDirections: 'Returned',
+            maxDirectionsPerBatch: 'Batch limit',
+            batch: 'Batch',
+            remainingDirections: 'Remaining',
             missingReferences: 'This task requires references, but the project did not return usable reference images or links.',
             yes: 'Yes',
             no: 'No',
@@ -370,6 +526,23 @@ const HermesResultCard: React.FC<{
         craftNotes.length > 0 ||
         avoidItems.length > 0;
     const hasDesignTasks = designTasks.length > 0;
+    const expectedDesignTaskCount = typeof hermesRun.expectedDesignTaskCount === 'number'
+        ? hermesRun.expectedDesignTaskCount
+        : null;
+    const actualDesignTaskCount = typeof hermesRun.actualDesignTaskCount === 'number'
+        ? hermesRun.actualDesignTaskCount
+        : (expectedDesignTaskCount !== null ? designTasks.length : null);
+    const maxDesignsPerGeneration = typeof hermesRun.maxDesignsPerGeneration === 'number'
+        ? hermesRun.maxDesignsPerGeneration
+        : null;
+    const batchPlan = isRecord(hermesRun.batchPlan) ? hermesRun.batchPlan : null;
+    const batchLabel = batchPlan ? safeHermesCopyValue(batchPlan.batchLabel) : '';
+    const remainingCount = batchPlan && typeof batchPlan.remainingCount === 'number'
+        ? batchPlan.remainingCount
+        : null;
+    const batchReason = batchPlan ? safeHermesCopyValue(batchPlan.reason) : '';
+    const hasTaskCountStatus = expectedDesignTaskCount !== null && actualDesignTaskCount !== null;
+    const isTaskCountShort = hasTaskCountStatus && actualDesignTaskCount < expectedDesignTaskCount;
 
     const renderList = (items: string[]) => (
         <div className="flex flex-wrap gap-1">
@@ -387,6 +560,50 @@ const HermesResultCard: React.FC<{
             ))}
         </div>
     );
+    const renderCopyButton = (copyKey: string, label: string, textToCopy: string) => (
+        <button
+            type="button"
+            disabled={!textToCopy.trim()}
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleCopyTaskText(copyKey, textToCopy);
+            }}
+            className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                isDark
+                    ? 'border-neutral-800 bg-neutral-950/70 text-neutral-300 hover:bg-neutral-900'
+                    : 'border-neutral-200 bg-white/80 text-neutral-700 hover:bg-white'
+            }`}
+        >
+            {copiedKey === copyKey ? proposalText.copied : label}
+        </button>
+    );
+    const toggleStructuredPrompt = (taskKey: string) => {
+        setExpandedStructuredPrompts(prev => {
+            const next = new Set(prev);
+            if (next.has(taskKey)) next.delete(taskKey);
+            else next.add(taskKey);
+            return next;
+        });
+    };
+    const handleCopyTaskText = async (copyKey: string, textToCopy: string) => {
+        if (!textToCopy.trim()) return;
+        await writeClipboardText(textToCopy);
+        setCopiedKey(copyKey);
+        if (copyResetTimerRef.current) {
+            window.clearTimeout(copyResetTimerRef.current);
+        }
+        copyResetTimerRef.current = window.setTimeout(() => {
+            setCopiedKey(null);
+            copyResetTimerRef.current = null;
+        }, 1400);
+    };
+
+    useEffect(() => () => {
+        if (copyResetTimerRef.current) {
+            window.clearTimeout(copyResetTimerRef.current);
+        }
+    }, []);
 
     return (
         <div className={`ml-2 mb-4 max-w-[86%] rounded-xl border p-3 text-xs leading-5 ${
@@ -484,11 +701,13 @@ const HermesResultCard: React.FC<{
                             <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceImages}</div>
                             <div className="grid grid-cols-1 gap-2">
                                 {referenceImages.map((item, index) => {
-                                    const safeUrl = isSafeHttpReferenceUrl(item.url);
+                                    const referenceUrl = getReferenceUrl(item);
+                                    const rawReferenceValue = item.rawValue || referenceUrl || item.url || item.resolvedUrl || '';
+                                    const safeUrl = isSafeHttpReferenceUrl(referenceUrl);
                                     const canOpenImageReference = safeUrl && item.safeToDisplay !== false;
                                     return (
                                         <div
-                                            key={item.id || `${item.url}-${index}`}
+                                            key={item.id || `${rawReferenceValue}-${index}`}
                                             className={`rounded-lg border p-2 ${
                                                 isDark ? 'border-neutral-800 bg-neutral-950/60' : 'border-neutral-200 bg-neutral-50/80'
                                             }`}
@@ -503,8 +722,10 @@ const HermesResultCard: React.FC<{
                                                     <div className={`truncate font-semibold ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
                                                         {formatHermesValue(item.label || item.id || `Reference ${index + 1}`, { compact: true })}
                                                     </div>
-                                                    <div className="truncate text-[10px] text-neutral-500">{getReferenceDomain(item.url)}</div>
-                                                    <div className="truncate text-[10px] text-neutral-500">{item.url}</div>
+                                                    <div className="truncate text-[10px] text-neutral-500">{getReferenceDomain(referenceUrl || rawReferenceValue)}</div>
+                                                    <div className="truncate text-[10px] text-neutral-500">
+                                                        {formatHermesValue(rawReferenceValue, { compact: true })}
+                                                    </div>
                                                     {!canOpenImageReference && (
                                                         <div className={`mt-1 rounded-md px-1.5 py-1 text-[10px] ${
                                                             isDark ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800'
@@ -517,7 +738,7 @@ const HermesResultCard: React.FC<{
                                             <div className="flex flex-wrap gap-1">
                                                 {canOpenImageReference && (
                                                     <a
-                                                        href={item.url}
+                                                        href={referenceUrl}
                                                         target="_blank"
                                                         rel="noreferrer noopener"
                                                         className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${
@@ -526,7 +747,7 @@ const HermesResultCard: React.FC<{
                                                                 : 'border-neutral-200 text-neutral-700 hover:bg-white'
                                                         }`}
                                                     >
-                                                        {proposalText.openReference}
+                                                        {proposalText.openImageReference}
                                                     </a>
                                                 )}
                                                 <button
@@ -553,10 +774,12 @@ const HermesResultCard: React.FC<{
                             <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceLinks}</div>
                             <div className="space-y-1.5">
                                 {referenceLinks.map((item, index) => {
-                                    const safeUrl = isSafeHttpReferenceUrl(item.url);
+                                    const referenceUrl = getReferenceUrl(item);
+                                    const rawReferenceValue = item.rawValue || referenceUrl || item.url || item.resolvedUrl || '';
+                                    const safeUrl = isSafeHttpReferenceUrl(referenceUrl) && item.safeToOpen !== false;
                                     return (
                                         <div
-                                            key={item.id || `${item.url}-${index}`}
+                                            key={item.id || `${rawReferenceValue}-${index}`}
                                             className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${
                                                 isDark ? 'border-neutral-800 bg-neutral-950/60' : 'border-neutral-200 bg-neutral-50/80'
                                             }`}
@@ -567,12 +790,17 @@ const HermesResultCard: React.FC<{
                                                     {formatHermesValue(item.label || item.type || item.id || `Link ${index + 1}`, { compact: true })}
                                                 </div>
                                                 <div className="truncate text-[10px] text-neutral-500">
-                                                    {formatHermesValue(item.type || 'product_reference', { compact: true })} · {getReferenceDomain(item.url)}
+                                                    {formatHermesValue(item.type || 'product_reference', { compact: true })} / {getReferenceDomain(referenceUrl || rawReferenceValue)}
                                                 </div>
+                                                {!safeUrl && rawReferenceValue && (
+                                                    <div className="truncate text-[10px] text-neutral-500">
+                                                        {formatHermesValue(rawReferenceValue, { compact: true })}
+                                                    </div>
+                                                )}
                                             </div>
                                             {safeUrl && (
                                                 <a
-                                                    href={item.url}
+                                                    href={referenceUrl}
                                                     target="_blank"
                                                     rel="noreferrer noopener"
                                                     className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-semibold ${
@@ -658,14 +886,66 @@ const HermesResultCard: React.FC<{
                         <div className={`mb-2 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
                             {proposalText.designTasks}
                         </div>
+                        {hasTaskCountStatus && (
+                            <div className={`mb-2 rounded-lg border px-2 py-1.5 text-[11px] ${
+                                isTaskCountShort
+                                    ? isDark
+                                        ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                                    : isDark
+                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                            }`}>
+                                <div>
+                                    {proposalText.plannedDirections}: {expectedDesignTaskCount}, {proposalText.returnedDirections}: {actualDesignTaskCount}
+                                </div>
+                                {maxDesignsPerGeneration !== null && (
+                                    <div>{proposalText.maxDirectionsPerBatch}: {maxDesignsPerGeneration}</div>
+                                )}
+                                {batchLabel && <div>{proposalText.batch}: {formatHermesValue(batchLabel)}</div>}
+                                {remainingCount !== null && (
+                                    <div>{proposalText.remainingDirections}: {remainingCount}</div>
+                                )}
+                                <div>{isTaskCountShort ? proposalText.taskCountShort : proposalText.taskCountMatched}</div>
+                                {hermesRun.countReason && <div>{formatHermesValue(hermesRun.countReason)}</div>}
+                                {batchReason && <div>{formatHermesValue(batchReason)}</div>}
+                            </div>
+                        )}
                         <div className="space-y-2">
                             {designTasks.map((task, index) => {
+                                const taskKey = task.taskId || `${task.title || 'task'}-${index}`;
                                 const notes = getHermesStringList(task.notes);
                                 const referenceIds = getHermesStringList(task.referenceIds);
                                 const needsReferences = Boolean(task.referenceRequired);
+                                const structuredPrompt = isRecord(task.structuredPromptDescription) ? task.structuredPromptDescription : null;
+                                const structuredDetails = structuredPrompt && isRecord(structuredPrompt.detailedVisualElements)
+                                    ? structuredPrompt.detailedVisualElements
+                                    : {};
+                                const structuredRows = structuredPrompt ? ([
+                                    [proposalText.coreSubjectAndTheme, structuredPrompt.coreSubjectAndTheme],
+                                    [proposalText.productContextAndUsage, structuredPrompt.productContextAndUsage],
+                                    [proposalText.artStyleAndMedium, structuredPrompt.artStyleAndMedium],
+                                    [proposalText.colorPaletteAndMood, structuredPrompt.colorPaletteAndMood],
+                                    [proposalText.compositionAndLayout, structuredPrompt.compositionAndLayout],
+                                    [proposalText.textAndTypography, structuredPrompt.textAndTypography],
+                                    [proposalText.patternProductionConstraints, structuredPrompt.patternProductionConstraints],
+                                    [proposalText.referenceUsage, structuredPrompt.referenceUsage],
+                                    [proposalText.negativeConstraints, structuredPrompt.negativeConstraints],
+                                ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value)) : [];
+                                const structuredDetailRows = structuredPrompt ? ([
+                                    [proposalText.mainFocus, structuredDetails.mainFocus],
+                                    [proposalText.backgroundAtmosphere, structuredDetails.backgroundAtmosphere],
+                                    [proposalText.foregroundFraming, structuredDetails.foregroundFraming],
+                                    [proposalText.specificDetailsProps, structuredDetails.specificDetailsProps],
+                                ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value)) : [];
+                                const isStructuredPromptExpanded = expandedStructuredPrompts.has(taskKey);
+                                const finalPromptText = safeHermesCopyValue(task.prompt);
+                                const negativePromptText = safeHermesCopyValue(task.negativePrompt);
+                                const structuredPromptMarkdown = structuredPrompt ? buildStructuredPromptMarkdown(task) : '';
+                                const generationPackage = buildTaskGenerationPackage(task);
                                 return (
                                     <div
-                                        key={task.taskId || `${task.title || 'task'}-${index}`}
+                                        key={taskKey}
                                         className={`rounded-lg border p-2 ${
                                             isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white/70'
                                         }`}
@@ -675,6 +955,16 @@ const HermesResultCard: React.FC<{
                                                 {task.title || task.taskId || `Concept ${index + 1}`}
                                             </span>
                                             {task.taskId && <span className="text-[10px] text-neutral-500">{task.taskId}</span>}
+                                        </div>
+                                        <div className="mb-2 flex flex-wrap gap-1">
+                                            {renderCopyButton(`${taskKey}:package`, proposalText.copyPackage, generationPackage)}
+                                            {renderCopyButton(`${taskKey}:prompt`, proposalText.copyPrompt, finalPromptText)}
+                                            {renderCopyButton(`${taskKey}:negative`, proposalText.copyNegativePrompt, negativePromptText)}
+                                            {structuredPrompt && renderCopyButton(
+                                                `${taskKey}:structured`,
+                                                proposalText.copyStructuredPrompt,
+                                                structuredPromptMarkdown
+                                            )}
                                         </div>
                                         <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
                                             {task.targetSize && (
@@ -721,6 +1011,57 @@ const HermesResultCard: React.FC<{
                                                     : 'border-amber-200 bg-amber-50 text-amber-800'
                                             }`}>
                                                 {proposalText.missingReferences}
+                                            </div>
+                                        )}
+                                        {structuredPrompt && (
+                                            <div className="mb-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleStructuredPrompt(taskKey)}
+                                                    className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-[10px] font-semibold transition-colors ${
+                                                        isDark
+                                                            ? 'border-neutral-800 bg-neutral-950/70 text-neutral-300 hover:bg-neutral-900'
+                                                            : 'border-neutral-200 bg-white/80 text-neutral-700 hover:bg-white'
+                                                    }`}
+                                                >
+                                                    <span>{proposalText.structuredPromptDescription}</span>
+                                                    {isStructuredPromptExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                </button>
+                                                {isStructuredPromptExpanded && (
+                                                    <div className={`mt-1.5 space-y-1.5 rounded-md border p-2 ${
+                                                        isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-neutral-50/80'
+                                                    }`}>
+                                                        {structuredRows.map(([label, value]) => (
+                                                            <div key={label} className="grid grid-cols-[92px_minmax(0,1fr)] gap-2">
+                                                                <span className="text-[10px] text-neutral-500">{label}</span>
+                                                                <span className={`whitespace-pre-wrap break-words text-[10px] ${
+                                                                    isDark ? 'text-neutral-300' : 'text-neutral-700'
+                                                                }`}>
+                                                                    {formatHermesValue(value)}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        {structuredDetailRows.length > 0 && (
+                                                            <div>
+                                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">
+                                                                    {proposalText.detailedVisualElements}
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    {structuredDetailRows.map(([label, value]) => (
+                                                                        <div key={label} className="grid grid-cols-[92px_minmax(0,1fr)] gap-2">
+                                                                            <span className="text-[10px] text-neutral-500">{label}</span>
+                                                                            <span className={`whitespace-pre-wrap break-words text-[10px] ${
+                                                                                isDark ? 'text-neutral-300' : 'text-neutral-700'
+                                                                            }`}>
+                                                                                {formatHermesValue(value)}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {task.prompt && (
@@ -1147,7 +1488,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                     {session.topic}
                                                 </p>
                                                 <p className={`mt-0.5 text-[11px] leading-4 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
-                                                    {session.messageCount} {t(language, 'messages')} · {formatDate(session.updatedAt || session.createdAt)}
+                                                    {session.messageCount} {t(language, 'messages')} 路 {formatDate(session.updatedAt || session.createdAt)}
                                                 </p>
                                             </div>
 

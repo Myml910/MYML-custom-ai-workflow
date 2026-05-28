@@ -56,8 +56,18 @@ npm run check:hermes:stale
 - [ ] Real image generation from Hermes design tasks is reserved for a later P4 worker path in MYML Canvas.
 - [ ] P3-C reference responses may include `references.images`, `references.links`, and `references.notes`.
 - [ ] Company View fields `design_img`, `design_link`, `oper_img`, and `oper_link` are recognized as P3-C reference material fields.
+- [ ] P3-C references are fallback-merged from Hermes output, `companyFields.references`, and raw company fields, so `references.images` / `references.links` are not lost if the LLM omits them.
+- [ ] P3-C reference items may use `resolvedUrl`, `url`, or `rawValue`; only http/https references should be openable.
+- [ ] P3-C image reference merge prefers complete `companyFields.references.images` records over raw `design_img` / `oper_img` fallback records.
+- [ ] P3-C image reference merge deduplicates same-URL images and keeps the more specific `design_img` / `oper_img` source over generic `references` records.
 - [ ] P3-C only identifies and displays reference URLs. MYML Canvas must not download external reference images, crawl Amazon, visit `ref_link`, or create imported assets from these references.
 - [ ] Reference images can be shown as safe link cards. Moving them into the canvas or asset library is reserved for later P4/P5 work.
+- [ ] P3-E design tasks may include `structuredPromptDescription` as a prompt-generation intermediate layer.
+- [ ] P3-E `structuredPromptDescription` is displayed for review only. MYML Canvas must not submit these prompts to image generation workers until a later P4 flow.
+- [ ] P3-E task cards allow copying the final prompt, negative prompt, structured prompt Markdown, and full generation package.
+- [ ] P3-E task count should match explicit project demand when present; compare `expectedDesignTaskCount` and `actualDesignTaskCount`.
+- [ ] P3-E `maxDesignsPerGeneration` is 6. If `expectedDesignTaskCount` is greater than 6, Hermes should return 6 current tasks plus a `batchPlan`.
+- [ ] P3-E batch planning is proposal-only. MYML Canvas must not execute image generation until a later P4 worker path.
 
 ## Hermes API Server
 
@@ -108,6 +118,9 @@ Expected:
 - [ ] MYML Canvas ChatPanel shows the Hermes project card.
 - [ ] If the message asks for a design proposal, MYML Canvas ChatPanel shows the design strategy card and design task prompt list.
 - [ ] If the project contains `design_img`, `design_link`, `oper_img`, `oper_link`, `ref_img`, `ref_link`, Amazon URL, or product URL fields, MYML Canvas ChatPanel shows the references section without downloading external content.
+- [ ] If Hermes returns `designTasks[].structuredPromptDescription`, MYML Canvas ChatPanel shows it in a collapsed "Structured Prompt Description" area.
+- [ ] If Hermes returns `expectedDesignTaskCount` / `actualDesignTaskCount`, MYML Canvas ChatPanel shows whether returned directions match the project demand.
+- [ ] If Hermes returns `maxDesignsPerGeneration` / `batchPlan`, MYML Canvas ChatPanel shows the single-batch limit, current batch label, and remaining directions.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
 - [ ] `hermes_assets` contains the mock local image asset.
