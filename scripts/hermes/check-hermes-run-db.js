@@ -13,6 +13,25 @@ function formatDate(value) {
     return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
 }
 
+function getSafeDbErrorType(error) {
+    if (error?.code === '28P01') return 'authentication_failed';
+    if (error?.code === '3D000') return 'database_not_found';
+    if (error?.code === '42P01') return 'table_not_found';
+    if (error?.code === 'ECONNREFUSED') return 'connection_refused';
+    if (error?.code === 'ENOTFOUND') return 'host_not_found';
+    if (error?.code === 'ETIMEDOUT' || error?.code === 'ETIMEOUT') return 'connection_timeout';
+    if (error?.name === 'AggregateError') return 'connection_failed';
+    return 'read_check_failed';
+}
+
+function printDbTroubleshooting() {
+    console.log('[HermesDB] Troubleshooting checklist:');
+    console.log('1. Is DATABASE_URL configured on the MYML Canvas server?');
+    console.log('2. Has the MYML Canvas PostgreSQL database been migrated?');
+    console.log('3. Can the server reach PostgreSQL from this host?');
+    console.log('4. Does the database user have read access to hermes_runs?');
+}
+
 const databaseUrl = cleanString(process.env.DATABASE_URL);
 
 if (!databaseUrl) {
@@ -67,7 +86,10 @@ if (!databaseUrl) {
             console.log('[HermesDB] hermes_runs table does not exist yet.');
             console.log('[HermesDB] Confirm migrations have run on the MYML Canvas PostgreSQL database.');
         } else {
-            console.log(`[HermesDB] Read-only check failed: ${error?.message || 'unknown error'}`);
+            console.log('[HermesDB] Read-only check failed.');
+            console.log(`errorType: ${getSafeDbErrorType(error)}`);
+            console.log(`errorCode: ${error?.code || 'unknown'}`);
+            printDbTroubleshooting();
         }
         process.exitCode = 1;
     } finally {
@@ -75,4 +97,3 @@ if (!databaseUrl) {
         await pool.end();
     }
 }
-

@@ -140,8 +140,17 @@ function createHermesError(code, message, status = 502) {
 }
 
 function normalizeClientMode(value) {
-    const mode = cleanString(value)?.toLowerCase();
-    return mode === 'api' ? 'api' : 'mock';
+    const rawMode = cleanString(value);
+    if (!rawMode) return 'mock';
+
+    const mode = rawMode.toLowerCase();
+    if (mode === 'mock' || mode === 'api') return mode;
+
+    throw createHermesError(
+        'HERMES_INVALID_CLIENT_MODE',
+        'Invalid HERMES_CLIENT_MODE. Use "mock" or "api".',
+        500
+    );
 }
 
 export function getHermesClientConfig(env = process.env) {
@@ -206,11 +215,12 @@ function isPlainObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-const SENSITIVE_FIELD_PATTERN = /(api_?key|token|authorization|password|secret|credential|headers?)/i;
+const REDACTED_VALUE = '[REDACTED]';
+const SENSITIVE_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|身份证|手机号|电话|邮箱|客户联系方式|联系人电话|credential|headers?)/i;
 
-function sanitizeJsonForStorage(value) {
+function redactSensitiveFieldsDeep(value) {
     if (Array.isArray(value)) {
-        return value.map(sanitizeJsonForStorage);
+        return value.map(redactSensitiveFieldsDeep);
     }
 
     if (!isPlainObject(value)) {
@@ -220,10 +230,10 @@ function sanitizeJsonForStorage(value) {
     const output = {};
     for (const [key, nestedValue] of Object.entries(value)) {
         if (SENSITIVE_FIELD_PATTERN.test(key)) {
-            output[key] = '[redacted]';
+            output[key] = REDACTED_VALUE;
             continue;
         }
-        output[key] = sanitizeJsonForStorage(nestedValue);
+        output[key] = redactSensitiveFieldsDeep(nestedValue);
     }
     return output;
 }
@@ -253,7 +263,7 @@ function removeGeneratedCompanyFields(rawProject) {
 }
 
 function normalizeHermesProjectFields(rawProject, requestProjectCode) {
-    const companyFields = sanitizeJsonForStorage(removeGeneratedCompanyFields(rawProject));
+    const companyFields = redactSensitiveFieldsDeep(removeGeneratedCompanyFields(rawProject));
     const code = firstNonEmpty(companyFields.code, companyFields.projectCode, requestProjectCode);
     const name = firstNonEmpty(companyFields.name, companyFields.projectName);
     const customer = firstNonEmpty(companyFields.customer, companyFields.customerName);
@@ -324,7 +334,7 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     validateHermesP1Response(payload);
     const project = normalizeHermesProjectFields(payload.project, projectCode);
 
-    return {
+    const normalized = {
         status: payload.status,
         hermesRequestId: payload.hermesRequestId || envelope?.id || null,
         hermesRunId: payload.hermesRunId || payload.runId || null,
@@ -340,6 +350,8 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
             prompt: item.prompt || payload.designTask?.prompt || '',
         })),
     };
+
+    return redactSensitiveFieldsDeep(normalized);
 }
 
 async function callHermesApi({ user, projectCode, message, config }) {
@@ -374,7 +386,8 @@ async function callHermesApi({ user, projectCode, message, config }) {
                         username: user?.username || null,
                     },
                     boundaries: {
-                        p1MockCompanyFieldsOnly: true,
+                        projectFieldsRequired: true,
+                        companySystemLookupRequired: true,
                         noRealImageGeneration: true,
                         noExternalImageDownload: true,
                     },

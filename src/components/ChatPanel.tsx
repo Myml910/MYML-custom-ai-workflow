@@ -55,7 +55,8 @@ function estimateBase64Bytes(value?: string): number {
     return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
 }
 
-const SENSITIVE_HERMES_FIELD_PATTERN = /(api_?key|token|authorization|password|secret|credential)/i;
+const HERMES_REDACTED_VALUE = '[REDACTED]';
+const SENSITIVE_HERMES_FIELD_PATTERN = /(api_?key|apikey|access_?key|password|passwd|pwd|secret|token|authorization|(^|[_\-\s])auth($|[_\-\s])|cookie|session|phone|mobile|tel|email|id_?card|idcard|身份证|手机号|电话|邮箱|客户联系方式|联系人电话|credential)/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -77,10 +78,27 @@ function isSensitiveHermesField(key: string): boolean {
     return SENSITIVE_HERMES_FIELD_PATTERN.test(key);
 }
 
-function maskHermesValue(value: unknown): string {
-    if (typeof value !== 'string') return '[masked]';
-    const trimmed = value.trim();
-    return trimmed.length > 4 ? `[masked:${trimmed.slice(-4)}]` : '[masked]';
+function maskHermesValue(_value: unknown): string {
+    return HERMES_REDACTED_VALUE;
+}
+
+function redactHermesValueDeep(value: unknown, key?: string): unknown {
+    if (key && isSensitiveHermesField(key)) return HERMES_REDACTED_VALUE;
+
+    if (Array.isArray(value)) {
+        return value.map(item => redactHermesValueDeep(item));
+    }
+
+    if (!isRecord(value)) {
+        return value;
+    }
+
+    return Object.fromEntries(
+        Object.entries(value).map(([nestedKey, nestedValue]) => [
+            nestedKey,
+            redactHermesValueDeep(nestedValue, nestedKey),
+        ])
+    );
 }
 
 function formatHermesFieldLabel(key: string): string {
@@ -96,14 +114,15 @@ function formatHermesValue(
     options: { sensitive?: boolean; compact?: boolean } = {}
 ): string {
     if (options.sensitive) return maskHermesValue(value);
-    if (value === null) return 'null';
-    if (value === undefined) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    const safeValue = redactHermesValueDeep(value);
+    if (safeValue === null) return 'null';
+    if (safeValue === undefined) return '';
+    if (typeof safeValue === 'string') return safeValue;
+    if (typeof safeValue === 'number' || typeof safeValue === 'boolean') return String(safeValue);
 
     try {
-        const formatted = JSON.stringify(value, null, options.compact ? 0 : 2);
-        if (typeof formatted !== 'string') return String(value);
+        const formatted = JSON.stringify(safeValue, null, options.compact ? 0 : 2);
+        if (typeof formatted !== 'string') return String(safeValue);
         return options.compact ? formatted.replace(/\s+/g, ' ') : formatted;
     } catch {
         return '[Unsupported value]';
