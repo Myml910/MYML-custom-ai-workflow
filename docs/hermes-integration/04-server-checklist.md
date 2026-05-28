@@ -28,6 +28,20 @@ HERMES_TIMEOUT_MS=180000
 - [ ] `HERMES_API_KEY` matches Hermes API Server `API_SERVER_KEY`.
 - [ ] `HERMES_API_KEY` is not exposed to frontend code or logs.
 
+## Read-Only MYML Canvas Checks
+
+Run these from the MYML Canvas project directory. They do not write database rows, do not call company MySQL, do not download images, and do not print secrets.
+
+```bash
+npm run check:hermes:env
+npm run check:hermes:api
+npm run check:hermes:db
+```
+
+- `check:hermes:env` verifies required MYML Canvas environment variables are present and redacts key/password/token/url fields.
+- `check:hermes:api` calls only the Hermes API Server health endpoint and prints safe `status` / `platform` fields.
+- `check:hermes:db` performs a read-only PostgreSQL query against recent `hermes_runs` rows and prints only safe summary columns.
+
 ## Hermes API Server
 
 - [ ] Hermes is installed on the server.
@@ -109,4 +123,3 @@ limit 5;
 - [ ] MYML Canvas must not download `ref_img`.
 - [ ] MYML Canvas must not visit `ref_link`.
 - [ ] Real secrets must not appear in Git, frontend bundles, or browser network traffic.
-

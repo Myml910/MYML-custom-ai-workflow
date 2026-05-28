@@ -14,7 +14,10 @@
     "seed:internal-users": "node server/seed-internal-users.js",
     "check:provider-credentials": "node scripts/check-provider-credentials.js",
     "check:production": "node scripts/production-smoke-check.js",
-    "check:env:safety": "node scripts/check-env-safety.js"
+    "check:env:safety": "node scripts/check-env-safety.js",
+    "check:hermes:env": "node scripts/hermes/check-hermes-env.js",
+    "check:hermes:api": "node scripts/hermes/check-hermes-api.js",
+    "check:hermes:db": "node scripts/hermes/check-hermes-run-db.js"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.0",
