@@ -96,6 +96,17 @@ P3-E scope:
 - P3-F records current manual validation: T8 GPT Image 2 and T8 Nano Banana 3.1 Flash are the preferred model recommendations for pattern tasks.
 - Each design task should include `modelRecommendation`, `alternativeModelRecommendation`, and `modelReason`. MYML Canvas displays these recommendations but does not run image generation automatically.
 
+P4-A scope:
+
+- Designers may manually click "Generate Draft" on one Hermes `designTask` card.
+- MYML Canvas routes that single task through the existing `/api/tasks/image` async image task path.
+- The draft request uses `designTasks[].prompt`, `designTasks[].negativePrompt`, and `designTasks[].modelRecommendation` metadata.
+- The default P4-A draft model is `custom-image-t8-nano-banana-3-1-flash` for pattern exploration and style variation.
+- `custom-image-t8-gpt-image-2` remains recommended for tasks that need stronger structure, small-size print stability, or readable text.
+- P4-A does not auto-generate all tasks, does not batch-generate a full set, and does not create canvas nodes from the result.
+- P4-A does not download or access reference images/links and does not use reference URLs as image-to-image inputs.
+- P4-A does not write back to the company system.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -107,12 +118,12 @@ Do not do these during this migration preparation phase:
 - Do not download `design_img` or `oper_img`.
 - Do not visit `design_link` or `oper_link`.
 - Do not create real canvas nodes from Hermes results.
-- Do not execute image generation from P3-A design tasks.
-- Do not execute image generation from P3-E task batches. P4 is expected to route approved prompts through MYML Canvas workers later.
+- Do not automatically execute image generation from P3-A design tasks.
+- Do not automatically execute image generation from P3-E task batches. P4-A only allows a designer-triggered single-task draft.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
 - Do not download or proxy P3-C reference images.
 - Do not crawl Amazon or any product reference URL.
-- Do not submit P3-E prompts to image generation workers yet.
+- Do not submit multiple P3-E prompts to image generation workers without explicit designer action on each task.
 - Do not store real passwords, keys, internal connection strings, or customer-sensitive raw debug data in Git.
 - Do not expose `API_SERVER_KEY`, `HERMES_API_KEY`, database credentials, or internal hostnames to the frontend.
 

@@ -153,7 +153,17 @@ export async function createTask(input) {
         source: input.source || null,
         legacySource: input.legacySource || null,
         capability: input.capability || null,
-        referenceImages: input.referenceImages || null
+        referenceImages: input.referenceImages || null,
+        negativePrompt: input.negativePrompt || null,
+        projectCode: input.projectCode || null,
+        hermesRunId: input.hermesRunId || null,
+        designTaskId: input.designTaskId || null,
+        title: input.title || null,
+        targetSize: input.targetSize || null,
+        referenceIds: Array.isArray(input.referenceIds) && input.referenceIds.length > 0 ? input.referenceIds : null,
+        referenceUsage: input.referenceUsage || null,
+        originalModelRecommendation: input.originalModelRecommendation || null,
+        normalizedModelRecommendation: input.normalizedModelRecommendation || null
     };
     const credentialContext = {
         teamId: input.teamId || null,
@@ -220,7 +230,13 @@ export async function createTask(input) {
                 teamId: credentialContext.teamId,
                 credentialId: credentialContext.credentialId,
                 credentialSource: credentialContext.credentialSource,
-                apiKeyLast4: credentialContext.apiKeyLast4
+                apiKeyLast4: credentialContext.apiKeyLast4,
+                source: input.source || null,
+                hermesRunId: input.hermesRunId || null,
+                designTaskId: input.designTaskId || null,
+                projectCode: input.projectCode || null,
+                originalModelRecommendation: input.originalModelRecommendation || null,
+                normalizedModelRecommendation: input.normalizedModelRecommendation || null
             }
         ]);
 

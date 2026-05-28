@@ -14,6 +14,8 @@ import { useChatAgent } from '../hooks/useChatAgent';
 import type { ChatMessage as ChatMessageType, ChatSession, HermesRunPayload } from '../hooks/useChatAgent';
 import { Language, t } from '../i18n/translations';
 import type { AgentCanvasContext } from '../utils/agentCanvasContext';
+import { createImageTask, waitForImageTaskCompletion } from '../services/generationService';
+import type { GenerationTask, GenerationTaskStatus } from '../services/generationService';
 
 // ============================================================================
 // TYPES
@@ -38,8 +40,20 @@ interface ChatPanelProps {
 }
 
 type HermesDesignTask = NonNullable<HermesRunPayload['designTasks']>[number];
+type HermesDraftStatus = 'idle' | 'submitting' | 'queued' | 'running' | 'polling' | 'completed' | 'failed';
+
+interface HermesDraftState {
+    status: HermesDraftStatus;
+    taskId?: string;
+    resultUrl?: string | null;
+    progress?: number | null;
+    errorMessage?: string | null;
+}
 
 const CHAT_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
+const HERMES_DRAFT_T8_GPT_IMAGE_MODEL = 'custom-image-t8-gpt-image-2';
+const HERMES_DRAFT_T8_NANO_BANANA_MODEL = 'custom-image-t8-nano-banana-3-1-flash';
+const HERMES_DRAFT_DEFAULT_IMAGE_MODEL = HERMES_DRAFT_T8_NANO_BANANA_MODEL;
 
 function getMediaTooLargeMessage(language: Language): string {
     return language === 'zh'
@@ -299,6 +313,90 @@ function buildTaskGenerationPackage(task: HermesDesignTask): string {
     ].join('\n');
 }
 
+function getTaskResultUrl(task: GenerationTask): string | null {
+    if (typeof task.resultUrl === 'string' && task.resultUrl.trim()) {
+        return task.resultUrl.trim();
+    }
+
+    const output = isRecord(task.output) ? task.output : null;
+    if (!output) return null;
+
+    const directUrl = output.resultUrl || output.url || output.imageUrl;
+    if (typeof directUrl === 'string' && directUrl.trim()) {
+        return directUrl.trim();
+    }
+
+    const images = output.images;
+    if (Array.isArray(images)) {
+        for (const image of images) {
+            if (typeof image === 'string' && image.trim()) return image.trim();
+            if (isRecord(image)) {
+                const url = image.url || image.resultUrl || image.imageUrl;
+                if (typeof url === 'string' && url.trim()) return url.trim();
+            }
+        }
+    }
+
+    return null;
+}
+
+function mapImageTaskStatusToDraftStatus(status: GenerationTaskStatus): HermesDraftStatus {
+    if (status === 'completed') return 'completed';
+    if (status === 'failed' || status === 'timeout' || status === 'cancelled') return 'failed';
+    if (status === 'queued') return 'queued';
+    if (status === 'polling') return 'polling';
+    return 'running';
+}
+
+type HermesDraftModelNormalizationReason = 'none' | 'legacy' | 'default';
+
+function getHermesDraftModelNormalization(model: unknown): {
+    model: string;
+    reason: HermesDraftModelNormalizationReason;
+} {
+    const normalized = safeHermesCopyValue(model);
+    if (normalized === HERMES_DRAFT_T8_GPT_IMAGE_MODEL || normalized === HERMES_DRAFT_T8_NANO_BANANA_MODEL) {
+        return { model: normalized, reason: 'none' };
+    }
+    if (normalized === 'custom-image-gpt-image-2') {
+        return { model: HERMES_DRAFT_T8_GPT_IMAGE_MODEL, reason: 'legacy' };
+    }
+    if (normalized === 'custom-image-nano-banana-3-1-flash') {
+        return { model: HERMES_DRAFT_T8_NANO_BANANA_MODEL, reason: 'legacy' };
+    }
+    return { model: HERMES_DRAFT_DEFAULT_IMAGE_MODEL, reason: 'default' };
+}
+
+function normalizeHermesDraftImageModel(model: unknown): string {
+    return getHermesDraftModelNormalization(model).model;
+}
+
+function getSafeDraftErrorMessage(error: unknown, language: Language): string {
+    const fallback = language === 'zh'
+        ? '生成草稿失败，请稍后重试。'
+        : 'Draft generation failed. Please try again later.';
+    const quotaOrRejected = language === 'zh'
+        ? '生成失败：供应商余额不足或请求被拒绝。'
+        : 'Generation failed: provider quota is insufficient or the request was rejected.';
+    const providerConfig = language === 'zh'
+        ? '生成失败：请检查模型供应商额度或配置。'
+        : 'Generation failed. Please check provider quota or configuration.';
+    const raw = error instanceof Error ? error.message : String(error || '');
+
+    if (!raw.trim()) return fallback;
+    if (/(402|payment required|insufficient balance|quota|billing|balance)/i.test(raw)) {
+        return quotaOrRejected;
+    }
+    if (/(403|401|unauthorized|forbidden|permission|credential|api[_ -]?key)/i.test(raw)) {
+        return providerConfig;
+    }
+    if (SENSITIVE_HERMES_FIELD_PATTERN.test(raw) || /(sk-[a-z0-9_*.-]+|bearer|authorization|database_url|postgres|mysql|connection string)/i.test(raw)) {
+        return fallback;
+    }
+
+    return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+}
+
 const HermesResultCard: React.FC<{
     hermesRun: HermesRunPayload;
     canvasTheme: 'dark' | 'light';
@@ -307,6 +405,7 @@ const HermesResultCard: React.FC<{
     const [showAllProjectFields, setShowAllProjectFields] = useState(false);
     const [expandedStructuredPrompts, setExpandedStructuredPrompts] = useState<Set<string>>(() => new Set());
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const [draftStates, setDraftStates] = useState<Record<string, HermesDraftState>>({});
     const copyResetTimerRef = useRef<number | null>(null);
     const isDark = canvasTheme === 'dark';
     const project = isRecord(hermesRun.project) ? hermesRun.project : {};
@@ -395,6 +494,9 @@ const HermesResultCard: React.FC<{
             modelRecommendation: '\u63a8\u8350\u6a21\u578b',
             alternativeModelRecommendation: '\u5907\u9009\u6a21\u578b',
             modelReason: '\u63a8\u8350\u7406\u7531',
+            draftModel: '\u8349\u7a3f\u751f\u6210\u6a21\u578b',
+            modelMappedNotice: '\u5df2\u5c06\u65e7\u6a21\u578b\u6620\u5c04\u4e3a T8 \u53ef\u7528\u6a21\u578b\u3002',
+            defaultModelNotice: '\u672a\u8bc6\u522b\u63a8\u8350\u6a21\u578b\uff0c\u5df2\u4f7f\u7528\u9ed8\u8ba4\u56fe\u6848\u8349\u7a3f\u6a21\u578b\uff1aT8 Nano Banana 3.1 Flash\u3002',
             referenceRequired: '\u9700\u8981\u53c2\u8003\u56fe',
             negativePrompt: 'Negative Prompt',
             notes: '\u5907\u6ce8',
@@ -429,6 +531,17 @@ const HermesResultCard: React.FC<{
             copyNegativePrompt: '\u590d\u5236 Negative',
             copyStructuredPrompt: '\u590d\u5236\u7ed3\u6784\u63cf\u8ff0',
             copyPackage: '\u590d\u5236\u5b8c\u6574\u5305',
+            generateDraft: '\u751f\u6210\u8349\u7a3f',
+            draftSubmitting: '\u63d0\u4ea4\u4e2d...',
+            draftQueued: '\u5df2\u6392\u961f',
+            draftRunning: '\u751f\u6210\u4e2d',
+            draftCompleted: '\u8349\u7a3f\u5df2\u751f\u6210',
+            draftFailed: '\u8349\u7a3f\u751f\u6210\u5931\u8d25',
+            draftMissingPrompt: '\u7f3a\u5c11 prompt',
+            draftStatus: '\u8349\u7a3f\u72b6\u6001',
+            draftResult: '\u751f\u6210\u7ed3\u679c',
+            openDraftResult: '\u6253\u5f00\u7ed3\u679c',
+            draftCanvasSoon: '\u5df2\u751f\u6210\uff0c\u540e\u7eed\u53ef\u6dfb\u52a0\u5230\u753b\u5e03',
             taskCountMatched: '\u65b9\u5411\u6570\u91cf\u5df2\u5339\u914d\u9879\u76ee\u9700\u6c42\u3002',
             taskCountShort: '\u5f53\u524d\u9879\u76ee\u9700\u6c42\u8d85\u8fc7\u5355\u6279\u4e0a\u9650\uff0c\u672c\u6b21\u4ec5\u51c6\u5907\u7b2c\u4e00\u6279\u8bbe\u8ba1\u65b9\u5411\u3002',
             plannedDirections: '\u8ba1\u5212\u751f\u6210\u65b9\u5411',
@@ -457,6 +570,9 @@ const HermesResultCard: React.FC<{
             modelRecommendation: 'Model',
             alternativeModelRecommendation: 'Alternative Model',
             modelReason: 'Model Reason',
+            draftModel: 'Draft Model',
+            modelMappedNotice: 'Mapped an older model ID to an available T8 model.',
+            defaultModelNotice: 'Unrecognized model recommendation. Using the default pattern draft model: T8 Nano Banana 3.1 Flash.',
             referenceRequired: 'Reference Required',
             negativePrompt: 'Negative Prompt',
             notes: 'Notes',
@@ -491,6 +607,17 @@ const HermesResultCard: React.FC<{
             copyNegativePrompt: 'Copy Negative',
             copyStructuredPrompt: 'Copy Structure',
             copyPackage: 'Copy Package',
+            generateDraft: 'Generate Draft',
+            draftSubmitting: 'Submitting...',
+            draftQueued: 'Queued',
+            draftRunning: 'Generating',
+            draftCompleted: 'Draft generated',
+            draftFailed: 'Draft generation failed',
+            draftMissingPrompt: 'Missing prompt',
+            draftStatus: 'Draft status',
+            draftResult: 'Result',
+            openDraftResult: 'Open result',
+            draftCanvasSoon: 'Generated. Adding to canvas can come later.',
             taskCountMatched: 'Direction count matches the project requirement.',
             taskCountShort: 'Project demand exceeds the single-batch limit. This run prepares the first batch only.',
             plannedDirections: 'Planned directions',
@@ -603,6 +730,111 @@ const HermesResultCard: React.FC<{
             setCopiedKey(null);
             copyResetTimerRef.current = null;
         }, 1400);
+    };
+    const getDraftStatusLabel = (status: HermesDraftStatus) => {
+        if (status === 'submitting') return proposalText.draftSubmitting;
+        if (status === 'queued') return proposalText.draftQueued;
+        if (status === 'running' || status === 'polling') return proposalText.draftRunning;
+        if (status === 'completed') return proposalText.draftCompleted;
+        if (status === 'failed') return proposalText.draftFailed;
+        return proposalText.generateDraft;
+    };
+    const updateDraftState = (taskKey: string, patch: Partial<HermesDraftState>) => {
+        setDraftStates(prev => ({
+            ...prev,
+            [taskKey]: {
+                status: 'idle',
+                ...(prev[taskKey] || {}),
+                ...patch,
+            },
+        }));
+    };
+    const handleGenerateDraft = async (task: HermesDesignTask, taskKey: string) => {
+        const prompt = safeHermesCopyValue(task.prompt);
+        if (!prompt.trim()) return;
+
+        const originalModelRecommendation = safeHermesCopyValue(task.modelRecommendation);
+        const imageModel = normalizeHermesDraftImageModel(originalModelRecommendation);
+        const projectCode = safeHermesCopyValue(hermesRun.projectCode || getProjectField(project, ['code', 'projectCode']));
+        const designTaskId = safeHermesCopyValue(task.taskId || taskKey);
+        const nodeId = `hermes-draft-${projectCode || 'project'}-${designTaskId || taskKey}-${Date.now()}`;
+
+        updateDraftState(taskKey, {
+            status: 'submitting',
+            taskId: undefined,
+            resultUrl: null,
+            progress: 0,
+            errorMessage: null,
+        });
+
+        try {
+            const createdTask = await createImageTask({
+                nodeId,
+                prompt,
+                imageModel,
+                negativePrompt: safeHermesCopyValue(task.negativePrompt),
+                source: 'hermes_design_task',
+                capability: 'hermes-design-draft',
+                projectCode,
+                hermesRunId: safeHermesCopyValue(hermesRun.id),
+                designTaskId,
+                title: safeHermesCopyValue(task.title),
+                targetSize: safeHermesCopyValue(task.targetSize),
+                referenceIds: getHermesStringList(task.referenceIds),
+                referenceUsage: safeHermesCopyValue(task.referenceUsage),
+                originalModelRecommendation,
+                normalizedModelRecommendation: imageModel,
+            });
+
+            updateDraftState(taskKey, {
+                status: mapImageTaskStatusToDraftStatus(createdTask.status),
+                taskId: createdTask.taskId,
+                progress: 0,
+                errorMessage: null,
+            });
+
+            const completedTask = await waitForImageTaskCompletion(createdTask.taskId, {
+                pollIntervalMs: 3000,
+                maxWaitMs: 10 * 60 * 1000,
+                onTaskUpdate: (taskUpdate) => {
+                    updateDraftState(taskKey, {
+                        status: mapImageTaskStatusToDraftStatus(taskUpdate.status),
+                        taskId: taskUpdate.taskId,
+                        progress: taskUpdate.progress ?? null,
+                        resultUrl: getTaskResultUrl(taskUpdate),
+                        errorMessage: taskUpdate.errorMessage
+                            ? getSafeDraftErrorMessage(new Error(taskUpdate.errorMessage), language)
+                            : null,
+                    });
+                },
+            });
+
+            if (completedTask.status === 'completed') {
+                updateDraftState(taskKey, {
+                    status: 'completed',
+                    taskId: completedTask.taskId,
+                    progress: completedTask.progress ?? 100,
+                    resultUrl: getTaskResultUrl(completedTask),
+                    errorMessage: null,
+                });
+            } else {
+                updateDraftState(taskKey, {
+                    status: 'failed',
+                    taskId: completedTask.taskId,
+                    progress: completedTask.progress ?? null,
+                    errorMessage: getSafeDraftErrorMessage(
+                        new Error(completedTask.errorMessage || completedTask.errorType || 'Draft generation failed'),
+                        language
+                    ),
+                });
+            }
+        } catch (error) {
+            updateDraftState(taskKey, {
+                status: 'failed',
+                progress: null,
+                errorMessage: getSafeDraftErrorMessage(error, language),
+            });
+        }
     };
 
     useEffect(() => () => {
@@ -949,6 +1181,17 @@ const HermesResultCard: React.FC<{
                                 const negativePromptText = safeHermesCopyValue(task.negativePrompt);
                                 const structuredPromptMarkdown = structuredPrompt ? buildStructuredPromptMarkdown(task) : '';
                                 const generationPackage = buildTaskGenerationPackage(task);
+                                const originalModelRecommendation = safeHermesCopyValue(task.modelRecommendation);
+                                const draftModelNormalization = getHermesDraftModelNormalization(originalModelRecommendation);
+                                const normalizedDraftModel = draftModelNormalization.model;
+                                const isLegacyModelMapped = draftModelNormalization.reason === 'legacy';
+                                const isDefaultModelUsed = draftModelNormalization.reason === 'default';
+                                const draftState = draftStates[taskKey] || { status: 'idle' as HermesDraftStatus };
+                                const isDraftBusy = draftState.status === 'submitting' ||
+                                    draftState.status === 'queued' ||
+                                    draftState.status === 'running' ||
+                                    draftState.status === 'polling';
+                                const canGenerateDraft = Boolean(finalPromptText.trim()) && !isDraftBusy;
                                 return (
                                     <div
                                         key={taskKey}
@@ -971,7 +1214,71 @@ const HermesResultCard: React.FC<{
                                                 proposalText.copyStructuredPrompt,
                                                 structuredPromptMarkdown
                                             )}
+                                            <button
+                                                type="button"
+                                                disabled={!canGenerateDraft}
+                                                title={!finalPromptText.trim() ? proposalText.draftMissingPrompt : proposalText.generateDraft}
+                                                onClick={(event) => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    void handleGenerateDraft(task, taskKey);
+                                                }}
+                                                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                    isDark
+                                                        ? 'border-[#D8FF00]/35 bg-[#D8FF00]/10 text-[#D8FF00] hover:bg-[#D8FF00]/15'
+                                                        : 'border-lime-300 bg-lime-50 text-lime-800 hover:bg-lime-100'
+                                                }`}
+                                            >
+                                                {isDraftBusy && <Loader2 size={11} className="animate-spin" />}
+                                                {isDraftBusy ? getDraftStatusLabel(draftState.status) : proposalText.generateDraft}
+                                            </button>
                                         </div>
+                                        {draftState.status !== 'idle' && (
+                                            <div className={`mb-2 rounded-md border px-2 py-1.5 text-[10px] ${
+                                                draftState.status === 'failed'
+                                                    ? isDark
+                                                        ? 'border-rose-500/20 bg-rose-500/10 text-rose-200'
+                                                        : 'border-rose-200 bg-rose-50 text-rose-800'
+                                                    : draftState.status === 'completed'
+                                                        ? isDark
+                                                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                                        : isDark
+                                                            ? 'border-sky-500/20 bg-sky-500/10 text-sky-200'
+                                                            : 'border-sky-200 bg-sky-50 text-sky-800'
+                                            }`}>
+                                                <div>
+                                                    <span className="font-semibold">{proposalText.draftStatus}: </span>
+                                                    {getDraftStatusLabel(draftState.status)}
+                                                    {typeof draftState.progress === 'number' && draftState.progress > 0 && (
+                                                        <span> · {Math.round(draftState.progress)}%</span>
+                                                    )}
+                                                </div>
+                                                {draftState.taskId && (
+                                                    <div className="break-all text-neutral-500">task: {draftState.taskId}</div>
+                                                )}
+                                                {draftState.status === 'completed' && draftState.resultUrl && (
+                                                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                        <span>{proposalText.draftResult}</span>
+                                                        <a
+                                                            href={draftState.resultUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer noopener"
+                                                            className="font-semibold underline underline-offset-2"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                        >
+                                                            {proposalText.openDraftResult}
+                                                        </a>
+                                                        <span className="text-neutral-500">{proposalText.draftCanvasSoon}</span>
+                                                    </div>
+                                                )}
+                                                {draftState.status === 'failed' && draftState.errorMessage && (
+                                                    <div className="mt-1 whitespace-pre-wrap break-words">
+                                                        {draftState.errorMessage}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
                                             {task.targetSize && (
                                                 <>
@@ -1003,9 +1310,20 @@ const HermesResultCard: React.FC<{
                                                     <span>{formatHermesValue(task.modelReason, { compact: true })}</span>
                                                 </>
                                             )}
+                                            <span className="text-neutral-500">{proposalText.draftModel}</span>
+                                            <span>{formatHermesValue(normalizedDraftModel, { compact: true })}</span>
                                             <span className="text-neutral-500">{proposalText.referenceRequired}</span>
                                             <span>{task.referenceRequired ? proposalText.yes : proposalText.no}</span>
                                         </div>
+                                        {(isLegacyModelMapped || isDefaultModelUsed) && (
+                                            <div className={`mb-2 rounded-md border px-2 py-1.5 text-[10px] ${
+                                                isDark
+                                                    ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                                                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                                            }`}>
+                                                {isLegacyModelMapped ? proposalText.modelMappedNotice : proposalText.defaultModelNotice}
+                                            </div>
+                                        )}
                                         {referenceIds.length > 0 && (
                                             <div className="mb-2">
                                                 <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceIds}</div>

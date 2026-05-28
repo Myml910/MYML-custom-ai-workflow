@@ -20,6 +20,14 @@ function normalizeReferenceImages(referenceImages) {
     return Array.isArray(referenceImages) ? referenceImages : [referenceImages];
 }
 
+function normalizeStringArray(value, limit = 20) {
+    const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
+    return values
+        .map(item => normalizeString(item))
+        .filter(Boolean)
+        .slice(0, limit);
+}
+
 function normalizeImageQuality(quality) {
     const normalized = normalizeString(quality).toLowerCase();
     if (!normalized) return null;
@@ -68,6 +76,16 @@ router.post('/image', async (req, res) => {
         const legacySource = normalizeString(req.body.legacySource) || null;
         const capability = normalizeString(req.body.capability) || null;
         const referenceImages = normalizeReferenceImages(req.body.referenceImages);
+        const negativePrompt = normalizeString(req.body.negativePrompt) || null;
+        const projectCode = normalizeString(req.body.projectCode) || null;
+        const hermesRunId = normalizeString(req.body.hermesRunId) || null;
+        const designTaskId = normalizeString(req.body.designTaskId) || null;
+        const title = normalizeString(req.body.title) || null;
+        const targetSize = normalizeString(req.body.targetSize) || null;
+        const referenceIds = normalizeStringArray(req.body.referenceIds);
+        const referenceUsage = normalizeString(req.body.referenceUsage) || null;
+        const originalModelRecommendation = normalizeString(req.body.originalModelRecommendation) || null;
+        const normalizedModelRecommendation = normalizeString(req.body.normalizedModelRecommendation) || null;
 
         if (!req.user?.id) {
             return res.status(401).json({ error: 'Authentication required' });
@@ -126,6 +144,16 @@ router.post('/image', async (req, res) => {
             legacySource,
             capability,
             referenceImages,
+            negativePrompt,
+            projectCode,
+            hermesRunId,
+            designTaskId,
+            title,
+            targetSize,
+            referenceIds,
+            referenceUsage,
+            originalModelRecommendation,
+            normalizedModelRecommendation,
             taskType: 'image_generation',
             provider: providerConfig.provider,
             teamId: credentialContext?.teamId || null,

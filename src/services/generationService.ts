@@ -50,6 +50,16 @@ export interface CreateImageTaskParams {
   source?: string;
   legacySource?: string;
   capability?: string;
+  negativePrompt?: string;
+  projectCode?: string;
+  hermesRunId?: string;
+  designTaskId?: string;
+  title?: string;
+  targetSize?: string;
+  referenceIds?: string[];
+  referenceUsage?: string;
+  originalModelRecommendation?: string;
+  normalizedModelRecommendation?: string;
 }
 
 export interface CreateImageTaskResponse {

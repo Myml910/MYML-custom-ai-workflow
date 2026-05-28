@@ -67,9 +67,15 @@ npm run check:hermes:stale
 - [ ] P3-E task cards allow copying the final prompt, negative prompt, structured prompt Markdown, and full generation package.
 - [ ] P3-E task count should match explicit project demand when present; compare `expectedDesignTaskCount` and `actualDesignTaskCount`.
 - [ ] P3-E `maxDesignsPerGeneration` is 6. If `expectedDesignTaskCount` is greater than 6, Hermes should return 6 current tasks plus a `batchPlan`.
-- [ ] P3-E batch planning is proposal-only. MYML Canvas must not execute image generation until a later P4 worker path.
+- [ ] P3-E batch planning is proposal-only. MYML Canvas must not execute it automatically; P4-A only allows explicit single-task draft generation.
 - [ ] P3-F design tasks include `modelRecommendation`, `alternativeModelRecommendation`, and `modelReason`.
 - [ ] P3-F recommended model IDs are `custom-image-t8-gpt-image-2` and `custom-image-t8-nano-banana-3-1-flash`. These are recommendations only, not automatic generation.
+- [ ] P4-A allows a designer to click "Generate Draft" for one Hermes `designTask` at a time.
+- [ ] P4-A draft generation uses the existing `/api/tasks/image` async task path and stores Hermes task metadata in task input JSON.
+- [ ] P4-A default draft model is `custom-image-t8-nano-banana-3-1-flash`; use `custom-image-t8-gpt-image-2` when a task needs stronger structure, small-size print stability, or readable text.
+- [ ] P4-A maps legacy Hermes model IDs to T8 draft models: `custom-image-gpt-image-2` -> `custom-image-t8-gpt-image-2`, and `custom-image-nano-banana-3-1-flash` -> `custom-image-t8-nano-banana-3-1-flash`.
+- [ ] P4-A draft task input records both `originalModelRecommendation` and `normalizedModelRecommendation`; `imageModel` must be the normalized T8 model to avoid the old APIMart default route.
+- [ ] P4-A must not auto-generate all design tasks, batch-generate six directions, download references, use reference URLs as image inputs, create canvas nodes, or write back to the company system.
 
 ## Hermes API Server
 
@@ -123,6 +129,8 @@ Expected:
 - [ ] If Hermes returns `designTasks[].structuredPromptDescription`, MYML Canvas ChatPanel shows it in a collapsed "Structured Prompt Description" area.
 - [ ] If Hermes returns `expectedDesignTaskCount` / `actualDesignTaskCount`, MYML Canvas ChatPanel shows whether returned directions match the project demand.
 - [ ] If Hermes returns `maxDesignsPerGeneration` / `batchPlan`, MYML Canvas ChatPanel shows the single-batch limit, current batch label, and remaining directions.
+- [ ] If a designer manually clicks one design task's "Generate Draft" button, MYML Canvas creates one `/api/tasks/image` task for that task only.
+- [ ] Manual draft task input may include `source='hermes_design_task'`, `projectCode`, `hermesRunId`, `designTaskId`, `referenceIds`, `referenceUsage`, `originalModelRecommendation`, and `normalizedModelRecommendation`; reference URLs remain metadata only.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
 - [ ] `hermes_assets` contains the mock local image asset.
@@ -157,4 +165,6 @@ limit 5;
 - [ ] Hermes must not return external image URLs in P2.
 - [ ] MYML Canvas must not download `ref_img`.
 - [ ] MYML Canvas must not visit `ref_link`.
+- [ ] MYML Canvas must not auto-submit all Hermes design tasks for image generation.
+- [ ] MYML Canvas must not use Hermes reference image URLs as image-to-image inputs in P4-A.
 - [ ] Real secrets must not appear in Git, frontend bundles, or browser network traffic.
