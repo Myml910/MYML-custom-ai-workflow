@@ -36,11 +36,20 @@ Run these from the MYML Canvas project directory. They do not write database row
 npm run check:hermes:env
 npm run check:hermes:api
 npm run check:hermes:db
+npm run check:hermes:stale
 ```
 
 - `check:hermes:env` verifies required MYML Canvas environment variables are present and redacts key/password/token/url fields.
 - `check:hermes:api` calls only the Hermes API Server health endpoint and prints safe `status` / `platform` fields.
 - `check:hermes:db` performs a read-only PostgreSQL query against recent `hermes_runs` rows and prints only safe summary columns.
+- `check:hermes:stale` performs a read-only PostgreSQL query for `status='running'` Hermes runs older than 15 minutes. Stale rows require manual confirmation; the script does not update the database.
+
+## Runtime Consistency Checks
+
+- [ ] Hermes asset placeholder warnings do not mean the project lookup failed. If project fields were returned, `hermes_runs.status` should remain `completed` and asset insert warnings should be recorded in `response_payload.warnings`.
+- [ ] `status='running'` rows older than 15 minutes should be reviewed manually with `npm run check:hermes:stale`.
+- [ ] The Hermes project card defaults to the approved high-frequency field whitelist: project code, project name, customer, category, craft, size, quantity, deadline, and development requirement.
+- [ ] Full redacted project fields remain available behind the collapsed "View all project fields" control.
 
 ## Hermes API Server
 

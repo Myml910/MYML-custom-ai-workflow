@@ -17,7 +17,8 @@
     "check:env:safety": "node scripts/check-env-safety.js",
     "check:hermes:env": "node scripts/hermes/check-hermes-env.js",
     "check:hermes:api": "node scripts/hermes/check-hermes-api.js",
-    "check:hermes:db": "node scripts/hermes/check-hermes-run-db.js"
+    "check:hermes:db": "node scripts/hermes/check-hermes-run-db.js",
+    "check:hermes:stale": "node scripts/hermes/check-hermes-stale-runs.js"
   },
   "dependencies": {
     "@fal-ai/client": "^1.8.0",

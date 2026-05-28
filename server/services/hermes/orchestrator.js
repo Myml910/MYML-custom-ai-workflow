@@ -63,6 +63,20 @@ function serializeHermesAsset(row) {
     };
 }
 
+function buildHermesWarning(code, scope, message) {
+    return { code, scope, message };
+}
+
+function appendHermesWarning(response, warning) {
+    return {
+        ...response,
+        warnings: [
+            ...(Array.isArray(response?.warnings) ? response.warnings : []),
+            warning
+        ]
+    };
+}
+
 async function insertHermesRun({
     client,
     runId,
@@ -155,6 +169,20 @@ async function completeHermesRun({ client, runId, response }) {
         response.project || null,
         response.strategy || null,
         response.designTask || null,
+        response
+    ]);
+    return result.rows[0];
+}
+
+async function updateHermesRunResponsePayload({ client, runId, response }) {
+    const result = await client.query(`
+        UPDATE hermes_runs
+        SET response_payload = $2,
+            updated_at = now()
+        WHERE id = $1
+        RETURNING *
+    `, [
+        runId,
         response
     ]);
     return result.rows[0];
@@ -340,16 +368,41 @@ export async function runHermesProject({ user, projectCode, message, chatSession
     const completeClient = await db.connect();
     try {
         await completeClient.query('BEGIN');
-        const completedRun = await completeHermesRun({
+        let completedRun = await completeHermesRun({
             client: completeClient,
             runId: insertedRun.id,
             response
         });
-        const assets = await insertHermesAssets({
-            client: completeClient,
-            run: completedRun,
-            response
-        });
+
+        let assets = [];
+        await completeClient.query('SAVEPOINT hermes_assets_insert');
+        try {
+            assets = await insertHermesAssets({
+                client: completeClient,
+                run: completedRun,
+                response
+            });
+            await completeClient.query('RELEASE SAVEPOINT hermes_assets_insert');
+        } catch {
+            await completeClient.query('ROLLBACK TO SAVEPOINT hermes_assets_insert');
+            const warning = buildHermesWarning(
+                'HERMES_ASSET_WRITE_FAILED',
+                'hermes_assets',
+                'Hermes project fields were returned, but asset placeholder creation failed.'
+            );
+            response = appendHermesWarning(response, warning);
+            completedRun = await updateHermesRunResponsePayload({
+                client: completeClient,
+                runId: insertedRun.id,
+                response
+            });
+            console.warn('[Hermes] Asset placeholder creation failed after project fields were returned.', {
+                runId: insertedRun.id,
+                projectCode: normalizedProjectCode,
+                warningCode: warning.code
+            });
+        }
+
         await completeClient.query('COMMIT');
         const hermesRun = serializeHermesRun(completedRun, assets);
         return {
