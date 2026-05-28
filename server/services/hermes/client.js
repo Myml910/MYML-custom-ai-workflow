@@ -22,6 +22,7 @@ Execution rules:
 5. Do not generate real images.
 6. Do not return external image URLs.
 7. Do not include API keys, headers, authorization values, raw upstream debug payloads, or internal secrets.
+8. Do not download ref_img. Do not visit ref_link. Treat reference image/link fields as text-only project context.
 
 Project preservation rules:
 - Let toolProject be the complete object returned by company_project_lookup.
@@ -38,6 +39,14 @@ Add these MYML aliases to project without removing the original tool fields:
 - craft = process || constraints.channels[0] || "\u6570\u7801\u5370\u82b1"
 - sizeRequirement = "2K" if deliverables mentions 2K, otherwise "" or "2K"
 - quantityRequirement = 4 if deliverables mentions 4 \u5f20, otherwise 1
+
+Design proposal rules:
+- If the user asks for "\u56fe\u6848\u8bbe\u8ba1\u63d0\u6848", "\u8bbe\u8ba1\u65b9\u6848", "\u8bbe\u8ba1\u7b56\u7565", "design task", "prompt", or any project-start request, create a pattern design proposal after project lookup.
+- The proposal must be for pattern design, home product pattern direction, and production-ready repeatable surface design. Do not generate marketing copy.
+- If category_label or usage_scenario_label is missing, infer conservatively from existing fields and record the uncertainty in constraints or task notes.
+- Generate 3 to 6 designTasks. Every design task must include prompt and negativePrompt.
+- generationReadiness.readyForImageGeneration must be false in P3-A.
+- Do not call image generation. Do not create real image URLs. Do not claim images have been generated.
 
 The JSON object must match this MYML-compatible schema:
 {
@@ -94,7 +103,7 @@ The JSON object must match this MYML-compatible schema:
     "reason": "...",
     "imageCount": 1,
     "size": "2K",
-    "mode": "mock-pattern-generation"
+    "mode": "design-proposal"
   },
   "designTask": {
     "task_type": "pattern_design",
@@ -102,21 +111,53 @@ The JSON object must match this MYML-compatible schema:
     "prompt": "...",
     "negative_prompt": "..."
   },
-  "results": [
+  "projectBrief": {
+    "projectCode": "YXF...",
+    "projectName": "...",
+    "customer": "...",
+    "category": "...",
+    "craft": "...",
+    "size": "...",
+    "quantity": "...",
+    "deadline": "...",
+    "designRequirement": "...",
+    "constraints": []
+  },
+  "designStrategy": {
+    "theme": "...",
+    "visualDirection": "...",
+    "targetUser": "...",
+    "usageScenario": "...",
+    "colorPalette": ["..."],
+    "composition": "...",
+    "styleKeywords": ["..."],
+    "materialAndCraftNotes": ["..."],
+    "avoid": ["..."]
+  },
+  "designTasks": [
     {
-      "imageId": "mock_img_yxf1234567890_001",
-      "url": "/workflow-sample-1.png",
-      "model": "hermes-api-mock-image-strategy-v1",
-      "prompt": "..."
+      "taskId": "concept_01",
+      "title": "...",
+      "targetSize": "2K",
+      "purpose": "...",
+      "prompt": "...",
+      "negativePrompt": "...",
+      "modelRecommendation": "custom-image-gpt-image-2",
+      "referenceRequired": false,
+      "notes": []
     }
-  ]
+  ],
+  "generationReadiness": {
+    "readyForImageGeneration": false,
+    "reason": "P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later."
+  },
+  "results": []
 }
 
 Required result rules:
-- results[0].url must be "/workflow-sample-1.png".
-- results[0].imageId must be a string like "mock_img_yxf1234567890_001".
 - strategy must include selectedModel, reason, imageCount, size, and mode.
-- designTask must include task_type, theme, prompt, and negative_prompt.`;
+- designTask must include task_type, theme, prompt, and negative_prompt.
+- results may be omitted or empty in P3-A because no real image generation runs.`;
 
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -311,8 +352,6 @@ function validateHermesP1Response(payload) {
     if (!isPlainObject(payload.project)) missing.push('project');
     if (!isPlainObject(payload.strategy)) missing.push('strategy');
     if (!isPlainObject(payload.designTask)) missing.push('designTask');
-    if (!Array.isArray(payload.results)) missing.push('results');
-
     if (missing.length) {
         throw createHermesError(
             'HERMES_INVALID_RESPONSE',
@@ -321,7 +360,15 @@ function validateHermesP1Response(payload) {
         );
     }
 
-    if (!payload.results.every(item => isPlainObject(item))) {
+    if (payload.results !== undefined && !Array.isArray(payload.results)) {
+        throw createHermesError(
+            'HERMES_INVALID_RESPONSE',
+            'Hermes API response results must be an array when provided.',
+            502
+        );
+    }
+
+    if (Array.isArray(payload.results) && !payload.results.every(item => isPlainObject(item))) {
         throw createHermesError(
             'HERMES_INVALID_RESPONSE',
             'Hermes API response results must be objects.',
@@ -330,9 +377,91 @@ function validateHermesP1Response(payload) {
     }
 }
 
+function normalizeStringArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(item => {
+            if (typeof item === 'string') return item.trim();
+            if (item === null || item === undefined) return '';
+            return String(item).trim();
+        })
+        .filter(Boolean);
+}
+
+function normalizeHermesProjectBrief(value, project) {
+    if (!isPlainObject(value)) return null;
+    return {
+        projectCode: firstNonEmpty(value.projectCode, project.projectCode, project.code),
+        projectName: firstNonEmpty(value.projectName, project.projectName, project.name),
+        customer: firstNonEmpty(value.customer, project.customer, project.customerName),
+        category: firstNonEmpty(value.category, project.category),
+        craft: firstNonEmpty(value.craft, project.craft),
+        size: firstNonEmpty(value.size, project.sizeRequirement, project.size),
+        quantity: firstNonEmpty(value.quantity, project.quantityRequirement),
+        deadline: firstNonEmpty(value.deadline, project.deadline),
+        designRequirement: firstNonEmpty(
+            value.designRequirement,
+            project.developmentRequirement,
+            project.brief,
+            project.objective
+        ),
+        constraints: Array.isArray(value.constraints) ? value.constraints : []
+    };
+}
+
+function normalizeHermesDesignStrategy(value) {
+    if (!isPlainObject(value)) return null;
+    return {
+        theme: firstNonEmpty(value.theme, ''),
+        visualDirection: firstNonEmpty(value.visualDirection, ''),
+        targetUser: firstNonEmpty(value.targetUser, ''),
+        usageScenario: firstNonEmpty(value.usageScenario, ''),
+        colorPalette: normalizeStringArray(value.colorPalette),
+        composition: firstNonEmpty(value.composition, ''),
+        styleKeywords: normalizeStringArray(value.styleKeywords),
+        materialAndCraftNotes: normalizeStringArray(value.materialAndCraftNotes),
+        avoid: normalizeStringArray(value.avoid)
+    };
+}
+
+function normalizeHermesDesignTasks(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .filter(isPlainObject)
+        .map((item, index) => ({
+            taskId: firstNonEmpty(item.taskId, `concept_${String(index + 1).padStart(2, '0')}`),
+            title: firstNonEmpty(item.title, `Concept ${index + 1}`),
+            targetSize: firstNonEmpty(item.targetSize, ''),
+            purpose: firstNonEmpty(item.purpose, ''),
+            prompt: firstNonEmpty(item.prompt, ''),
+            negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
+            modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-gpt-image-2'),
+            referenceRequired: Boolean(item.referenceRequired),
+            notes: Array.isArray(item.notes) ? item.notes : []
+        }));
+}
+
+function normalizeHermesGenerationReadiness(value) {
+    const reason = isPlainObject(value)
+        ? firstNonEmpty(
+            value.reason,
+            'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.'
+        )
+        : 'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.';
+
+    return {
+        readyForImageGeneration: false,
+        reason
+    };
+}
+
 function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     validateHermesP1Response(payload);
     const project = normalizeHermesProjectFields(payload.project, projectCode);
+    const projectBrief = normalizeHermesProjectBrief(payload.projectBrief, project);
+    const designStrategy = normalizeHermesDesignStrategy(payload.designStrategy);
+    const designTasks = normalizeHermesDesignTasks(payload.designTasks);
+    const results = Array.isArray(payload.results) ? payload.results : [];
 
     const normalized = {
         status: payload.status,
@@ -341,7 +470,7 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
         project,
         strategy: payload.strategy,
         designTask: payload.designTask,
-        results: payload.results.map((item, index) => ({
+        results: results.map((item, index) => ({
             imageId: item.imageId || `hermes_api_mock_img_${index + 1}`,
             url: typeof item.url === 'string' && item.url.startsWith('/')
                 ? item.url
@@ -350,6 +479,13 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
             prompt: item.prompt || payload.designTask?.prompt || '',
         })),
     };
+
+    if (projectBrief) normalized.projectBrief = projectBrief;
+    if (designStrategy) normalized.designStrategy = designStrategy;
+    if (designTasks.length > 0) normalized.designTasks = designTasks;
+    if (projectBrief || designStrategy || designTasks.length > 0 || payload.generationReadiness) {
+        normalized.generationReadiness = normalizeHermesGenerationReadiness(payload.generationReadiness);
+    }
 
     return redactSensitiveFieldsDeep(normalized);
 }

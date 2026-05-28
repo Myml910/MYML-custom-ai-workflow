@@ -129,6 +129,13 @@ function formatHermesValue(
     }
 }
 
+function getHermesStringList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(item => formatHermesValue(item, { compact: true }).trim())
+        .filter(Boolean);
+}
+
 const HermesResultCard: React.FC<{
     hermesRun: HermesRunPayload;
     canvasTheme: 'dark' | 'light';
@@ -139,6 +146,9 @@ const HermesResultCard: React.FC<{
     const project = isRecord(hermesRun.project) ? hermesRun.project : {};
     const strategy = hermesRun.strategy || {};
     const designTask = hermesRun.designTask || {};
+    const designStrategy = hermesRun.designStrategy || {};
+    const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
+    const generationReadiness = hermesRun.generationReadiness || null;
     const assets = hermesRun.assets || [];
     const text = language === 'zh'
         ? {
@@ -190,6 +200,51 @@ const HermesResultCard: React.FC<{
             allFields: 'View all project fields',
             hideFields: 'Hide project fields',
         };
+    const proposalText = language === 'zh'
+        ? {
+            designStrategy: '\u8bbe\u8ba1\u7b56\u7565',
+            designTasks: '\u8bbe\u8ba1\u4efb\u52a1',
+            theme: '\u4e3b\u9898',
+            visualDirection: '\u89c6\u89c9\u65b9\u5411',
+            targetUser: '\u76ee\u6807\u7528\u6237',
+            usageScenario: '\u4f7f\u7528\u573a\u666f',
+            colorPalette: '\u914d\u8272',
+            composition: '\u6784\u56fe',
+            styleKeywords: '\u98ce\u683c\u5173\u952e\u8bcd',
+            craftNotes: '\u5de5\u827a/\u6750\u8d28\u6ce8\u610f',
+            avoid: '\u907f\u514d\u9879',
+            targetSize: '\u76ee\u6807\u5c3a\u5bf8',
+            purpose: '\u76ee\u7684',
+            modelRecommendation: '\u63a8\u8350\u6a21\u578b',
+            referenceRequired: '\u9700\u8981\u53c2\u8003\u56fe',
+            negativePrompt: 'Negative Prompt',
+            notes: '\u5907\u6ce8',
+            readiness: '\u6267\u884c\u72b6\u6001',
+            yes: '\u662f',
+            no: '\u5426',
+        }
+        : {
+            designStrategy: 'Design Strategy',
+            designTasks: 'Design Tasks',
+            theme: 'Theme',
+            visualDirection: 'Visual Direction',
+            targetUser: 'Target User',
+            usageScenario: 'Usage Scenario',
+            colorPalette: 'Color Palette',
+            composition: 'Composition',
+            styleKeywords: 'Style Keywords',
+            craftNotes: 'Material / Craft Notes',
+            avoid: 'Avoid',
+            targetSize: 'Target Size',
+            purpose: 'Purpose',
+            modelRecommendation: 'Model',
+            referenceRequired: 'Reference Required',
+            negativePrompt: 'Negative Prompt',
+            notes: 'Notes',
+            readiness: 'Readiness',
+            yes: 'Yes',
+            no: 'No',
+        };
     const rows = ([
         [text.code, getProjectField(project, ['code']) || hermesRun.projectCode],
         [fieldText.name, getProjectField(project, ['name', 'projectName'])],
@@ -202,6 +257,41 @@ const HermesResultCard: React.FC<{
         [fieldText.requirement, getProjectField(project, ['developmentRequirement', 'brief', 'objective'])],
     ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value));
     const allProjectFields = Object.entries(project);
+    const designStrategyRows = ([
+        [proposalText.theme, designStrategy.theme],
+        [proposalText.visualDirection, designStrategy.visualDirection],
+        [proposalText.targetUser, designStrategy.targetUser],
+        [proposalText.usageScenario, designStrategy.usageScenario],
+        [proposalText.composition, designStrategy.composition],
+    ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value));
+    const colorPalette = getHermesStringList(designStrategy.colorPalette);
+    const styleKeywords = getHermesStringList(designStrategy.styleKeywords);
+    const craftNotes = getHermesStringList(designStrategy.materialAndCraftNotes);
+    const avoidItems = getHermesStringList(designStrategy.avoid);
+    const hasDesignStrategy =
+        designStrategyRows.length > 0 ||
+        colorPalette.length > 0 ||
+        styleKeywords.length > 0 ||
+        craftNotes.length > 0 ||
+        avoidItems.length > 0;
+    const hasDesignTasks = designTasks.length > 0;
+
+    const renderList = (items: string[]) => (
+        <div className="flex flex-wrap gap-1">
+            {items.map((item, index) => (
+                <span
+                    key={`${item}-${index}`}
+                    className={`rounded-md border px-1.5 py-0.5 text-[10px] ${
+                        isDark
+                            ? 'border-neutral-800 bg-neutral-950/70 text-neutral-300'
+                            : 'border-neutral-200 bg-white/75 text-neutral-700'
+                    }`}
+                >
+                    {item}
+                </span>
+            ))}
+        </div>
+    );
 
     return (
         <div className={`ml-2 mb-4 max-w-[86%] rounded-xl border p-3 text-xs leading-5 ${
@@ -278,6 +368,137 @@ const HermesResultCard: React.FC<{
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {hasDesignStrategy && (
+                    <div className={`rounded-lg border p-2 ${
+                        isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white/70'
+                    }`}>
+                        <div className={`mb-1 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
+                            {proposalText.designStrategy}
+                        </div>
+                        <div className="space-y-1.5">
+                            {designStrategyRows.map(([label, value]) => (
+                                <div key={label} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                                    <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{label}</span>
+                                    <span className={isDark ? 'text-neutral-300' : 'text-neutral-700'}>
+                                        {formatHermesValue(value, { compact: true })}
+                                    </span>
+                                </div>
+                            ))}
+                            {colorPalette.length > 0 && (
+                                <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                                    <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{proposalText.colorPalette}</span>
+                                    {renderList(colorPalette)}
+                                </div>
+                            )}
+                            {styleKeywords.length > 0 && (
+                                <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                                    <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{proposalText.styleKeywords}</span>
+                                    {renderList(styleKeywords)}
+                                </div>
+                            )}
+                            {craftNotes.length > 0 && (
+                                <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                                    <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{proposalText.craftNotes}</span>
+                                    {renderList(craftNotes)}
+                                </div>
+                            )}
+                            {avoidItems.length > 0 && (
+                                <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                                    <span className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>{proposalText.avoid}</span>
+                                    {renderList(avoidItems)}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {hasDesignTasks && (
+                    <div>
+                        <div className={`mb-2 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
+                            {proposalText.designTasks}
+                        </div>
+                        <div className="space-y-2">
+                            {designTasks.map((task, index) => {
+                                const notes = getHermesStringList(task.notes);
+                                return (
+                                    <div
+                                        key={task.taskId || `${task.title || 'task'}-${index}`}
+                                        className={`rounded-lg border p-2 ${
+                                            isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white/70'
+                                        }`}
+                                    >
+                                        <div className="mb-1 flex items-center justify-between gap-2">
+                                            <span className={`font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
+                                                {task.title || task.taskId || `Concept ${index + 1}`}
+                                            </span>
+                                            {task.taskId && <span className="text-[10px] text-neutral-500">{task.taskId}</span>}
+                                        </div>
+                                        <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                                            {task.targetSize && (
+                                                <>
+                                                    <span className="text-neutral-500">{proposalText.targetSize}</span>
+                                                    <span>{formatHermesValue(task.targetSize, { compact: true })}</span>
+                                                </>
+                                            )}
+                                            {task.purpose && (
+                                                <>
+                                                    <span className="text-neutral-500">{proposalText.purpose}</span>
+                                                    <span>{formatHermesValue(task.purpose, { compact: true })}</span>
+                                                </>
+                                            )}
+                                            {task.modelRecommendation && (
+                                                <>
+                                                    <span className="text-neutral-500">{proposalText.modelRecommendation}</span>
+                                                    <span>{formatHermesValue(task.modelRecommendation, { compact: true })}</span>
+                                                </>
+                                            )}
+                                            <span className="text-neutral-500">{proposalText.referenceRequired}</span>
+                                            <span>{task.referenceRequired ? proposalText.yes : proposalText.no}</span>
+                                        </div>
+                                        {task.prompt && (
+                                            <div className="mb-2">
+                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">Prompt</div>
+                                                <p className={`whitespace-pre-wrap break-words rounded-md p-2 text-[11px] ${
+                                                    isDark ? 'bg-neutral-900/80 text-neutral-300' : 'bg-neutral-50 text-neutral-700'
+                                                }`}>
+                                                    {formatHermesValue(task.prompt)}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {task.negativePrompt && (
+                                            <div className="mb-2">
+                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.negativePrompt}</div>
+                                                <p className={`whitespace-pre-wrap break-words rounded-md p-2 text-[11px] ${
+                                                    isDark ? 'bg-neutral-900/70 text-neutral-400' : 'bg-neutral-50 text-neutral-600'
+                                                }`}>
+                                                    {formatHermesValue(task.negativePrompt)}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {notes.length > 0 && (
+                                            <div>
+                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.notes}</div>
+                                                {renderList(notes)}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {generationReadiness?.reason && (
+                    <div className={`rounded-lg border px-2 py-1.5 text-[11px] ${
+                        isDark
+                            ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                            : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}>
+                        <span className="font-semibold">{proposalText.readiness}: </span>
+                        {formatHermesValue(generationReadiness.reason)}
                     </div>
                 )}
 

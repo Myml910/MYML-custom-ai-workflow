@@ -22,6 +22,7 @@ function buildIdempotencyKey({ userId, projectCode, chatSessionId, message }) {
 }
 
 function serializeHermesRun(row, assets = []) {
+    const responsePayload = row.response_payload || {};
     return {
         id: row.id,
         status: row.status,
@@ -36,6 +37,11 @@ function serializeHermesRun(row, assets = []) {
         project: row.project_fields || null,
         strategy: row.generation_strategy || null,
         designTask: row.design_task || null,
+        projectBrief: responsePayload.projectBrief || null,
+        designStrategy: responsePayload.designStrategy || null,
+        designTasks: Array.isArray(responsePayload.designTasks) ? responsePayload.designTasks : [],
+        generationReadiness: responsePayload.generationReadiness || null,
+        warnings: Array.isArray(responsePayload.warnings) ? responsePayload.warnings : [],
         assets,
         errorMessage: row.error_message || null,
         createdAt: row.created_at,

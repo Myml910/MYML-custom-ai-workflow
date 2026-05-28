@@ -50,6 +50,10 @@ npm run check:hermes:stale
 - [ ] `status='running'` rows older than 15 minutes should be reviewed manually with `npm run check:hermes:stale`.
 - [ ] The Hermes project card defaults to the approved high-frequency field whitelist: project code, project name, customer, category, craft, size, quantity, deadline, and development requirement.
 - [ ] Full redacted project fields remain available behind the collapsed "View all project fields" control.
+- [ ] P3-A Hermes proposal responses may include `projectBrief`, `designStrategy`, `designTasks`, and `generationReadiness`.
+- [ ] P3-A `generationReadiness.readyForImageGeneration` must be `false`.
+- [ ] P3-A design tasks are prompt proposals only. MYML Canvas must not call image generation, download `ref_img`, visit `ref_link`, or create real image nodes from these tasks.
+- [ ] Real image generation from Hermes design tasks is reserved for a later P4 worker path in MYML Canvas.
 
 ## Hermes API Server
 
@@ -98,6 +102,8 @@ Expected:
 - [ ] MYML Canvas calls Hermes from the server.
 - [ ] Hermes calls `company_project_lookup`.
 - [ ] MYML Canvas ChatPanel shows the Hermes project card.
+- [ ] If the message asks for a design proposal, MYML Canvas ChatPanel shows the design strategy card and design task prompt list.
+- [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
 - [ ] `hermes_assets` contains the mock local image asset.
 - [ ] `hermes_runs.project_fields.source = 'mysql_view'`.

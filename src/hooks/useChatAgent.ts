@@ -56,6 +56,49 @@ export interface HermesRunPayload {
         prompt?: string;
         negative_prompt?: string;
     } | null;
+    projectBrief?: Record<string, unknown> & {
+        projectCode?: string;
+        projectName?: string;
+        customer?: string;
+        category?: string;
+        craft?: string;
+        size?: string;
+        quantity?: string;
+        deadline?: string;
+        designRequirement?: string;
+        constraints?: unknown[];
+    } | null;
+    designStrategy?: {
+        theme?: string;
+        visualDirection?: string;
+        targetUser?: string;
+        usageScenario?: string;
+        colorPalette?: string[];
+        composition?: string;
+        styleKeywords?: string[];
+        materialAndCraftNotes?: string[];
+        avoid?: string[];
+    } | null;
+    designTasks?: {
+        taskId?: string;
+        title?: string;
+        targetSize?: string;
+        purpose?: string;
+        prompt?: string;
+        negativePrompt?: string;
+        modelRecommendation?: string;
+        referenceRequired?: boolean;
+        notes?: unknown[];
+    }[];
+    generationReadiness?: {
+        readyForImageGeneration?: boolean;
+        reason?: string;
+    } | null;
+    warnings?: {
+        code?: string;
+        scope?: string;
+        message?: string;
+    }[];
     assets?: {
         id: string;
         imageId?: string;
