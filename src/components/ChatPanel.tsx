@@ -287,6 +287,8 @@ function buildTaskGenerationPackage(task: HermesDesignTask): string {
         `- Target Size: ${safeHermesCopyValue(task.targetSize)}`,
         `- Purpose: ${safeHermesCopyValue(task.purpose)}`,
         `- Model Recommendation: ${safeHermesCopyValue(task.modelRecommendation)}`,
+        `- Alternative Model Recommendation: ${safeHermesCopyValue(task.alternativeModelRecommendation)}`,
+        `- Model Reason: ${safeHermesCopyValue(task.modelReason)}`,
         `- Reference Required: ${task.referenceRequired ? 'true' : 'false'}`,
         `- Reference IDs: ${referenceIds}`,
         `- Reference Usage: ${safeHermesCopyValue(task.referenceUsage)}`,
@@ -391,6 +393,8 @@ const HermesResultCard: React.FC<{
             targetSize: '\u76ee\u6807\u5c3a\u5bf8',
             purpose: '\u76ee\u7684',
             modelRecommendation: '\u63a8\u8350\u6a21\u578b',
+            alternativeModelRecommendation: '\u5907\u9009\u6a21\u578b',
+            modelReason: '\u63a8\u8350\u7406\u7531',
             referenceRequired: '\u9700\u8981\u53c2\u8003\u56fe',
             negativePrompt: 'Negative Prompt',
             notes: '\u5907\u6ce8',
@@ -451,6 +455,8 @@ const HermesResultCard: React.FC<{
             targetSize: 'Target Size',
             purpose: 'Purpose',
             modelRecommendation: 'Model',
+            alternativeModelRecommendation: 'Alternative Model',
+            modelReason: 'Model Reason',
             referenceRequired: 'Reference Required',
             negativePrompt: 'Negative Prompt',
             notes: 'Notes',
@@ -983,6 +989,18 @@ const HermesResultCard: React.FC<{
                                                 <>
                                                     <span className="text-neutral-500">{proposalText.modelRecommendation}</span>
                                                     <span>{formatHermesValue(task.modelRecommendation, { compact: true })}</span>
+                                                </>
+                                            )}
+                                            {task.alternativeModelRecommendation && (
+                                                <>
+                                                    <span className="text-neutral-500">{proposalText.alternativeModelRecommendation}</span>
+                                                    <span>{formatHermesValue(task.alternativeModelRecommendation, { compact: true })}</span>
+                                                </>
+                                            )}
+                                            {task.modelReason && (
+                                                <>
+                                                    <span className="text-neutral-500">{proposalText.modelReason}</span>
+                                                    <span>{formatHermesValue(task.modelReason, { compact: true })}</span>
                                                 </>
                                             )}
                                             <span className="text-neutral-500">{proposalText.referenceRequired}</span>

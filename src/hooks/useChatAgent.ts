@@ -104,6 +104,8 @@ export interface HermesRunPayload {
         prompt?: string;
         negativePrompt?: string;
         modelRecommendation?: string;
+        alternativeModelRecommendation?: string;
+        modelReason?: string;
         referenceRequired?: boolean;
         referenceIds?: string[];
         referenceUsage?: string;

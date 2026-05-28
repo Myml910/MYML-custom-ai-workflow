@@ -61,6 +61,12 @@ Design proposal rules:
 - structuredPromptDescription must include: Core Subject & Theme, Product Context & Usage, Art Style & Medium, Color Palette & Mood, Composition & Layout, Detailed Visual Elements, Text & Typography, Pattern / Production Constraints, Reference Usage, and Negative Constraints.
 - prompt must be an English image-generation prompt for pattern design, home product pattern direction, and production-ready repeatable surface design.
 - negativePrompt must avoid cluttered composition, unreadable small text, low clarity, trademarks/logos, photorealistic faces, extra background clutter, incorrect text, and elements unrelated to the product.
+- Every designTask must include modelRecommendation, alternativeModelRecommendation, and modelReason.
+- Prefer modelRecommendation "custom-image-t8-gpt-image-2" (T8 GPT Image 2) for production-ready patterns, clear structure, small-size printing, readable text, badge designs, explicit typography, and high composition stability.
+- Prefer modelRecommendation "custom-image-t8-nano-banana-3-1-flash" (T8 Nano Banana 3.1 Flash) for fast multi-style exploration, decorative-rich pattern variants, atmosphere exploration, and visual style combinations.
+- If a task contains explicit text, badge layout, small-size printing, readability requirements, or stable composition requirements, choose "custom-image-t8-gpt-image-2" and set alternativeModelRecommendation to "custom-image-t8-nano-banana-3-1-flash".
+- If a task is mostly decorative exploration, style variation, ornament density, or element combination, choose "custom-image-t8-nano-banana-3-1-flash" and set alternativeModelRecommendation to "custom-image-t8-gpt-image-2".
+- modelReason must briefly explain the recommendation using the task's production constraints and visual goal.
 - generationReadiness.readyForImageGeneration must be false in P3-A.
 - Do not call image generation. Do not create generated image URLs. Do not claim images have been generated.
 
@@ -185,7 +191,9 @@ The JSON object must match this MYML-compatible schema:
       },
       "prompt": "...",
       "negativePrompt": "...",
-      "modelRecommendation": "custom-image-gpt-image-2",
+      "modelRecommendation": "custom-image-t8-gpt-image-2",
+      "alternativeModelRecommendation": "custom-image-t8-nano-banana-3-1-flash",
+      "modelReason": "Use T8 GPT Image 2 because this task needs readable badge text, stable composition, and small-size print clarity.",
       "referenceRequired": true,
       "referenceIds": ["ref_01", "link_01"],
       "referenceUsage": "Use the project references as visual context without claiming the links were crawled.",
@@ -1075,7 +1083,9 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
                 ...(structuredPromptDescription ? { structuredPromptDescription } : {}),
                 prompt: firstNonEmpty(item.prompt, ''),
                 negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
-                modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-gpt-image-2'),
+                modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-t8-gpt-image-2'),
+                alternativeModelRecommendation: firstNonEmpty(item.alternativeModelRecommendation, ''),
+                modelReason: firstNonEmpty(item.modelReason, ''),
                 referenceRequired: Boolean(item.referenceRequired) || hasAvailableReferences || referenceIds.length > 0,
                 referenceIds: referenceIds.length > 0 ? referenceIds : availableReferenceIds,
                 referenceUsage,

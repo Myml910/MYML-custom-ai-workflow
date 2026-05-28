@@ -68,6 +68,8 @@ npm run check:hermes:stale
 - [ ] P3-E task count should match explicit project demand when present; compare `expectedDesignTaskCount` and `actualDesignTaskCount`.
 - [ ] P3-E `maxDesignsPerGeneration` is 6. If `expectedDesignTaskCount` is greater than 6, Hermes should return 6 current tasks plus a `batchPlan`.
 - [ ] P3-E batch planning is proposal-only. MYML Canvas must not execute image generation until a later P4 worker path.
+- [ ] P3-F design tasks include `modelRecommendation`, `alternativeModelRecommendation`, and `modelReason`.
+- [ ] P3-F recommended model IDs are `custom-image-t8-gpt-image-2` and `custom-image-t8-nano-banana-3-1-flash`. These are recommendations only, not automatic generation.
 
 ## Hermes API Server
 

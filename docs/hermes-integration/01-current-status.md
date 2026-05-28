@@ -93,6 +93,8 @@ P3-E scope:
 - Designers can copy the final prompt, negative prompt, structured prompt Markdown, or a full generation package from each task card.
 - Hermes should align total design demand with explicit project requirements when present. Response payload may include `expectedDesignTaskCount`, `actualDesignTaskCount`, `maxDesignsPerGeneration`, `countReason`, and `batchPlan`.
 - `maxDesignsPerGeneration` is currently 6. If the project requires more than 6 directions, Hermes should plan only the first batch of 6 directions and return `batchPlan` for the remaining directions.
+- P3-F records current manual validation: T8 GPT Image 2 and T8 Nano Banana 3.1 Flash are the preferred model recommendations for pattern tasks.
+- Each design task should include `modelRecommendation`, `alternativeModelRecommendation`, and `modelReason`. MYML Canvas displays these recommendations but does not run image generation automatically.
 
 ## Current Non-Goals
 
