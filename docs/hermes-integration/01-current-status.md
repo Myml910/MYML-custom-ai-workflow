@@ -77,6 +77,7 @@ P3-C scope:
 
 - Hermes may return structured `references.images`, `references.links`, and `references.notes`.
 - MYML Canvas may identify and display company reference image URLs, reference links, Amazon URLs, and product URLs.
+- Current company View reference fields include `design_img`, `design_link`, `oper_img`, and `oper_link`.
 - MYML Canvas does not download external reference images, crawl Amazon, visit `ref_link`, or import references into the asset library in P3-C.
 - Moving references into the canvas, safe downloading, and using them as image-generation inputs are reserved for later P4/P5 work.
 
@@ -88,6 +89,8 @@ Do not do these during this migration preparation phase:
 - Do not connect real image generation through Hermes.
 - Do not download `ref_img`.
 - Do not visit or crawl `ref_link`.
+- Do not download `design_img` or `oper_img`.
+- Do not visit `design_link` or `oper_link`.
 - Do not create real canvas nodes from Hermes results.
 - Do not execute image generation from P3-A design tasks.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.

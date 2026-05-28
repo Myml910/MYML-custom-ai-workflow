@@ -49,11 +49,12 @@ Design proposal rules:
 - Do not call image generation. Do not create generated image URLs. Do not claim images have been generated.
 
 Reference material rules:
-- Extract reference images and reference links from company_project_lookup fields such as ref_img, ref_link, reference_image, reference_url, amazon_url, amazon_link, and product_url.
+- Extract reference images and reference links from company_project_lookup fields such as ref_img, ref_link, reference_image, reference_url, amazon_url, amazon_link, product_url, design_img, design_link, oper_img, and oper_link.
 - If reference images or Amazon/product/reference links exist, put them into references.images or references.links.
 - Do not download reference images. Do not visit reference links. Do not crawl Amazon.
 - references only describes external pointers for the designer to inspect later.
 - If references exist, designTasks should include referenceRequired, referenceIds, and referenceUsage.
+- referenceUsage should explain how to use reference material for composition, pattern density, color direction, product proportion, and craft suitability, but must not copy trademarks, logos, or protected elements.
 - Prompt text may describe how to use the references, but must not claim external pages or images were already read beyond the company fields.
 
 The JSON object must match this MYML-compatible schema:
@@ -428,8 +429,10 @@ function normalizeStringArray(value) {
 
 const URL_PATTERN = /https?:\/\/[^\s,，;；"'<>]+/gi;
 const IMAGE_REFERENCE_FIELD_KEYS = new Set([
+    'designimg',
     'refimg',
     'refimgurl',
+    'operimg',
     'referenceimage',
     'referenceimageurl',
     'referenceimages',
@@ -443,6 +446,8 @@ const IMAGE_REFERENCE_FIELD_KEYS = new Set([
     'referencephotosurl'
 ]);
 const LINK_REFERENCE_FIELD_KEYS = new Set([
+    'designlink',
+    'operlink',
     'reflink',
     'refurl',
     'referencelink',
@@ -459,6 +464,24 @@ const MIXED_REFERENCE_FIELD_KEYS = new Set([
     'stylereferences',
     'assethints'
 ]);
+const REFERENCE_FIELD_METADATA = {
+    designimg: {
+        label: '\u8bbe\u8ba1\u53c2\u8003\u56fe',
+        role: 'design_reference'
+    },
+    operimg: {
+        label: '\u8fd0\u8425\u53c2\u8003\u56fe',
+        role: 'operation_reference'
+    },
+    designlink: {
+        label: '\u8bbe\u8ba1\u53c2\u8003\u94fe\u63a5',
+        type: 'design_reference'
+    },
+    operlink: {
+        label: '\u8fd0\u8425\u53c2\u8003\u94fe\u63a5',
+        type: 'operation_reference'
+    }
+};
 
 function normalizeReferenceFieldKey(key) {
     return String(key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -530,11 +553,22 @@ function collectProjectReferenceUrls(value, bucket) {
     for (const [key, nestedValue] of Object.entries(value)) {
         const normalizedKey = normalizeReferenceFieldKey(key);
         const urls = extractHttpUrls(nestedValue);
+        const fieldMetadata = REFERENCE_FIELD_METADATA[normalizedKey] || {};
 
         if (IMAGE_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
-            bucket.images.push(...urls);
+            bucket.images.push(...urls.map(url => ({
+                url,
+                source: 'company_system',
+                label: fieldMetadata.label,
+                role: fieldMetadata.role
+            })));
         } else if (LINK_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
-            bucket.links.push(...urls);
+            bucket.links.push(...urls.map(url => ({
+                url,
+                source: 'company_system',
+                label: fieldMetadata.label,
+                type: fieldMetadata.type
+            })));
         } else if (MIXED_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
             for (const url of urls) {
                 if (looksLikeImageUrl(url)) bucket.images.push(url);
@@ -544,15 +578,6 @@ function collectProjectReferenceUrls(value, bucket) {
 
         collectProjectReferenceUrls(nestedValue, bucket);
     }
-}
-
-function uniqueUrls(urls) {
-    const seen = new Set();
-    return urls.filter(url => {
-        if (!isHttpUrl(url) || seen.has(url)) return false;
-        seen.add(url);
-        return true;
-    });
 }
 
 function dedupeReferencesByUrl(items) {
@@ -610,8 +635,8 @@ function normalizeHermesReferences(value, project) {
 
     const projectReferenceUrls = { images: [], links: [] };
     collectProjectReferenceUrls(project, projectReferenceUrls);
-    imageItems.push(...uniqueUrls(projectReferenceUrls.images));
-    linkItems.push(...uniqueUrls(projectReferenceUrls.links));
+    imageItems.push(...projectReferenceUrls.images);
+    linkItems.push(...projectReferenceUrls.links);
 
     const images = dedupeReferencesByUrl(imageItems
         .map(normalizeReferenceImage)
@@ -698,7 +723,7 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
             const referenceUsage = firstNonEmpty(
                 item.referenceUsage,
                 hasAvailableReferences
-                    ? 'Use the project reference materials as visual context. Do not claim external pages or images were crawled.'
+                    ? 'Use the project reference materials for composition, pattern density, color direction, product proportion, and craft suitability. Do not claim external pages or images were crawled, and do not copy trademarks, logos, or protected elements.'
                     : ''
             );
 

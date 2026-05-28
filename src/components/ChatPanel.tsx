@@ -136,6 +136,12 @@ function getHermesStringList(value: unknown): string[] {
         .filter(Boolean);
 }
 
+const HERMES_REFERENCE_TEXT_LIMIT = 180;
+
+function truncateHermesText(value: string, limit = HERMES_REFERENCE_TEXT_LIMIT): string {
+    return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
 function isSafeHttpReferenceUrl(value?: string): boolean {
     try {
         const parsed = new URL(value || '');
@@ -153,6 +159,47 @@ function getReferenceDomain(value?: string): string {
     }
 }
 
+function isRelativeTempReference(value: string): boolean {
+    return /^(?:\.?\/)?temp[\\/]/i.test(value.trim());
+}
+
+function getUnavailableReferenceMessage(language: Language): string {
+    return language === 'zh'
+        ? '\u56fe\u7247\u5b57\u6bb5\u5df2\u8fd4\u56de\uff0c\u4f46\u4e0d\u662f\u53ef\u76f4\u63a5\u8bbf\u95ee\u7684 http/https URL'
+        : 'The image field was returned, but it is not a directly accessible http/https URL.';
+}
+
+function formatReferenceRawValue(value: unknown, language: Language): string {
+    if (typeof value === 'string') {
+        const rawValue = value.trim();
+        if (rawValue && !isSafeHttpReferenceUrl(rawValue) && isRelativeTempReference(rawValue)) {
+            return getUnavailableReferenceMessage(language);
+        }
+        return truncateHermesText(formatHermesValue(rawValue, { compact: true }));
+    }
+
+    return truncateHermesText(formatHermesValue(value, { compact: true }));
+}
+
+function formatReferenceNote(note: unknown, language: Language): string {
+    if (typeof note === 'string') {
+        return truncateHermesText(formatHermesValue(note, { compact: true }).trim());
+    }
+
+    if (!isRecord(note)) {
+        return truncateHermesText(formatHermesValue(note, { compact: true }).trim());
+    }
+
+    const parts = [
+        note.label ? formatHermesValue(note.label, { compact: true }) : '',
+        note.field ? formatHermesValue(note.field, { compact: true }) : '',
+        note.message ? formatHermesValue(note.message, { compact: true }) : '',
+        note.rawValue !== undefined ? formatReferenceRawValue(note.rawValue, language) : '',
+    ].map(part => part.trim()).filter(Boolean);
+
+    return truncateHermesText(parts.length > 0 ? parts.join(' · ') : formatHermesValue(note, { compact: true }));
+}
+
 const HermesResultCard: React.FC<{
     hermesRun: HermesRunPayload;
     canvasTheme: 'dark' | 'light';
@@ -167,12 +214,14 @@ const HermesResultCard: React.FC<{
     const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
     const references = hermesRun.references || {};
     const referenceImages = Array.isArray(references.images)
-        ? references.images.filter(item => item?.url && item.safeToDisplay !== false)
+        ? references.images.filter(item => item?.url)
         : [];
     const referenceLinks = Array.isArray(references.links)
         ? references.links.filter(item => item?.url && item.safeToOpen !== false)
         : [];
-    const referenceNotes = getHermesStringList(references.notes);
+    const referenceNotes = Array.isArray(references.notes)
+        ? references.notes.map(note => formatReferenceNote(note, language)).filter(Boolean)
+        : [];
     const hasReferences = referenceImages.length > 0 || referenceLinks.length > 0;
     const generationReadiness = hermesRun.generationReadiness || null;
     const assets = hermesRun.assets || [];
@@ -252,6 +301,7 @@ const HermesResultCard: React.FC<{
             noReferences: '\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53c2\u8003\u56fe\u6216\u53c2\u8003\u94fe\u63a5',
             openReference: '\u6253\u5f00\u94fe\u63a5',
             addToCanvasSoon: '\u6dfb\u52a0\u5230\u753b\u5e03\uff08\u540e\u7eed\uff09',
+            referenceUnavailable: '\u6682\u4e0d\u53ef\u76f4\u63a5\u5c55\u793a\uff1a\u9700\u8981\u516c\u53f8\u7cfb\u7edf\u56fe\u7247\u8bbf\u95ee\u89c4\u5219',
             referenceIds: 'Reference IDs',
             referenceUsage: '\u53c2\u8003\u7528\u6cd5',
             missingReferences: '\u6b64\u4efb\u52a1\u6807\u8bb0\u9700\u8981\u53c2\u8003\u8d44\u6599\uff0c\u4f46\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53ef\u7528\u53c2\u8003\u56fe/\u94fe\u63a5\u3002',
@@ -283,6 +333,7 @@ const HermesResultCard: React.FC<{
             noReferences: 'This project did not return reference images or links.',
             openReference: 'Open Link',
             addToCanvasSoon: 'Add to Canvas (soon)',
+            referenceUnavailable: 'Cannot display directly yet: company image access rules are required.',
             referenceIds: 'Reference IDs',
             referenceUsage: 'Reference Usage',
             missingReferences: 'This task requires references, but the project did not return usable reference images or links.',
@@ -434,6 +485,7 @@ const HermesResultCard: React.FC<{
                             <div className="grid grid-cols-1 gap-2">
                                 {referenceImages.map((item, index) => {
                                     const safeUrl = isSafeHttpReferenceUrl(item.url);
+                                    const canOpenImageReference = safeUrl && item.safeToDisplay !== false;
                                     return (
                                         <div
                                             key={item.id || `${item.url}-${index}`}
@@ -453,10 +505,17 @@ const HermesResultCard: React.FC<{
                                                     </div>
                                                     <div className="truncate text-[10px] text-neutral-500">{getReferenceDomain(item.url)}</div>
                                                     <div className="truncate text-[10px] text-neutral-500">{item.url}</div>
+                                                    {!canOpenImageReference && (
+                                                        <div className={`mt-1 rounded-md px-1.5 py-1 text-[10px] ${
+                                                            isDark ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800'
+                                                        }`}>
+                                                            {proposalText.referenceUnavailable}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-1">
-                                                {safeUrl && (
+                                                {canOpenImageReference && (
                                                     <a
                                                         href={item.url}
                                                         target="_blank"
@@ -533,8 +592,19 @@ const HermesResultCard: React.FC<{
                     )}
 
                     {referenceNotes.length > 0 && (
-                        <div className="mt-2">
-                            {renderList(referenceNotes)}
+                        <div className="mt-2 space-y-1">
+                            {referenceNotes.map((note, index) => (
+                                <div
+                                    key={`${note}-${index}`}
+                                    className={`rounded-md border px-2 py-1 text-[10px] ${
+                                        isDark
+                                            ? 'border-neutral-800 bg-neutral-950/70 text-neutral-400'
+                                            : 'border-neutral-200 bg-white/75 text-neutral-600'
+                                    }`}
+                                >
+                                    {note}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
