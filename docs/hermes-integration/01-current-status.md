@@ -73,6 +73,13 @@ P3-A scope:
 - MYML Canvas displays the proposal and prompt list only.
 - Real image generation is reserved for a later P4 worker flow inside MYML Canvas.
 
+P3-C scope:
+
+- Hermes may return structured `references.images`, `references.links`, and `references.notes`.
+- MYML Canvas may identify and display company reference image URLs, reference links, Amazon URLs, and product URLs.
+- MYML Canvas does not download external reference images, crawl Amazon, visit `ref_link`, or import references into the asset library in P3-C.
+- Moving references into the canvas, safe downloading, and using them as image-generation inputs are reserved for later P4/P5 work.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -84,6 +91,8 @@ Do not do these during this migration preparation phase:
 - Do not create real canvas nodes from Hermes results.
 - Do not execute image generation from P3-A design tasks.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
+- Do not download or proxy P3-C reference images.
+- Do not crawl Amazon or any product reference URL.
 - Do not store real passwords, keys, internal connection strings, or customer-sensitive raw debug data in Git.
 - Do not expose `API_SERVER_KEY`, `HERMES_API_KEY`, database credentials, or internal hostnames to the frontend.
 

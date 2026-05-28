@@ -54,6 +54,9 @@ npm run check:hermes:stale
 - [ ] P3-A `generationReadiness.readyForImageGeneration` must be `false`.
 - [ ] P3-A design tasks are prompt proposals only. MYML Canvas must not call image generation, download `ref_img`, visit `ref_link`, or create real image nodes from these tasks.
 - [ ] Real image generation from Hermes design tasks is reserved for a later P4 worker path in MYML Canvas.
+- [ ] P3-C reference responses may include `references.images`, `references.links`, and `references.notes`.
+- [ ] P3-C only identifies and displays reference URLs. MYML Canvas must not download external reference images, crawl Amazon, visit `ref_link`, or create imported assets from these references.
+- [ ] Reference images can be shown as safe link cards. Moving them into the canvas or asset library is reserved for later P4/P5 work.
 
 ## Hermes API Server
 
@@ -103,6 +106,7 @@ Expected:
 - [ ] Hermes calls `company_project_lookup`.
 - [ ] MYML Canvas ChatPanel shows the Hermes project card.
 - [ ] If the message asks for a design proposal, MYML Canvas ChatPanel shows the design strategy card and design task prompt list.
+- [ ] If the project contains `ref_img`, `ref_link`, Amazon URL, or product URL fields, MYML Canvas ChatPanel shows the references section without downloading external content.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
 - [ ] `hermes_assets` contains the mock local image asset.

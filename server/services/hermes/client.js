@@ -20,7 +20,7 @@ Execution rules:
 3. The final output must be exactly one JSON object. Do not use markdown. Do not explain.
 4. Do not query any other external system.
 5. Do not generate real images.
-6. Do not return external image URLs.
+6. Do not return external image URLs as generated results. External URLs are allowed only inside references.
 7. Do not include API keys, headers, authorization values, raw upstream debug payloads, or internal secrets.
 8. Do not download ref_img. Do not visit ref_link. Treat reference image/link fields as text-only project context.
 
@@ -46,7 +46,15 @@ Design proposal rules:
 - If category_label or usage_scenario_label is missing, infer conservatively from existing fields and record the uncertainty in constraints or task notes.
 - Generate 3 to 6 designTasks. Every design task must include prompt and negativePrompt.
 - generationReadiness.readyForImageGeneration must be false in P3-A.
-- Do not call image generation. Do not create real image URLs. Do not claim images have been generated.
+- Do not call image generation. Do not create generated image URLs. Do not claim images have been generated.
+
+Reference material rules:
+- Extract reference images and reference links from company_project_lookup fields such as ref_img, ref_link, reference_image, reference_url, amazon_url, amazon_link, and product_url.
+- If reference images or Amazon/product/reference links exist, put them into references.images or references.links.
+- Do not download reference images. Do not visit reference links. Do not crawl Amazon.
+- references only describes external pointers for the designer to inspect later.
+- If references exist, designTasks should include referenceRequired, referenceIds, and referenceUsage.
+- Prompt text may describe how to use the references, but must not claim external pages or images were already read beyond the company fields.
 
 The JSON object must match this MYML-compatible schema:
 {
@@ -143,10 +151,36 @@ The JSON object must match this MYML-compatible schema:
       "prompt": "...",
       "negativePrompt": "...",
       "modelRecommendation": "custom-image-gpt-image-2",
-      "referenceRequired": false,
+      "referenceRequired": true,
+      "referenceIds": ["ref_01", "link_01"],
+      "referenceUsage": "Use the project references as visual context without claiming the links were crawled.",
       "notes": []
     }
   ],
+  "references": {
+    "images": [
+      {
+        "id": "ref_01",
+        "url": "https://...",
+        "source": "company_system",
+        "label": "\u9879\u76ee\u53c2\u8003\u56fe",
+        "role": "visual_reference",
+        "safeToDisplay": true,
+        "importedAssetId": null
+      }
+    ],
+    "links": [
+      {
+        "id": "link_01",
+        "url": "https://...",
+        "source": "company_system",
+        "label": "\u53c2\u8003\u94fe\u63a5",
+        "type": "product_reference",
+        "safeToOpen": true
+      }
+    ],
+    "notes": []
+  },
   "generationReadiness": {
     "readyForImageGeneration": false,
     "reason": "P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later."
@@ -378,14 +412,239 @@ function validateHermesP1Response(payload) {
 }
 
 function normalizeStringArray(value) {
-    if (!Array.isArray(value)) return [];
-    return value
+    const values = typeof value === 'string'
+        ? value.split(/[,，;；\n]+/)
+        : Array.isArray(value)
+            ? value
+            : [];
+    return values
         .map(item => {
             if (typeof item === 'string') return item.trim();
             if (item === null || item === undefined) return '';
             return String(item).trim();
         })
         .filter(Boolean);
+}
+
+const URL_PATTERN = /https?:\/\/[^\s,，;；"'<>]+/gi;
+const IMAGE_REFERENCE_FIELD_KEYS = new Set([
+    'refimg',
+    'refimgurl',
+    'referenceimage',
+    'referenceimageurl',
+    'referenceimages',
+    'referenceimagesurl',
+    'imagereference',
+    'imagereferenceurl',
+    'imagereferences',
+    'referencephoto',
+    'referencephotourl',
+    'referencephotos',
+    'referencephotosurl'
+]);
+const LINK_REFERENCE_FIELD_KEYS = new Set([
+    'reflink',
+    'refurl',
+    'referencelink',
+    'referencelinks',
+    'referenceurl',
+    'referenceurls',
+    'amazonurl',
+    'amazonlink',
+    'producturl',
+    'productlink'
+]);
+const MIXED_REFERENCE_FIELD_KEYS = new Set([
+    'references',
+    'stylereferences',
+    'assethints'
+]);
+
+function normalizeReferenceFieldKey(key) {
+    return String(key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function cleanUrlCandidate(value) {
+    return String(value || '')
+        .trim()
+        .replace(/[)\]}.,，。;；]+$/g, '');
+}
+
+function isHttpUrl(value) {
+    try {
+        const parsed = new URL(String(value || ''));
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function sanitizeReferenceUrl(value) {
+    try {
+        const parsed = new URL(String(value || ''));
+        for (const key of Array.from(parsed.searchParams.keys())) {
+            if (SENSITIVE_FIELD_PATTERN.test(key)) {
+                parsed.searchParams.set(key, REDACTED_VALUE);
+            }
+        }
+        return parsed.toString();
+    } catch {
+        return value;
+    }
+}
+
+function looksLikeImageUrl(value) {
+    try {
+        const parsed = new URL(String(value || ''));
+        return /\.(png|jpe?g|webp|gif|bmp|avif|svg)$/i.test(parsed.pathname);
+    } catch {
+        return false;
+    }
+}
+
+function extractHttpUrls(value) {
+    if (typeof value === 'string') {
+        const matches = value.match(URL_PATTERN) || [];
+        return matches.map(cleanUrlCandidate).filter(isHttpUrl).map(sanitizeReferenceUrl);
+    }
+
+    if (Array.isArray(value)) {
+        return value.flatMap(extractHttpUrls);
+    }
+
+    if (isPlainObject(value)) {
+        return Object.values(value).flatMap(extractHttpUrls);
+    }
+
+    return [];
+}
+
+function collectProjectReferenceUrls(value, bucket) {
+    if (Array.isArray(value)) {
+        value.forEach(item => collectProjectReferenceUrls(item, bucket));
+        return;
+    }
+
+    if (!isPlainObject(value)) return;
+
+    for (const [key, nestedValue] of Object.entries(value)) {
+        const normalizedKey = normalizeReferenceFieldKey(key);
+        const urls = extractHttpUrls(nestedValue);
+
+        if (IMAGE_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
+            bucket.images.push(...urls);
+        } else if (LINK_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
+            bucket.links.push(...urls);
+        } else if (MIXED_REFERENCE_FIELD_KEYS.has(normalizedKey)) {
+            for (const url of urls) {
+                if (looksLikeImageUrl(url)) bucket.images.push(url);
+                else bucket.links.push(url);
+            }
+        }
+
+        collectProjectReferenceUrls(nestedValue, bucket);
+    }
+}
+
+function uniqueUrls(urls) {
+    const seen = new Set();
+    return urls.filter(url => {
+        if (!isHttpUrl(url) || seen.has(url)) return false;
+        seen.add(url);
+        return true;
+    });
+}
+
+function dedupeReferencesByUrl(items) {
+    const seen = new Set();
+    return items.filter(item => {
+        if (!item?.url || seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+    });
+}
+
+function normalizeReferenceImage(item, index) {
+    const url = isPlainObject(item)
+        ? firstNonEmpty(item.url, item.src, item.imageUrl, item.referenceImage, extractHttpUrls(item)[0])
+        : extractHttpUrls(item)[0];
+    if (!isHttpUrl(url)) return null;
+
+    return {
+        id: firstNonEmpty(isPlainObject(item) ? item.id : null, `ref_${String(index + 1).padStart(2, '0')}`),
+        url,
+        source: firstNonEmpty(isPlainObject(item) ? item.source : null, 'company_system'),
+        label: firstNonEmpty(isPlainObject(item) ? item.label : null, '\u9879\u76ee\u53c2\u8003\u56fe'),
+        role: firstNonEmpty(isPlainObject(item) ? item.role : null, 'visual_reference'),
+        safeToDisplay: isPlainObject(item) && item.safeToDisplay === false ? false : true,
+        importedAssetId: null
+    };
+}
+
+function normalizeReferenceLink(item, index) {
+    const url = isPlainObject(item)
+        ? firstNonEmpty(item.url, item.href, item.link, item.referenceUrl, extractHttpUrls(item)[0])
+        : extractHttpUrls(item)[0];
+    if (!isHttpUrl(url)) return null;
+
+    return {
+        id: firstNonEmpty(isPlainObject(item) ? item.id : null, `link_${String(index + 1).padStart(2, '0')}`),
+        url,
+        source: firstNonEmpty(isPlainObject(item) ? item.source : null, 'company_system'),
+        label: firstNonEmpty(isPlainObject(item) ? item.label : null, '\u53c2\u8003\u94fe\u63a5'),
+        type: firstNonEmpty(isPlainObject(item) ? item.type : null, 'product_reference'),
+        safeToOpen: isPlainObject(item) && item.safeToOpen === false ? false : true
+    };
+}
+
+function normalizeHermesReferences(value, project) {
+    const imageItems = [];
+    const linkItems = [];
+    const notes = [];
+
+    if (isPlainObject(value)) {
+        if (Array.isArray(value.images)) imageItems.push(...value.images);
+        if (Array.isArray(value.links)) linkItems.push(...value.links);
+        if (Array.isArray(value.notes)) notes.push(...value.notes);
+    }
+
+    const projectReferenceUrls = { images: [], links: [] };
+    collectProjectReferenceUrls(project, projectReferenceUrls);
+    imageItems.push(...uniqueUrls(projectReferenceUrls.images));
+    linkItems.push(...uniqueUrls(projectReferenceUrls.links));
+
+    const images = dedupeReferencesByUrl(imageItems
+        .map(normalizeReferenceImage)
+        .filter(Boolean));
+    const links = dedupeReferencesByUrl(linkItems
+        .map(normalizeReferenceLink)
+        .filter(Boolean));
+
+    const usedIds = new Set();
+    const stableImages = images.map((item, index) => {
+        const fallbackId = `ref_${String(index + 1).padStart(2, '0')}`;
+        const id = usedIds.has(item.id) ? fallbackId : item.id;
+        usedIds.add(id);
+        return { ...item, id };
+    });
+
+    const usedLinkIds = new Set();
+    const stableLinks = links.map((item, index) => {
+        const fallbackId = `link_${String(index + 1).padStart(2, '0')}`;
+        const id = usedLinkIds.has(item.id) ? fallbackId : item.id;
+        usedLinkIds.add(id);
+        return { ...item, id };
+    });
+
+    return {
+        images: stableImages,
+        links: stableLinks,
+        notes: notes.map(item => {
+            if (typeof item === 'string') return item.trim();
+            if (item === null || item === undefined) return '';
+            return String(item).trim();
+        }).filter(Boolean)
+    };
 }
 
 function normalizeHermesProjectBrief(value, project) {
@@ -424,21 +683,39 @@ function normalizeHermesDesignStrategy(value) {
     };
 }
 
-function normalizeHermesDesignTasks(value) {
+function normalizeHermesDesignTasks(value, references = { images: [], links: [] }) {
     if (!Array.isArray(value)) return [];
+    const availableReferenceIds = [
+        ...(Array.isArray(references.images) ? references.images.map(item => item.id) : []),
+        ...(Array.isArray(references.links) ? references.links.map(item => item.id) : [])
+    ].filter(Boolean);
+    const hasAvailableReferences = availableReferenceIds.length > 0;
+
     return value
         .filter(isPlainObject)
-        .map((item, index) => ({
-            taskId: firstNonEmpty(item.taskId, `concept_${String(index + 1).padStart(2, '0')}`),
-            title: firstNonEmpty(item.title, `Concept ${index + 1}`),
-            targetSize: firstNonEmpty(item.targetSize, ''),
-            purpose: firstNonEmpty(item.purpose, ''),
-            prompt: firstNonEmpty(item.prompt, ''),
-            negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
-            modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-gpt-image-2'),
-            referenceRequired: Boolean(item.referenceRequired),
-            notes: Array.isArray(item.notes) ? item.notes : []
-        }));
+        .map((item, index) => {
+            const referenceIds = normalizeStringArray(item.referenceIds);
+            const referenceUsage = firstNonEmpty(
+                item.referenceUsage,
+                hasAvailableReferences
+                    ? 'Use the project reference materials as visual context. Do not claim external pages or images were crawled.'
+                    : ''
+            );
+
+            return {
+                taskId: firstNonEmpty(item.taskId, `concept_${String(index + 1).padStart(2, '0')}`),
+                title: firstNonEmpty(item.title, `Concept ${index + 1}`),
+                targetSize: firstNonEmpty(item.targetSize, ''),
+                purpose: firstNonEmpty(item.purpose, ''),
+                prompt: firstNonEmpty(item.prompt, ''),
+                negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
+                modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-gpt-image-2'),
+                referenceRequired: Boolean(item.referenceRequired) || hasAvailableReferences || referenceIds.length > 0,
+                referenceIds: referenceIds.length > 0 ? referenceIds : availableReferenceIds,
+                referenceUsage,
+                notes: Array.isArray(item.notes) ? item.notes : []
+            };
+        });
 }
 
 function normalizeHermesGenerationReadiness(value) {
@@ -460,7 +737,8 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     const project = normalizeHermesProjectFields(payload.project, projectCode);
     const projectBrief = normalizeHermesProjectBrief(payload.projectBrief, project);
     const designStrategy = normalizeHermesDesignStrategy(payload.designStrategy);
-    const designTasks = normalizeHermesDesignTasks(payload.designTasks);
+    const references = normalizeHermesReferences(payload.references, project);
+    const designTasks = normalizeHermesDesignTasks(payload.designTasks, references);
     const results = Array.isArray(payload.results) ? payload.results : [];
 
     const normalized = {
@@ -483,6 +761,9 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     if (projectBrief) normalized.projectBrief = projectBrief;
     if (designStrategy) normalized.designStrategy = designStrategy;
     if (designTasks.length > 0) normalized.designTasks = designTasks;
+    if (references.images.length > 0 || references.links.length > 0 || references.notes.length > 0) {
+        normalized.references = references;
+    }
     if (projectBrief || designStrategy || designTasks.length > 0 || payload.generationReadiness) {
         normalized.generationReadiness = normalizeHermesGenerationReadiness(payload.generationReadiness);
     }
@@ -526,6 +807,8 @@ async function callHermesApi({ user, projectCode, message, config }) {
                         companySystemLookupRequired: true,
                         noRealImageGeneration: true,
                         noExternalImageDownload: true,
+                        noExternalLinkVisit: true,
+                        noAmazonCrawl: true,
                     },
                 }),
             },

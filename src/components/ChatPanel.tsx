@@ -136,6 +136,23 @@ function getHermesStringList(value: unknown): string[] {
         .filter(Boolean);
 }
 
+function isSafeHttpReferenceUrl(value?: string): boolean {
+    try {
+        const parsed = new URL(value || '');
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function getReferenceDomain(value?: string): string {
+    try {
+        return new URL(value || '').hostname || value || '-';
+    } catch {
+        return value || '-';
+    }
+}
+
 const HermesResultCard: React.FC<{
     hermesRun: HermesRunPayload;
     canvasTheme: 'dark' | 'light';
@@ -148,6 +165,15 @@ const HermesResultCard: React.FC<{
     const designTask = hermesRun.designTask || {};
     const designStrategy = hermesRun.designStrategy || {};
     const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
+    const references = hermesRun.references || {};
+    const referenceImages = Array.isArray(references.images)
+        ? references.images.filter(item => item?.url && item.safeToDisplay !== false)
+        : [];
+    const referenceLinks = Array.isArray(references.links)
+        ? references.links.filter(item => item?.url && item.safeToOpen !== false)
+        : [];
+    const referenceNotes = getHermesStringList(references.notes);
+    const hasReferences = referenceImages.length > 0 || referenceLinks.length > 0;
     const generationReadiness = hermesRun.generationReadiness || null;
     const assets = hermesRun.assets || [];
     const text = language === 'zh'
@@ -220,6 +246,15 @@ const HermesResultCard: React.FC<{
             negativePrompt: 'Negative Prompt',
             notes: '\u5907\u6ce8',
             readiness: '\u6267\u884c\u72b6\u6001',
+            references: '\u53c2\u8003\u8d44\u6599',
+            referenceImages: '\u53c2\u8003\u56fe',
+            referenceLinks: '\u53c2\u8003\u94fe\u63a5',
+            noReferences: '\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53c2\u8003\u56fe\u6216\u53c2\u8003\u94fe\u63a5',
+            openReference: '\u6253\u5f00\u94fe\u63a5',
+            addToCanvasSoon: '\u6dfb\u52a0\u5230\u753b\u5e03\uff08\u540e\u7eed\uff09',
+            referenceIds: 'Reference IDs',
+            referenceUsage: '\u53c2\u8003\u7528\u6cd5',
+            missingReferences: '\u6b64\u4efb\u52a1\u6807\u8bb0\u9700\u8981\u53c2\u8003\u8d44\u6599\uff0c\u4f46\u5f53\u524d\u9879\u76ee\u672a\u8fd4\u56de\u53ef\u7528\u53c2\u8003\u56fe/\u94fe\u63a5\u3002',
             yes: '\u662f',
             no: '\u5426',
         }
@@ -242,6 +277,15 @@ const HermesResultCard: React.FC<{
             negativePrompt: 'Negative Prompt',
             notes: 'Notes',
             readiness: 'Readiness',
+            references: 'References',
+            referenceImages: 'Reference Images',
+            referenceLinks: 'Reference Links',
+            noReferences: 'This project did not return reference images or links.',
+            openReference: 'Open Link',
+            addToCanvasSoon: 'Add to Canvas (soon)',
+            referenceIds: 'Reference IDs',
+            referenceUsage: 'Reference Usage',
+            missingReferences: 'This task requires references, but the project did not return usable reference images or links.',
             yes: 'Yes',
             no: 'No',
         };
@@ -371,6 +415,130 @@ const HermesResultCard: React.FC<{
                     </div>
                 )}
 
+                <div className={`rounded-lg border p-2 ${
+                    isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white/70'
+                }`}>
+                    <div className={`mb-2 font-semibold ${isDark ? 'text-neutral-100' : 'text-neutral-900'}`}>
+                        {proposalText.references}
+                    </div>
+
+                    {!hasReferences && (
+                        <div className={isDark ? 'text-neutral-500' : 'text-neutral-500'}>
+                            {proposalText.noReferences}
+                        </div>
+                    )}
+
+                    {referenceImages.length > 0 && (
+                        <div className="mb-3">
+                            <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceImages}</div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {referenceImages.map((item, index) => {
+                                    const safeUrl = isSafeHttpReferenceUrl(item.url);
+                                    return (
+                                        <div
+                                            key={item.id || `${item.url}-${index}`}
+                                            className={`rounded-lg border p-2 ${
+                                                isDark ? 'border-neutral-800 bg-neutral-950/60' : 'border-neutral-200 bg-neutral-50/80'
+                                            }`}
+                                        >
+                                            <div className="mb-1 flex items-start gap-2">
+                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${
+                                                    isDark ? 'border-neutral-800 bg-neutral-900 text-neutral-500' : 'border-neutral-200 bg-white text-neutral-500'
+                                                }`}>
+                                                    <Paperclip size={14} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className={`truncate font-semibold ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
+                                                        {formatHermesValue(item.label || item.id || `Reference ${index + 1}`, { compact: true })}
+                                                    </div>
+                                                    <div className="truncate text-[10px] text-neutral-500">{getReferenceDomain(item.url)}</div>
+                                                    <div className="truncate text-[10px] text-neutral-500">{item.url}</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                {safeUrl && (
+                                                    <a
+                                                        href={item.url}
+                                                        target="_blank"
+                                                        rel="noreferrer noopener"
+                                                        className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${
+                                                            isDark
+                                                                ? 'border-neutral-700 text-neutral-300 hover:bg-neutral-900'
+                                                                : 'border-neutral-200 text-neutral-700 hover:bg-white'
+                                                        }`}
+                                                    >
+                                                        {proposalText.openReference}
+                                                    </a>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    disabled
+                                                    className={`cursor-not-allowed rounded-md border px-2 py-1 text-[10px] font-semibold opacity-60 ${
+                                                        isDark
+                                                            ? 'border-neutral-800 text-neutral-500'
+                                                            : 'border-neutral-200 text-neutral-500'
+                                                    }`}
+                                                >
+                                                    {proposalText.addToCanvasSoon}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {referenceLinks.length > 0 && (
+                        <div>
+                            <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceLinks}</div>
+                            <div className="space-y-1.5">
+                                {referenceLinks.map((item, index) => {
+                                    const safeUrl = isSafeHttpReferenceUrl(item.url);
+                                    return (
+                                        <div
+                                            key={item.id || `${item.url}-${index}`}
+                                            className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${
+                                                isDark ? 'border-neutral-800 bg-neutral-950/60' : 'border-neutral-200 bg-neutral-50/80'
+                                            }`}
+                                        >
+                                            <Globe size={13} className="shrink-0 text-neutral-500" />
+                                            <div className="min-w-0 flex-1">
+                                                <div className={`truncate text-[11px] font-semibold ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
+                                                    {formatHermesValue(item.label || item.type || item.id || `Link ${index + 1}`, { compact: true })}
+                                                </div>
+                                                <div className="truncate text-[10px] text-neutral-500">
+                                                    {formatHermesValue(item.type || 'product_reference', { compact: true })} · {getReferenceDomain(item.url)}
+                                                </div>
+                                            </div>
+                                            {safeUrl && (
+                                                <a
+                                                    href={item.url}
+                                                    target="_blank"
+                                                    rel="noreferrer noopener"
+                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-semibold ${
+                                                        isDark
+                                                            ? 'border-neutral-700 text-neutral-300 hover:bg-neutral-900'
+                                                            : 'border-neutral-200 text-neutral-700 hover:bg-white'
+                                                    }`}
+                                                >
+                                                    {proposalText.openReference}
+                                                </a>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {referenceNotes.length > 0 && (
+                        <div className="mt-2">
+                            {renderList(referenceNotes)}
+                        </div>
+                    )}
+                </div>
+
                 {hasDesignStrategy && (
                     <div className={`rounded-lg border p-2 ${
                         isDark ? 'border-neutral-800 bg-neutral-950/50' : 'border-neutral-200 bg-white/70'
@@ -423,6 +591,8 @@ const HermesResultCard: React.FC<{
                         <div className="space-y-2">
                             {designTasks.map((task, index) => {
                                 const notes = getHermesStringList(task.notes);
+                                const referenceIds = getHermesStringList(task.referenceIds);
+                                const needsReferences = Boolean(task.referenceRequired);
                                 return (
                                     <div
                                         key={task.taskId || `${task.title || 'task'}-${index}`}
@@ -458,6 +628,31 @@ const HermesResultCard: React.FC<{
                                             <span className="text-neutral-500">{proposalText.referenceRequired}</span>
                                             <span>{task.referenceRequired ? proposalText.yes : proposalText.no}</span>
                                         </div>
+                                        {referenceIds.length > 0 && (
+                                            <div className="mb-2">
+                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceIds}</div>
+                                                {renderList(referenceIds)}
+                                            </div>
+                                        )}
+                                        {task.referenceUsage && (
+                                            <div className="mb-2">
+                                                <div className="mb-1 text-[10px] font-semibold text-neutral-500">{proposalText.referenceUsage}</div>
+                                                <p className={`whitespace-pre-wrap break-words rounded-md p-2 text-[11px] ${
+                                                    isDark ? 'bg-neutral-900/70 text-neutral-400' : 'bg-neutral-50 text-neutral-600'
+                                                }`}>
+                                                    {formatHermesValue(task.referenceUsage)}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {needsReferences && !hasReferences && (
+                                            <div className={`mb-2 rounded-md border px-2 py-1.5 text-[10px] ${
+                                                isDark
+                                                    ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                                                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                                            }`}>
+                                                {proposalText.missingReferences}
+                                            </div>
+                                        )}
                                         {task.prompt && (
                                             <div className="mb-2">
                                                 <div className="mb-1 text-[10px] font-semibold text-neutral-500">Prompt</div>

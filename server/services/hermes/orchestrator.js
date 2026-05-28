@@ -40,6 +40,7 @@ function serializeHermesRun(row, assets = []) {
         projectBrief: responsePayload.projectBrief || null,
         designStrategy: responsePayload.designStrategy || null,
         designTasks: Array.isArray(responsePayload.designTasks) ? responsePayload.designTasks : [],
+        references: responsePayload.references || null,
         generationReadiness: responsePayload.generationReadiness || null,
         warnings: Array.isArray(responsePayload.warnings) ? responsePayload.warnings : [],
         assets,

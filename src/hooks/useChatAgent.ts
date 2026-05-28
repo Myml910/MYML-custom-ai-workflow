@@ -88,8 +88,30 @@ export interface HermesRunPayload {
         negativePrompt?: string;
         modelRecommendation?: string;
         referenceRequired?: boolean;
+        referenceIds?: string[];
+        referenceUsage?: string;
         notes?: unknown[];
     }[];
+    references?: {
+        images?: {
+            id?: string;
+            url?: string;
+            source?: string;
+            label?: string;
+            role?: string;
+            safeToDisplay?: boolean;
+            importedAssetId?: string | null;
+        }[];
+        links?: {
+            id?: string;
+            url?: string;
+            source?: string;
+            label?: string;
+            type?: string;
+            safeToOpen?: boolean;
+        }[];
+        notes?: unknown[];
+    } | null;
     generationReadiness?: {
         readyForImageGeneration?: boolean;
         reason?: string;
