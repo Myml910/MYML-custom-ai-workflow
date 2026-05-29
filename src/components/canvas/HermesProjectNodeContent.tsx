@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ExternalLink, Image as ImageIcon, Layers, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Copy, ExternalLink, Image as ImageIcon, Layers, Sparkles } from 'lucide-react';
 import { NodeData } from '../../types';
 import type { Language } from '../../i18n/translations';
 
@@ -40,6 +40,11 @@ function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value.trim());
 }
 
+function isDisplayableImageUrl(value: string): boolean {
+    const trimmed = value.trim();
+    return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('data:image/');
+}
+
 function getReferenceUrl(item: Record<string, unknown>): string {
     return asString(item.url) || asString(item.resolvedUrl);
 }
@@ -56,11 +61,43 @@ function getDomain(url: string): string {
     }
 }
 
+function getDesignTaskId(task: Record<string, unknown>, index: number): string {
+    return asString(task.taskId) || asString(task.id) || `concept_${String(index + 1).padStart(2, '0')}`;
+}
+
+function getDraftStatusClass(status: string): string {
+    if (status === 'completed') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    if (status === 'failed') return 'border-red-500/30 bg-red-500/10 text-red-300';
+    if (status === 'queued' || status === 'running' || status === 'polling' || status === 'pending') {
+        return 'border-[var(--myml-accent)]/30 bg-[var(--myml-accent)]/10 text-[var(--myml-accent)]';
+    }
+    return 'border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] text-[var(--myml-text-muted)]';
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+}
+
 export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> = ({
     data,
     language = 'zh'
 }) => {
     const [failedImageIds, setFailedImageIds] = useState<Set<string>>(() => new Set());
+    const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
+    const copiedTimerRef = useRef<number | null>(null);
     const hermesProject = isRecord(data.hermesProject) ? data.hermesProject : {};
     const project = isRecord(hermesProject.project) ? hermesProject.project : {};
     const projectBrief = isRecord(hermesProject.projectBrief) ? hermesProject.projectBrief : {};
@@ -68,6 +105,18 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
     const designTasks = Array.isArray(hermesProject.designTasks) ? hermesProject.designTasks.filter(isRecord) : [];
     const referenceImages = Array.isArray(references.images) ? references.images.filter(isRecord) : [];
     const referenceLinks = Array.isArray(references.links) ? references.links.filter(isRecord) : [];
+    const draftRunsByTaskId = isRecord(hermesProject.draftRunsByTaskId)
+        ? hermesProject.draftRunsByTaskId
+        : {};
+    const autoDraftGeneration = isRecord(hermesProject.autoDraftGeneration)
+        ? hermesProject.autoDraftGeneration
+        : {};
+
+    useEffect(() => () => {
+        if (copiedTimerRef.current) {
+            window.clearTimeout(copiedTimerRef.current);
+        }
+    }, []);
 
     const text = language === 'zh'
         ? {
@@ -125,6 +174,19 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
             noTasks: 'This project did not return design directions.',
         };
 
+    const draftText = {
+        drafts: language === 'zh' ? 'AI 候选图' : 'AI candidates',
+        draftStatus: language === 'zh' ? '状态' : 'Status',
+        draftModel: language === 'zh' ? '草稿模型' : 'Draft model',
+        generationTask: language === 'zh' ? '生成任务' : 'Generation task',
+        openResult: language === 'zh' ? '打开结果' : 'Open result',
+        copyPrompt: language === 'zh' ? '复制 Prompt' : 'Copy prompt',
+        copied: language === 'zh' ? '已复制' : 'Copied',
+        progress: language === 'zh' ? '进度' : 'Progress',
+        resultImage: language === 'zh' ? '生成结果' : 'Generated result',
+        noDraftYet: language === 'zh' ? '等待自动生成' : 'Waiting for auto generation'
+    };
+
     const projectCode = asString(hermesProject.projectCode) ||
         asString(getField(project, ['code', 'projectCode'])) ||
         asString(getField(projectBrief, ['projectCode']));
@@ -152,6 +214,16 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
         });
     };
 
+    const copyPrompt = async (taskId: string, textToCopy: string) => {
+        if (!textToCopy.trim()) return;
+        await copyTextToClipboard(textToCopy);
+        setCopiedTaskId(taskId);
+        if (copiedTimerRef.current) {
+            window.clearTimeout(copiedTimerRef.current);
+        }
+        copiedTimerRef.current = window.setTimeout(() => setCopiedTaskId(null), 1400);
+    };
+
     return (
         <div className="flex max-h-[720px] w-full flex-col overflow-hidden rounded-[var(--myml-radius-panel)] bg-[var(--myml-surface-raised)] text-[var(--myml-text-primary)]">
             <div className="border-b border-[var(--myml-border-default)] bg-[var(--myml-surface-floating)] px-4 py-3">
@@ -175,6 +247,11 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                         <span className="text-[var(--myml-text-muted)]">
                             {text.expected}: {expected ?? '-'} · {text.actual}: {actual} · {text.max}: {max ?? '-'}
                         </span>
+                        {asString(autoDraftGeneration.status) && (
+                            <span className={`rounded-md border px-2 py-0.5 font-semibold ${getDraftStatusClass(asString(autoDraftGeneration.status))}`}>
+                                {draftText.drafts}: {asString(autoDraftGeneration.status)}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -313,9 +390,17 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                     ) : (
                         <div className="space-y-2">
                             {designTasks.map((task, index) => {
-                                const title = asString(task.title) || asString(task.taskId) || `Task ${index + 1}`;
+                                const taskId = getDesignTaskId(task, index);
+                                const draftRun = isRecord(draftRunsByTaskId[taskId]) ? draftRunsByTaskId[taskId] : null;
+                                const title = asString(task.title) || taskId || `Task ${index + 1}`;
+                                const draftStatus = asString(draftRun?.status) || 'idle';
+                                const draftResultUrl = asString(draftRun?.resultUrl);
+                                const promptToCopy = asString(draftRun?.prompt) || asString(task.prompt);
+                                const draftImageModel = asString(draftRun?.imageModel) || asString(draftRun?.normalizedModelRecommendation);
+                                const generationTaskId = asString(draftRun?.generationTaskId);
+                                const draftProgress = typeof draftRun?.progress === 'number' ? draftRun.progress : null;
                                 return (
-                                    <div key={`${title}-${index}`} className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs">
+                                    <div key={taskId} className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <div className="font-semibold text-[var(--myml-text-primary)]">{title}</div>
@@ -341,6 +426,68 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                                 )}
                                             </div>
                                         )}
+                                        <div className="mt-3 rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] p-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getDraftStatusClass(draftStatus)}`}>
+                                                    {draftText.draftStatus}: {draftStatus}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    disabled={!promptToCopy}
+                                                    className="inline-flex items-center gap-1 rounded-md border border-[var(--myml-border-default)] px-2 py-1 text-[10px] font-semibold text-[var(--myml-text-secondary)] transition-colors hover:border-[var(--myml-accent)] hover:text-[var(--myml-accent)] disabled:cursor-not-allowed disabled:opacity-45"
+                                                    onPointerDown={(event) => event.stopPropagation()}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        void copyPrompt(taskId, promptToCopy);
+                                                    }}
+                                                >
+                                                    <Copy size={11} />
+                                                    {copiedTaskId === taskId ? draftText.copied : draftText.copyPrompt}
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-2 space-y-1 text-[10px] text-[var(--myml-text-muted)]">
+                                                {draftImageModel && <div>{draftText.draftModel}: {draftImageModel}</div>}
+                                                {generationTaskId && <div>{draftText.generationTask}: {generationTaskId}</div>}
+                                                {draftProgress !== null && <div>{draftText.progress}: {Math.round(draftProgress)}%</div>}
+                                                {!draftRun && <div>{draftText.noDraftYet}</div>}
+                                            </div>
+
+                                            {draftResultUrl && (
+                                                <div className="mt-2 overflow-hidden rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)]">
+                                                    {isDisplayableImageUrl(draftResultUrl) && (
+                                                        <img
+                                                            src={draftResultUrl}
+                                                            alt={draftText.resultImage}
+                                                            className="max-h-48 w-full object-contain"
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            draggable={false}
+                                                        />
+                                                    )}
+                                                    <div className="flex items-center justify-between gap-2 p-2 text-[10px]">
+                                                        <span className="truncate text-[var(--myml-text-muted)]">{draftResultUrl}</span>
+                                                        <a
+                                                            href={draftResultUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer noopener"
+                                                            className="inline-flex shrink-0 items-center gap-1 font-semibold text-[var(--myml-accent)] underline-offset-2 hover:underline"
+                                                            onPointerDown={(event) => event.stopPropagation()}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                        >
+                                                            {draftText.openResult}
+                                                            <ExternalLink size={10} />
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {draftStatus === 'failed' && asString(draftRun?.errorMessage) && (
+                                                <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] text-red-200">
+                                                    {asString(draftRun?.errorMessage)}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}

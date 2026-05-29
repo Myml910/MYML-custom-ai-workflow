@@ -115,6 +115,14 @@ P4-B-1 scope:
 - The node displays project summary, reference image/link cards, and simplified design task cards.
 - P4-B-1 does not auto-generate all design tasks, does not download references, does not use reference URLs as image-to-image inputs, and does not write back to the company system.
 
+P4-B-2 scope:
+
+- A fresh completed Hermes run now creates a Hermes Project node and automatically submits the current batch of AI candidate image tasks through MYML Canvas `/api/tasks/image`.
+- Hermes still only decides the project strategy and `designTasks`; MYML Canvas workers execute image generation through the existing task runner and provider router.
+- The current batch count follows `expectedDesignTaskCount` and `maxDesignsPerGeneration=6`; if the project needs more than 6 directions, only the first batch is generated and `batchPlan` shows the remaining count.
+- Each auto draft records `generationTaskId`, status, model, `originalModelRecommendation`, `normalizedModelRecommendation`, prompt, result URL, and safe error text in the Hermes Project node metadata.
+- P4-B-2 does not generate later batches automatically, does not download or use reference images as image-to-image input, and does not write back to the company system.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -125,13 +133,13 @@ Do not do these during this migration preparation phase:
 - Do not visit or crawl `ref_link`.
 - Do not download `design_img` or `oper_img`.
 - Do not visit `design_link` or `oper_link`.
-- Do not create image-generation nodes or asset records automatically from Hermes results.
-- Do not automatically execute image generation from P3-A design tasks.
-- Do not automatically execute image generation from P3-E task batches. P4-A only allows a designer-triggered single-task draft.
+- Do not create separate image-generation canvas nodes or company-system asset records automatically from Hermes results.
+- Do not let Hermes call image generation directly or bypass MYML Canvas workers.
+- Do not automatically execute later `batchPlan` batches. P4-B-2 only auto-generates the current batch for a fresh Hermes run.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
 - Do not download or proxy P3-C reference images.
 - Do not crawl Amazon or any product reference URL.
-- Do not submit multiple P3-E prompts to image generation workers without explicit designer action on each task.
+- Do not use reference URLs as image-to-image inputs when auto-generating current-batch candidates.
 - Do not store real passwords, keys, internal connection strings, or customer-sensitive raw debug data in Git.
 - Do not expose `API_SERVER_KEY`, `HERMES_API_KEY`, database credentials, or internal hostnames to the frontend.
 

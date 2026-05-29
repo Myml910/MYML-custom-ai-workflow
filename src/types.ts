@@ -154,6 +154,29 @@ export interface NodeData {
     batchPlan?: unknown;
     generationReadiness?: unknown;
     warnings?: unknown[];
+    autoDraftGeneration?: {
+      status?: 'idle' | 'pending' | 'running' | 'completed' | 'partial' | 'failed';
+      startedAt?: string;
+      completedAt?: string;
+      expectedCount?: number | null;
+      submittedCount?: number | null;
+      completedCount?: number | null;
+      failedCount?: number | null;
+    };
+    draftRunsByTaskId?: Record<string, {
+      generationTaskId?: string;
+      status: 'idle' | 'pending' | 'queued' | 'running' | 'polling' | 'completed' | 'failed';
+      progress?: number | null;
+      imageModel?: string;
+      originalModelRecommendation?: string;
+      normalizedModelRecommendation?: string;
+      resultUrl?: string | null;
+      errorMessage?: string | null;
+      prompt?: string;
+      negativePrompt?: string;
+      submittedAt?: string;
+      completedAt?: string;
+    }>;
   };
 }
 

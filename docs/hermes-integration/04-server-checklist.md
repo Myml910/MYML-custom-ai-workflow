@@ -79,7 +79,11 @@ npm run check:hermes:stale
 - [ ] P4-B-1 Hermes runs can create a `HERMES_PROJECT` canvas node; the right-side Agent should show compact feedback while the canvas node becomes the main execution panel.
 - [ ] The Hermes Project node is draggable, selectable, deletable, and persisted in workflow JSON with redacted Hermes payload metadata.
 - [ ] The Hermes Project node may preview `safeToDisplay=true` reference images in the browser, but MYML Canvas must not server-download, proxy, or import those references in P4-B-1.
-- [ ] P4-B-1 must not auto-generate all design tasks, create image nodes, use references as image-to-image inputs, or write back to the company system.
+- [ ] P4-B-2 auto-generates the current batch only when a fresh completed Hermes run is received; historical messages and refreshed workflow nodes must not resubmit the same run/task.
+- [ ] P4-B-2 uses the existing `/api/tasks/image` path, `generation_tasks`, and image worker. Hermes must not call image providers directly.
+- [ ] Auto candidate task input records `source='hermes_design_task'`, `capability='hermes-design-auto-candidate'`, `projectCode`, `hermesRunId`, `designTaskId`, `originalModelRecommendation`, and `normalizedModelRecommendation`.
+- [ ] Auto candidate `imageModel` is normalized to `custom-image-t8-nano-banana-3-1-flash` by default, or `custom-image-t8-gpt-image-2` for GPT Image recommendations.
+- [ ] P4-B-2 must not auto-generate later batches, create image nodes, use references as image-to-image inputs, download references, or write back to the company system.
 
 ## Hermes API Server
 
@@ -136,6 +140,9 @@ Expected:
 - [ ] If a designer manually clicks one design task's "Generate Draft" button, MYML Canvas creates one `/api/tasks/image` task for that task only.
 - [ ] Manual draft task input may include `source='hermes_design_task'`, `projectCode`, `hermesRunId`, `designTaskId`, `referenceIds`, `referenceUsage`, `originalModelRecommendation`, and `normalizedModelRecommendation`; reference URLs remain metadata only.
 - [ ] A successful Hermes run also creates a canvas Hermes Project node showing the project summary, references, and simplified design tasks.
+- [ ] A fresh successful Hermes run automatically submits current-batch candidate image tasks through `/api/tasks/image`.
+- [ ] Each Hermes Project node design task shows queued/running/completed/failed status, `generationTaskId`, actual draft model, result URL, and safe error text.
+- [ ] Auto candidate task input must not contain `referenceImages`; reference IDs and usage are metadata only.
 - [ ] Saving and reloading the workflow preserves the Hermes Project node without requiring a new Hermes run.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
@@ -171,6 +178,6 @@ limit 5;
 - [ ] Hermes must not return external image URLs in P2.
 - [ ] MYML Canvas must not download `ref_img`.
 - [ ] MYML Canvas must not visit `ref_link`.
-- [ ] MYML Canvas must not auto-submit all Hermes design tasks for image generation.
-- [ ] MYML Canvas must not use Hermes reference image URLs as image-to-image inputs in P4-A.
+- [ ] MYML Canvas must not auto-submit later Hermes batches for image generation.
+- [ ] MYML Canvas must not use Hermes reference image URLs as image-to-image inputs in P4-A/P4-B.
 - [ ] Real secrets must not appear in Git, frontend bundles, or browser network traffic.

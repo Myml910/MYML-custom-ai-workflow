@@ -14,6 +14,7 @@ import { ConnectionsLayer } from './components/canvas/ConnectionsLayer';
 import { ContextMenu } from './components/ContextMenu';
 import { ContextMenuState, NodeData, NodeStatus, NodeType } from './types';
 import { createImageTask, generateVideo, waitForImageTaskCompletion } from './services/generationService';
+import type { GenerationTask, GenerationTaskStatus } from './services/generationService';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useNodeManagement } from './hooks/useNodeManagement';
 import { useConnectionDragging } from './hooks/useConnectionDragging';
@@ -122,6 +123,128 @@ const getConnectedMediaReference = (node: NodeData | undefined, nodesById: Map<s
     referenceSourceType: imageReference.sourceNodeType,
     isFallbackReference: imageReference.isFallback
   };
+};
+
+const HERMES_AUTO_DRAFT_MAX_PER_BATCH = 6;
+const HERMES_DRAFT_T8_GPT_IMAGE_MODEL = 'custom-image-t8-gpt-image-2';
+const HERMES_DRAFT_T8_NANO_BANANA_MODEL = 'custom-image-t8-nano-banana-3-1-flash';
+const HERMES_DRAFT_DEFAULT_IMAGE_MODEL = HERMES_DRAFT_T8_NANO_BANANA_MODEL;
+
+type HermesDraftRun = NonNullable<NonNullable<NodeData['hermesProject']>['draftRunsByTaskId']>[string];
+type HermesDraftRunStatus = HermesDraftRun['status'];
+
+const asHermesString = (value: unknown): string => {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+};
+
+const asHermesStringList = (value: unknown): string[] => {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values.map(asHermesString).filter(Boolean);
+};
+
+const normalizeHermesDraftImageModel = (model: unknown): string => {
+  const normalized = asHermesString(model);
+  if (normalized === HERMES_DRAFT_T8_GPT_IMAGE_MODEL || normalized === HERMES_DRAFT_T8_NANO_BANANA_MODEL) {
+    return normalized;
+  }
+  if (normalized === 'custom-image-gpt-image-2') {
+    return HERMES_DRAFT_T8_GPT_IMAGE_MODEL;
+  }
+  if (normalized === 'custom-image-nano-banana-3-1-flash') {
+    return HERMES_DRAFT_T8_NANO_BANANA_MODEL;
+  }
+  return HERMES_DRAFT_DEFAULT_IMAGE_MODEL;
+};
+
+const mapImageTaskStatusToHermesDraftStatus = (
+  status: GenerationTaskStatus
+): HermesDraftRunStatus => {
+  if (status === 'completed') return 'completed';
+  if (status === 'failed' || status === 'timeout' || status === 'cancelled') return 'failed';
+  if (status === 'queued') return 'queued';
+  if (status === 'polling') return 'polling';
+  return 'running';
+};
+
+const getGenerationTaskResultUrl = (task: GenerationTask): string | null => {
+  if (typeof task.resultUrl === 'string' && task.resultUrl.trim()) {
+    return task.resultUrl.trim();
+  }
+
+  const output = task.output && typeof task.output === 'object' && !Array.isArray(task.output)
+    ? task.output
+    : null;
+  if (!output) return null;
+
+  const directUrl = output.resultUrl || output.url || output.imageUrl;
+  if (typeof directUrl === 'string' && directUrl.trim()) {
+    return directUrl.trim();
+  }
+
+  const images = output.images;
+  if (!Array.isArray(images)) return null;
+
+  for (const image of images) {
+    if (typeof image === 'string' && image.trim()) return image.trim();
+    if (image && typeof image === 'object' && !Array.isArray(image)) {
+      const url = image.url || image.resultUrl || image.imageUrl;
+      if (typeof url === 'string' && url.trim()) return url.trim();
+    }
+  }
+
+  return null;
+};
+
+const getSafeHermesDraftErrorMessage = (error: unknown): string => {
+  const raw = error instanceof Error ? error.message : String(error || '');
+  if (!raw.trim()) return '生成失败，请稍后重试。';
+  if (/(402|payment required|insufficient balance|quota|billing|balance)/i.test(raw)) {
+    return '生成失败：供应商余额不足或请求被拒绝。';
+  }
+  if (/(403|401|unauthorized|forbidden|permission|credential|api[_ -]?key)/i.test(raw)) {
+    return '生成失败：请检查模型供应商额度或配置。';
+  }
+  if (/(sk-[a-z0-9_*.-]+|bearer|authorization|token|key|password|database_url|postgres|mysql|connection string)/i.test(raw)) {
+    return '生成失败，请稍后重试。';
+  }
+  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+};
+
+const getHermesDesignTaskId = (task: unknown, index: number): string => {
+  if (task && typeof task === 'object' && !Array.isArray(task)) {
+    const record = task as Record<string, unknown>;
+    const explicitId = asHermesString(record.taskId || record.id);
+    if (explicitId) return explicitId;
+  }
+  return `concept_${String(index + 1).padStart(2, '0')}`;
+};
+
+const sanitizeHermesTaskIdPart = (value: string): string => (
+  value.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80) || 'task'
+);
+
+const getHermesAutoDraftTasks = (hermesRun: HermesRunPayload) => {
+  const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
+  const reportedMaxPerBatch = typeof hermesRun.maxDesignsPerGeneration === 'number' && hermesRun.maxDesignsPerGeneration > 0
+    ? hermesRun.maxDesignsPerGeneration
+    : HERMES_AUTO_DRAFT_MAX_PER_BATCH;
+  const maxPerBatch = Math.min(reportedMaxPerBatch, HERMES_AUTO_DRAFT_MAX_PER_BATCH);
+  const expected = typeof hermesRun.expectedDesignTaskCount === 'number' && hermesRun.expectedDesignTaskCount > 0
+    ? hermesRun.expectedDesignTaskCount
+    : null;
+  const targetCount = expected
+    ? Math.min(expected, maxPerBatch, designTasks.length)
+    : Math.min(maxPerBatch, designTasks.length);
+
+  return designTasks.slice(0, targetCount).map((task, index) => ({
+    task,
+    designTaskId: getHermesDesignTaskId(task, index),
+    index
+  }));
 };
 
 
@@ -615,6 +738,207 @@ function CanvasApp({
   }), [nodes, groups, selectedNodeIds, viewport, workflowId, canvasTitle]);
 
   const createdHermesProjectRunIdsRef = React.useRef<Set<string>>(new Set());
+  const autoSubmittedHermesDraftKeysRef = React.useRef<Set<string>>(new Set());
+
+  const summarizeHermesDraftRuns = React.useCallback((
+    draftRunsByTaskId: Record<string, HermesDraftRun>,
+    currentSummary?: NonNullable<NodeData['hermesProject']>['autoDraftGeneration']
+  ): NonNullable<NodeData['hermesProject']>['autoDraftGeneration'] => {
+    const runs = Object.values(draftRunsByTaskId);
+    const activeCount = runs.filter(run => ['pending', 'queued', 'running', 'polling'].includes(run.status)).length;
+    const completedCount = runs.filter(run => run.status === 'completed').length;
+    const failedCount = runs.filter(run => run.status === 'failed').length;
+    const submittedCount = runs.length;
+
+    let status: NonNullable<NodeData['hermesProject']>['autoDraftGeneration']['status'] = currentSummary?.status || 'idle';
+    if (submittedCount === 0) {
+      status = 'idle';
+    } else if (activeCount > 0) {
+      status = 'running';
+    } else if (failedCount > 0 && completedCount > 0) {
+      status = 'partial';
+    } else if (failedCount > 0) {
+      status = 'failed';
+    } else if (completedCount === submittedCount) {
+      status = 'completed';
+    }
+
+    const finished = submittedCount > 0 && activeCount === 0;
+    return {
+      ...currentSummary,
+      status,
+      expectedCount: currentSummary?.expectedCount ?? submittedCount,
+      submittedCount,
+      completedCount,
+      failedCount,
+      completedAt: finished ? (currentSummary?.completedAt || new Date().toISOString()) : undefined
+    };
+  }, []);
+
+  const patchHermesDraftRun = React.useCallback((
+    nodeId: string,
+    designTaskId: string,
+    patch: Partial<HermesDraftRun>
+  ) => {
+    setNodes(prev => prev.map(node => {
+      if (node.id !== nodeId || node.type !== NodeType.HERMES_PROJECT) {
+        return node;
+      }
+
+      const hermesProject = node.hermesProject || {};
+      const existingRuns = hermesProject.draftRunsByTaskId || {};
+      const existingRun = existingRuns[designTaskId] || { status: 'idle' as HermesDraftRunStatus };
+      const nextRuns: Record<string, HermesDraftRun> = {
+        ...existingRuns,
+        [designTaskId]: {
+          ...existingRun,
+          ...patch,
+          status: patch.status || existingRun.status
+        }
+      };
+
+      return {
+        ...node,
+        hermesProject: {
+          ...hermesProject,
+          draftRunsByTaskId: nextRuns,
+          autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
+        }
+      };
+    }));
+  }, [setNodes, summarizeHermesDraftRuns]);
+
+  const startHermesAutoDraftGeneration = React.useCallback((nodeId: string, hermesRun: HermesRunPayload) => {
+    if (hermesRun.status !== 'completed') return;
+
+    const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
+    if (!hermesRunId) return;
+
+    const projectRecord = hermesRun.project && typeof hermesRun.project === 'object'
+      ? hermesRun.project
+      : null;
+    const projectCode = asHermesString(hermesRun.projectCode) ||
+      asHermesString(projectRecord && 'code' in projectRecord ? projectRecord.code : undefined) ||
+      asHermesString(projectRecord && 'projectCode' in projectRecord ? projectRecord.projectCode : undefined);
+
+    const autoDraftTasks = getHermesAutoDraftTasks(hermesRun);
+    if (autoDraftTasks.length === 0) return;
+
+    for (const { task, designTaskId } of autoDraftTasks) {
+      const dedupeKey = `${hermesRunId}:${projectCode || 'no-project'}:${designTaskId}`;
+      if (autoSubmittedHermesDraftKeysRef.current.has(dedupeKey)) {
+        continue;
+      }
+      autoSubmittedHermesDraftKeysRef.current.add(dedupeKey);
+
+      const prompt = asHermesString(task.prompt);
+      const negativePrompt = asHermesString(task.negativePrompt);
+      const originalModelRecommendation = asHermesString(task.modelRecommendation);
+      const normalizedModelRecommendation = normalizeHermesDraftImageModel(originalModelRecommendation);
+      const title = asHermesString(task.title);
+      const targetSize = asHermesString(task.targetSize);
+      const referenceIds = asHermesStringList(task.referenceIds);
+      const referenceUsage = asHermesString(task.referenceUsage);
+      const submittedAt = new Date().toISOString();
+
+      if (!prompt) {
+        patchHermesDraftRun(nodeId, designTaskId, {
+          status: 'failed',
+          imageModel: normalizedModelRecommendation,
+          originalModelRecommendation,
+          normalizedModelRecommendation,
+          errorMessage: '生成失败：该设计方向缺少 prompt。',
+          submittedAt,
+          completedAt: submittedAt
+        });
+        continue;
+      }
+
+      patchHermesDraftRun(nodeId, designTaskId, {
+        status: 'pending',
+        imageModel: normalizedModelRecommendation,
+        originalModelRecommendation,
+        normalizedModelRecommendation,
+        prompt,
+        negativePrompt,
+        progress: 0,
+        errorMessage: null,
+        submittedAt
+      });
+
+      void (async () => {
+        try {
+          const createdTask = await createImageTask({
+            nodeId: `hermes-draft-${sanitizeHermesTaskIdPart(hermesRunId)}-${sanitizeHermesTaskIdPart(designTaskId)}`,
+            workflowId,
+            prompt,
+            imageModel: normalizedModelRecommendation,
+            negativePrompt,
+            source: 'hermes_design_task',
+            capability: 'hermes-design-auto-candidate',
+            projectCode,
+            hermesRunId,
+            designTaskId,
+            title,
+            targetSize,
+            referenceIds,
+            referenceUsage,
+            originalModelRecommendation,
+            normalizedModelRecommendation
+          });
+
+          patchHermesDraftRun(nodeId, designTaskId, {
+            generationTaskId: createdTask.taskId,
+            status: mapImageTaskStatusToHermesDraftStatus(createdTask.status),
+            progress: 0
+          });
+
+          const completedTask = await waitForImageTaskCompletion(createdTask.taskId, {
+            pollIntervalMs: 3000,
+            maxWaitMs: 10 * 60 * 1000,
+            onTaskUpdate: taskUpdate => {
+              patchHermesDraftRun(nodeId, designTaskId, {
+                generationTaskId: taskUpdate.taskId,
+                status: mapImageTaskStatusToHermesDraftStatus(taskUpdate.status),
+                progress: taskUpdate.progress ?? null,
+                resultUrl: getGenerationTaskResultUrl(taskUpdate),
+                errorMessage: taskUpdate.errorMessage ? getSafeHermesDraftErrorMessage(taskUpdate.errorMessage) : null
+              });
+            }
+          });
+
+          const resultUrl = getGenerationTaskResultUrl(completedTask);
+          if (completedTask.status === 'completed' && resultUrl) {
+            patchHermesDraftRun(nodeId, designTaskId, {
+              generationTaskId: completedTask.taskId,
+              status: 'completed',
+              progress: completedTask.progress ?? 100,
+              resultUrl,
+              errorMessage: null,
+              completedAt: new Date().toISOString()
+            });
+          } else {
+            patchHermesDraftRun(nodeId, designTaskId, {
+              generationTaskId: completedTask.taskId,
+              status: 'failed',
+              progress: completedTask.progress ?? null,
+              resultUrl: resultUrl || null,
+              errorMessage: getSafeHermesDraftErrorMessage(
+                completedTask.errorMessage || '生成任务未返回可用图片。'
+              ),
+              completedAt: new Date().toISOString()
+            });
+          }
+        } catch (error) {
+          patchHermesDraftRun(nodeId, designTaskId, {
+            status: 'failed',
+            errorMessage: getSafeHermesDraftErrorMessage(error),
+            completedAt: new Date().toISOString()
+          });
+        }
+      })();
+    }
+  }, [patchHermesDraftRun, workflowId]);
 
   const createHermesProjectNodeFromRun = React.useCallback((hermesRun: HermesRunPayload) => {
     const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
@@ -651,6 +975,25 @@ function CanvasApp({
     const screenCenterY = Math.max(280, visibleHeight * 0.42);
     const x = Math.round((screenCenterX - viewport.x) / viewport.zoom - 360);
     const y = Math.round((screenCenterY - viewport.y) / viewport.zoom - 260);
+    const autoDraftTasks = hermesRun.status === 'completed' ? getHermesAutoDraftTasks(hermesRun) : [];
+    const autoDraftStartedAt = autoDraftTasks.length > 0 ? new Date().toISOString() : undefined;
+    const initialDraftRunsByTaskId = autoDraftTasks.reduce<Record<string, HermesDraftRun>>((acc, { task, designTaskId }) => {
+      const originalModelRecommendation = asHermesString(task.modelRecommendation);
+      const normalizedModelRecommendation = normalizeHermesDraftImageModel(originalModelRecommendation);
+      acc[designTaskId] = {
+        status: 'pending',
+        imageModel: normalizedModelRecommendation,
+        originalModelRecommendation,
+        normalizedModelRecommendation,
+        prompt: asHermesString(task.prompt),
+        negativePrompt: asHermesString(task.negativePrompt),
+        progress: 0,
+        resultUrl: null,
+        errorMessage: null,
+        submittedAt: autoDraftStartedAt
+      };
+      return acc;
+    }, {});
 
     const newNode: NodeData = {
       id: crypto.randomUUID(),
@@ -680,18 +1023,29 @@ function CanvasApp({
         maxDesignsPerGeneration: hermesRun.maxDesignsPerGeneration ?? null,
         batchPlan: hermesRun.batchPlan,
         generationReadiness: hermesRun.generationReadiness,
-        warnings: hermesRun.warnings
+        warnings: hermesRun.warnings,
+        autoDraftGeneration: {
+          status: autoDraftTasks.length > 0 ? 'pending' : 'idle',
+          startedAt: autoDraftStartedAt,
+          expectedCount: autoDraftTasks.length,
+          submittedCount: autoDraftTasks.length,
+          completedCount: 0,
+          failedCount: 0
+        },
+        draftRunsByTaskId: initialDraftRunsByTaskId
       }
     };
 
     setNodes(prev => [...prev, newNode]);
     setSelectedNodeIds([newNode.id]);
+    startHermesAutoDraftGeneration(newNode.id, hermesRun);
   }, [
     canvasRef,
     isChatOpen,
     nodes,
     setNodes,
     setSelectedNodeIds,
+    startHermesAutoDraftGeneration,
     viewport.x,
     viewport.y,
     viewport.zoom
