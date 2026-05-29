@@ -1,5 +1,11 @@
 import express from 'express';
-import { cancelTask, createTask, getLatestTaskByNodeId, getTaskById } from '../db/tasks.js';
+import {
+    cancelTask,
+    createTask,
+    getHermesGenerationTasksForRun,
+    getLatestTaskByNodeId,
+    getTaskById
+} from '../db/tasks.js';
 import { getAiProviderConfig } from '../services/ai/aiProviderConfig.js';
 import {
     PROVIDER_CREDENTIAL_REQUIRED_ERROR_TYPE,
@@ -187,6 +193,32 @@ router.get('/by-node/:nodeId', async (req, res) => {
     } catch (error) {
         console.error('[Tasks] Failed to get task by node:', error);
         return res.status(500).json({ error: error.message || 'Failed to get task by node' });
+    }
+});
+
+router.get('/hermes/:hermesRunId', async (req, res) => {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const hermesRunId = normalizeString(req.params.hermesRunId);
+        const projectCode = normalizeString(req.query.projectCode) || null;
+
+        if (!hermesRunId) {
+            return res.status(400).json({ error: 'hermesRunId is required' });
+        }
+
+        const tasks = await getHermesGenerationTasksForRun({
+            userId: req.user.id,
+            hermesRunId,
+            projectCode
+        });
+
+        return res.json({ tasks });
+    } catch (error) {
+        console.error('[Tasks] Failed to get Hermes generation tasks:', error?.code || error?.name || 'unknown_error');
+        return res.status(500).json({ error: 'Failed to get Hermes generation tasks' });
     }
 });
 

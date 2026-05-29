@@ -13,8 +13,8 @@ import { CanvasNode } from './components/canvas/CanvasNode';
 import { ConnectionsLayer } from './components/canvas/ConnectionsLayer';
 import { ContextMenu } from './components/ContextMenu';
 import { ContextMenuState, NodeData, NodeStatus, NodeType } from './types';
-import { createImageTask, generateVideo, waitForImageTaskCompletion } from './services/generationService';
-import type { GenerationTask, GenerationTaskStatus } from './services/generationService';
+import { createImageTask, generateVideo, getHermesGenerationTasksForRun, waitForImageTaskCompletion } from './services/generationService';
+import type { GenerationTask, GenerationTaskStatus, HermesGenerationTaskRecovery } from './services/generationService';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useNodeManagement } from './hooks/useNodeManagement';
 import { useConnectionDragging } from './hooks/useConnectionDragging';
@@ -246,6 +246,20 @@ const getHermesAutoDraftTasks = (hermesRun: HermesRunPayload) => {
     index
   }));
 };
+
+const mapRecoveredHermesTaskToDraftRun = (task: HermesGenerationTaskRecovery): HermesDraftRun => ({
+  generationTaskId: task.generationTaskId,
+  status: mapImageTaskStatusToHermesDraftStatus(task.status),
+  progress: task.progress ?? null,
+  imageModel: task.model || task.normalizedModelRecommendation || undefined,
+  originalModelRecommendation: task.originalModelRecommendation || undefined,
+  normalizedModelRecommendation: task.normalizedModelRecommendation || task.model || undefined,
+  resultUrl: task.resultUrl || null,
+  errorMessage: task.errorMessageSafe || null,
+  completedAt: task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled'
+    ? (task.updatedAt || new Date().toISOString())
+    : undefined
+});
 
 
 // Canvas render memo helpers.
@@ -739,6 +753,7 @@ function CanvasApp({
 
   const createdHermesProjectRunIdsRef = React.useRef<Set<string>>(new Set());
   const autoSubmittedHermesDraftKeysRef = React.useRef<Set<string>>(new Set());
+  const recoveredHermesDraftRunIdsRef = React.useRef<Set<string>>(new Set());
 
   const summarizeHermesDraftRuns = React.useCallback((
     draftRunsByTaskId: Record<string, HermesDraftRun>,
@@ -796,6 +811,46 @@ function CanvasApp({
           status: patch.status || existingRun.status
         }
       };
+
+      return {
+        ...node,
+        hermesProject: {
+          ...hermesProject,
+          draftRunsByTaskId: nextRuns,
+          autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
+        }
+      };
+    }));
+  }, [setNodes, summarizeHermesDraftRuns]);
+
+  const applyRecoveredHermesDraftTasks = React.useCallback((
+    nodeId: string,
+    recoveredTasks: HermesGenerationTaskRecovery[]
+  ) => {
+    if (recoveredTasks.length === 0) return;
+
+    setNodes(prev => prev.map(node => {
+      if (node.id !== nodeId || node.type !== NodeType.HERMES_PROJECT) {
+        return node;
+      }
+
+      const hermesProject = node.hermesProject || {};
+      const nextRuns: Record<string, HermesDraftRun> = {
+        ...(hermesProject.draftRunsByTaskId || {})
+      };
+
+      for (const task of recoveredTasks) {
+        const designTaskId = asHermesString(task.designTaskId);
+        if (!designTaskId) continue;
+
+        const existingRun = nextRuns[designTaskId] || { status: 'idle' as HermesDraftRunStatus };
+        nextRuns[designTaskId] = {
+          ...existingRun,
+          ...mapRecoveredHermesTaskToDraftRun(task),
+          prompt: existingRun.prompt,
+          negativePrompt: existingRun.negativePrompt
+        };
+      }
 
       return {
         ...node,
@@ -1050,6 +1105,33 @@ function CanvasApp({
     viewport.y,
     viewport.zoom
   ]);
+
+  React.useEffect(() => {
+    const hermesProjectNodes = nodes.filter(node =>
+      node.type === NodeType.HERMES_PROJECT &&
+      typeof node.hermesProject?.hermesRunId === 'string' &&
+      node.hermesProject.hermesRunId.trim()
+    );
+
+    for (const node of hermesProjectNodes) {
+      const hermesRunId = node.hermesProject?.hermesRunId?.trim();
+      if (!hermesRunId || recoveredHermesDraftRunIdsRef.current.has(hermesRunId)) {
+        continue;
+      }
+
+      recoveredHermesDraftRunIdsRef.current.add(hermesRunId);
+      const projectCode = asHermesString(node.hermesProject?.projectCode);
+
+      void (async () => {
+        try {
+          const { tasks } = await getHermesGenerationTasksForRun(hermesRunId, projectCode || null);
+          applyRecoveredHermesDraftTasks(node.id, tasks);
+        } catch (error) {
+          console.warn('[Hermes] Failed to recover draft generation tasks:', error instanceof Error ? error.message : 'unknown_error');
+        }
+      })();
+    }
+  }, [applyRecoveredHermesDraftTasks, nodes]);
 
   // Video Frame Extraction (auto-extract lastFrame for videos missing thumbnails)
   useVideoFrameExtraction({

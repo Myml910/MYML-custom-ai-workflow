@@ -123,6 +123,13 @@ P4-B-2 scope:
 - Each auto draft records `generationTaskId`, status, model, `originalModelRecommendation`, `normalizedModelRecommendation`, prompt, result URL, and safe error text in the Hermes Project node metadata.
 - P4-B-2 does not generate later batches automatically, does not download or use reference images as image-to-image input, and does not write back to the company system.
 
+P5-C scope:
+
+- Hermes Project nodes can recover existing candidate generation task status from `generation_tasks` by `hermesRunId`, `designTaskId`, and `projectCode`.
+- Recovery is read-only and scoped to the current authenticated user.
+- Refreshing the browser or reloading a workflow should update candidate task status / result URLs without resubmitting `/api/tasks/image`.
+- Recovery does not download references, does not access external links, does not use reference images as generation inputs, and does not write back to the company system.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -136,6 +143,7 @@ Do not do these during this migration preparation phase:
 - Do not create separate image-generation canvas nodes or company-system asset records automatically from Hermes results.
 - Do not let Hermes call image generation directly or bypass MYML Canvas workers.
 - Do not automatically execute later `batchPlan` batches. P4-B-2 only auto-generates the current batch for a fresh Hermes run.
+- Do not resubmit candidate generation tasks when a saved Hermes Project node is restored; use read-only task recovery instead.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
 - Do not download or proxy P3-C reference images.
 - Do not crawl Amazon or any product reference URL.

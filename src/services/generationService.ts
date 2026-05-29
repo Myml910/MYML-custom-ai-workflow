@@ -95,6 +95,24 @@ export interface GenerationTask {
   updatedAt?: string;
 }
 
+export interface HermesGenerationTaskRecovery {
+  generationTaskId: string;
+  status: GenerationTaskStatus;
+  model?: string | null;
+  provider?: string | null;
+  designTaskId?: string | null;
+  projectCode?: string | null;
+  hermesRunId?: string | null;
+  resultUrl?: string | null;
+  progress?: number | null;
+  errorMessageSafe?: string | null;
+  originalModelRecommendation?: string | null;
+  normalizedModelRecommendation?: string | null;
+  referenceIds?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface WaitForImageTaskOptions {
   pollIntervalMs?: number;
   intervalMs?: number;
@@ -206,6 +224,28 @@ export const getTaskByNodeId = async (
   }
 
   return data;
+};
+
+/**
+ * Fetches existing Hermes design task image-generation tasks for recovery.
+ */
+export const getHermesGenerationTasksForRun = async (
+  hermesRunId: string,
+  projectCode?: string | null
+): Promise<{ tasks: HermesGenerationTaskRecovery[] }> => {
+  const query = projectCode ? `?projectCode=${encodeURIComponent(projectCode)}` : '';
+  const response = await fetch(`/api/tasks/hermes/${encodeURIComponent(hermesRunId)}${query}`, {
+    credentials: 'include'
+  });
+
+  const data = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText);
+  }
+
+  return {
+    tasks: Array.isArray(data.tasks) ? data.tasks : []
+  };
 };
 
 /**

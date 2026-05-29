@@ -74,6 +74,76 @@ function requireUserContext(userContext) {
     return userContext;
 }
 
+function normalizeString(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function redactTaskErrorMessage(value) {
+    const raw = normalizeString(value);
+    if (!raw) return null;
+    if (/(402|payment required|insufficient balance|quota|billing|balance)/i.test(raw)) {
+        return 'Generation failed: provider balance or quota issue.';
+    }
+    if (/(403|401|unauthorized|forbidden|permission|credential|api[_ -]?key)/i.test(raw)) {
+        return 'Generation failed: provider credential or permission issue.';
+    }
+    if (/(sk-[a-z0-9_*.-]+|bearer|authorization|token|key|password|database_url|postgres|mysql|connection string)/i.test(raw)) {
+        return 'Generation failed. Please retry later.';
+    }
+    return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+}
+
+function getOutputResultUrl(row) {
+    if (normalizeString(row?.result_url)) {
+        return normalizeString(row.result_url);
+    }
+
+    const output = row?.output && typeof row.output === 'object' && !Array.isArray(row.output)
+        ? row.output
+        : null;
+    if (!output) return null;
+
+    const directUrl = output.resultUrl || output.url || output.imageUrl || output.assetUrl || output.outputUrl;
+    if (normalizeString(directUrl)) {
+        return normalizeString(directUrl);
+    }
+
+    const images = Array.isArray(output.images) ? output.images : [];
+    for (const image of images) {
+        if (normalizeString(image)) return normalizeString(image);
+        if (image && typeof image === 'object' && !Array.isArray(image)) {
+            const imageUrl = image.url || image.resultUrl || image.imageUrl || image.assetUrl || image.outputUrl;
+            if (normalizeString(imageUrl)) return normalizeString(imageUrl);
+        }
+    }
+
+    return null;
+}
+
+function serializeHermesGenerationTask(row) {
+    const input = row?.input && typeof row.input === 'object' && !Array.isArray(row.input)
+        ? row.input
+        : {};
+
+    return {
+        generationTaskId: row.id,
+        status: row.status,
+        model: row.model,
+        provider: row.provider,
+        designTaskId: normalizeString(input.designTaskId) || null,
+        projectCode: normalizeString(input.projectCode) || null,
+        hermesRunId: normalizeString(input.hermesRunId) || null,
+        resultUrl: getOutputResultUrl(row),
+        progress: row.progress,
+        errorMessageSafe: redactTaskErrorMessage(row.error_message || row.last_error),
+        originalModelRecommendation: normalizeString(input.originalModelRecommendation) || null,
+        normalizedModelRecommendation: normalizeString(input.normalizedModelRecommendation) || null,
+        referenceIds: Array.isArray(input.referenceIds) ? input.referenceIds.filter(item => normalizeString(item)) : [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+    };
+}
+
 export function serializeTask(row) {
     if (!row) return null;
 
@@ -112,6 +182,39 @@ export function serializeTask(row) {
         createdAt: row.created_at,
         updatedAt: row.updated_at
     };
+}
+
+export async function getHermesGenerationTasksForRun({ userId, hermesRunId, projectCode = null }) {
+    const normalizedUserId = normalizeString(userId);
+    const normalizedHermesRunId = normalizeString(hermesRunId);
+    const normalizedProjectCode = normalizeString(projectCode);
+
+    if (!normalizedUserId) {
+        throw new Error('Authenticated user context is required');
+    }
+    if (!normalizedHermesRunId) {
+        return [];
+    }
+
+    const db = getDb();
+    const params = [normalizedUserId, normalizedHermesRunId];
+    let projectFilter = '';
+    if (normalizedProjectCode) {
+        params.push(normalizedProjectCode);
+        projectFilter = `AND input->>'projectCode' = $${params.length}`;
+    }
+
+    const result = await db.query(`
+        ${TASK_SELECT}
+        WHERE user_id = $1
+          AND input->>'source' = 'hermes_design_task'
+          AND input->>'hermesRunId' = $2
+          ${projectFilter}
+        ORDER BY created_at ASC
+        LIMIT 100
+    `, params);
+
+    return result.rows.map(serializeHermesGenerationTask);
 }
 
 export async function addTaskEvent(taskId, eventType, message = null, payload = null) {

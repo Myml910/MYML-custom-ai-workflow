@@ -84,6 +84,10 @@ npm run check:hermes:stale
 - [ ] Auto candidate task input records `source='hermes_design_task'`, `capability='hermes-design-auto-candidate'`, `projectCode`, `hermesRunId`, `designTaskId`, `originalModelRecommendation`, and `normalizedModelRecommendation`.
 - [ ] Auto candidate `imageModel` is normalized to `custom-image-t8-nano-banana-3-1-flash` by default, or `custom-image-t8-gpt-image-2` for GPT Image recommendations.
 - [ ] P4-B-2 must not auto-generate later batches, create image nodes, use references as image-to-image inputs, download references, or write back to the company system.
+- [ ] P5-C provides read-only recovery for Hermes candidate tasks through MYML Canvas task APIs. Recovery must use `hermesRunId` / `designTaskId` / `projectCode` metadata from `generation_tasks.input`.
+- [ ] P5-C recovery is current-user scoped and must not accept frontend `userId` / `teamId` overrides.
+- [ ] Reloading a workflow with a Hermes Project node should call only the recovery API, not `POST /api/tasks/image`.
+- [ ] Recovered task rows should return safe fields only: status, model, provider, progress, result URL, safe error text, and Hermes metadata.
 
 ## Hermes API Server
 
@@ -143,6 +147,7 @@ Expected:
 - [ ] A fresh successful Hermes run automatically submits current-batch candidate image tasks through `/api/tasks/image`.
 - [ ] Each Hermes Project node design task shows queued/running/completed/failed status, `generationTaskId`, actual draft model, result URL, and safe error text.
 - [ ] Auto candidate task input must not contain `referenceImages`; reference IDs and usage are metadata only.
+- [ ] After browser refresh or workflow reload, Hermes Project node candidate statuses recover from existing `generation_tasks` without duplicate image generation.
 - [ ] Saving and reloading the workflow preserves the Hermes Project node without requiring a new Hermes run.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
@@ -179,5 +184,6 @@ limit 5;
 - [ ] MYML Canvas must not download `ref_img`.
 - [ ] MYML Canvas must not visit `ref_link`.
 - [ ] MYML Canvas must not auto-submit later Hermes batches for image generation.
+- [ ] MYML Canvas must not resubmit existing Hermes candidate tasks during workflow recovery.
 - [ ] MYML Canvas must not use Hermes reference image URLs as image-to-image inputs in P4-A/P4-B.
 - [ ] Real secrets must not appear in Git, frontend bundles, or browser network traffic.
