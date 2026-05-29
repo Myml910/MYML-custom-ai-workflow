@@ -243,6 +243,59 @@ function safeHermesCopyValue(value: unknown): string {
     return formatHermesValue(value).trim();
 }
 
+function getHermesProjectCodeFromRun(hermesRun: HermesRunPayload): string {
+    const project = isRecord(hermesRun.project) ? hermesRun.project : {};
+    const projectBrief = isRecord(hermesRun.projectBrief) ? hermesRun.projectBrief : {};
+    return safeHermesCopyValue(
+        hermesRun.projectCode ||
+        getProjectField(project, ['code', 'projectCode']) ||
+        getProjectField(projectBrief, ['projectCode'])
+    );
+}
+
+function hasHermesCanvasNodePayload(hermesRun: HermesRunPayload): boolean {
+    const project = isRecord(hermesRun.project) ? hermesRun.project : {};
+    const projectBrief = isRecord(hermesRun.projectBrief) ? hermesRun.projectBrief : {};
+    const references = isRecord(hermesRun.references) ? hermesRun.references : {};
+    const companyFields = isRecord(project.companyFields) ? project.companyFields : {};
+
+    const hasDesignTasks = Array.isArray(hermesRun.designTasks) && hermesRun.designTasks.length > 0;
+    const hasProjectBrief = Object.keys(projectBrief).length > 0;
+    const hasProjectFields = Object.keys(project).length > 0;
+    const hasCompanyFields = Object.keys(companyFields).length > 0;
+    const hasReferenceImages = Array.isArray(references.images) && references.images.length > 0;
+    const hasReferenceLinks = Array.isArray(references.links) && references.links.length > 0;
+
+    return hasDesignTasks || hasProjectBrief || hasProjectFields || hasCompanyFields || hasReferenceImages || hasReferenceLinks;
+}
+
+function canCreateHermesCanvasNodeFromRun(hermesRun: HermesRunPayload): boolean {
+    return hermesRun.status === 'completed' &&
+        Boolean(getHermesProjectCodeFromRun(hermesRun)) &&
+        hasHermesCanvasNodePayload(hermesRun);
+}
+
+function getSafeHermesRunFailureSummary(hermesRun: HermesRunPayload, language: Language): string {
+    const runRecord = hermesRun as unknown as Record<string, unknown>;
+    const raw = safeHermesCopyValue(
+        hermesRun.errorMessage ||
+        runRecord.error ||
+        runRecord.message ||
+        runRecord.error_message
+    ) || hermesRun.status || 'unknown_error';
+    if (/(timeout|timed out|超时)/i.test(raw)) {
+        return language === 'zh'
+            ? 'Hermes \u6267\u884c\u8d85\u65f6\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002'
+            : 'Hermes timed out. Please try again later.';
+    }
+    if (/(sk-[a-z0-9_*.-]+|bearer|authorization|token|key|password|database_url|postgres|mysql|connection string)/i.test(raw)) {
+        return language === 'zh'
+            ? 'Hermes \u6267\u884c\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u670d\u52a1\u914d\u7f6e\u6216\u7a0d\u540e\u91cd\u8bd5\u3002'
+            : 'Hermes failed. Please check the service configuration or try again later.';
+    }
+    return truncateHermesText(raw, 180);
+}
+
 function buildStructuredPromptMarkdown(task: HermesDesignTask): string {
     const structuredPrompt = isRecord(task.structuredPromptDescription) ? task.structuredPromptDescription : {};
     const details = isRecord(structuredPrompt.detailedVisualElements) ? structuredPrompt.detailedVisualElements : {};
@@ -1499,32 +1552,55 @@ const HermesCanvasSummaryCard: React.FC<{
     const [showDetails, setShowDetails] = useState(false);
     const isDark = canvasTheme === 'dark';
     const project = isRecord(hermesRun.project) ? hermesRun.project : {};
-    const projectCode = hermesRun.projectCode || safeHermesCopyValue(getProjectField(project, ['code', 'projectCode']));
+    const canCreateCanvasNode = canCreateHermesCanvasNodeFromRun(hermesRun);
+    const projectCode = getHermesProjectCodeFromRun(hermesRun);
     const projectName = safeHermesCopyValue(getProjectField(project, ['name', 'projectName']));
     const summaryText = language === 'zh'
-        ? {
+        ? canCreateCanvasNode ? {
             title: '\u5df2\u6dfb\u52a0\u5230\u753b\u5e03',
             message: '\u5df2\u5728\u753b\u5e03\u4e2d\u521b\u5efa Hermes \u9879\u76ee\u5361\u7247',
             details: '\u67e5\u770b\u8be6\u60c5',
             hideDetails: '\u6536\u8d77\u8be6\u60c5',
+            errorLabel: '\u9519\u8bef\u6458\u8981',
+        } : {
+            title: 'Hermes \u6267\u884c\u5931\u8d25',
+            message: 'Hermes \u6267\u884c\u5931\u8d25\uff0c\u672a\u521b\u5efa\u753b\u5e03\u9879\u76ee\u5361\u7247\u3002',
+            details: '\u67e5\u770b\u8be6\u60c5',
+            hideDetails: '\u6536\u8d77\u8be6\u60c5',
+            errorLabel: '\u9519\u8bef\u6458\u8981',
         }
-        : {
+        : canCreateCanvasNode ? {
             title: 'Added to canvas',
             message: 'Created a Hermes project card on the canvas',
             details: 'View details',
             hideDetails: 'Hide details',
+            errorLabel: 'Error summary',
+        } : {
+            title: 'Hermes run failed',
+            message: 'Hermes run failed. No canvas project card was created.',
+            details: 'View details',
+            hideDetails: 'Hide details',
+            errorLabel: 'Error summary',
         };
+    const failureSummary = canCreateCanvasNode ? '' : getSafeHermesRunFailureSummary(hermesRun, language);
 
     return (
         <div className="mb-4">
             <div className={`rounded-xl border p-3 text-sm ${
-                isDark
+                canCreateCanvasNode ? isDark
                     ? 'border-[#D8FF00]/25 bg-[#D8FF00]/10 text-neutral-200'
                     : 'border-lime-300 bg-lime-50 text-neutral-800'
+                    : isDark
+                        ? 'border-red-500/35 bg-red-500/10 text-neutral-200'
+                        : 'border-red-200 bg-red-50 text-neutral-800'
             }`}>
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <div className={`text-xs font-semibold uppercase tracking-[0.08em] ${isDark ? 'text-[#D8FF00]' : 'text-lime-700'}`}>
+                        <div className={`text-xs font-semibold uppercase tracking-[0.08em] ${
+                            canCreateCanvasNode
+                                ? isDark ? 'text-[#D8FF00]' : 'text-lime-700'
+                                : isDark ? 'text-red-300' : 'text-red-700'
+                        }`}>
                             {summaryText.title}
                         </div>
                         <div className="mt-1 font-semibold leading-5">
@@ -1533,6 +1609,15 @@ const HermesCanvasSummaryCard: React.FC<{
                         {projectName && (
                             <div className={`mt-0.5 truncate text-xs ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
                                 {projectName}
+                            </div>
+                        )}
+                        {!canCreateCanvasNode && failureSummary && (
+                            <div className={`mt-2 rounded-md border px-2 py-1.5 text-xs ${
+                                isDark
+                                    ? 'border-red-500/25 bg-red-950/30 text-red-100'
+                                    : 'border-red-100 bg-white/70 text-red-700'
+                            }`}>
+                                {summaryText.errorLabel}: {failureSummary}
                             </div>
                         )}
                     </div>

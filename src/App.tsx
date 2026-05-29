@@ -152,6 +152,37 @@ const getHermesRecord = (value: unknown): Record<string, unknown> | null => (
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
 );
 
+const getHermesProjectCodeFromRun = (hermesRun: HermesRunPayload): string => {
+  const project = getHermesRecord(hermesRun.project);
+  const projectBrief = getHermesRecord(hermesRun.projectBrief);
+  return asHermesString(hermesRun.projectCode) ||
+    asHermesString(project?.code) ||
+    asHermesString(project?.projectCode) ||
+    asHermesString(projectBrief?.projectCode);
+};
+
+const hasHermesCanvasNodePayload = (hermesRun: HermesRunPayload): boolean => {
+  const project = getHermesRecord(hermesRun.project);
+  const projectBrief = getHermesRecord(hermesRun.projectBrief);
+  const references = getHermesRecord(hermesRun.references);
+  const companyFields = getHermesRecord(project?.companyFields);
+
+  const hasDesignTasks = Array.isArray(hermesRun.designTasks) && hermesRun.designTasks.length > 0;
+  const hasProjectBrief = Boolean(projectBrief && Object.keys(projectBrief).length > 0);
+  const hasProjectFields = Boolean(project && Object.keys(project).length > 0);
+  const hasCompanyFields = Boolean(companyFields && Object.keys(companyFields).length > 0);
+  const hasReferenceImages = Array.isArray(references?.images) && references.images.length > 0;
+  const hasReferenceLinks = Array.isArray(references?.links) && references.links.length > 0;
+
+  return hasDesignTasks || hasProjectBrief || hasProjectFields || hasCompanyFields || hasReferenceImages || hasReferenceLinks;
+};
+
+const canCreateHermesCanvasNodeFromRun = (hermesRun: HermesRunPayload): boolean => (
+  hermesRun.status === 'completed' &&
+  Boolean(getHermesProjectCodeFromRun(hermesRun)) &&
+  hasHermesCanvasNodePayload(hermesRun)
+);
+
 const normalizeHermesDraftImageModel = (model: unknown): string => {
   const normalized = asHermesString(model);
   if (normalized === HERMES_DRAFT_T8_GPT_IMAGE_MODEL || normalized === HERMES_DRAFT_T8_NANO_BANANA_MODEL) {
@@ -1107,12 +1138,10 @@ function CanvasApp({
     const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
     if (!hermesRunId) return;
 
-    const projectRecord = hermesRun.project && typeof hermesRun.project === 'object'
-      ? hermesRun.project
-      : null;
-    const projectCode = hermesRun.projectCode ||
-      (typeof projectRecord?.code === 'string' ? projectRecord.code : '') ||
-      (typeof projectRecord?.projectCode === 'string' ? projectRecord.projectCode : '');
+    const projectCode = getHermesProjectCodeFromRun(hermesRun);
+    if (!canCreateHermesCanvasNodeFromRun(hermesRun)) {
+      return;
+    }
 
     const existingNode = nodes.find(node =>
       node.type === NodeType.HERMES_PROJECT &&

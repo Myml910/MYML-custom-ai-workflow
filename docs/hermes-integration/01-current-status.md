@@ -110,6 +110,7 @@ P4-A scope:
 P4-B-1 scope:
 
 - Successful Hermes runs can create a `HERMES_PROJECT` canvas node.
+- Failed, timed out, running, or payload-empty Hermes runs do not create canvas project nodes; the Agent shows a compact failure summary instead.
 - The right-side Agent remains the trigger and compact feedback surface; the canvas node is the main project execution panel.
 - The Hermes Project node is a normal canvas node: it can be dragged, selected, deleted, and persisted in workflow JSON.
 - The node displays project summary, reference image/link cards, and simplified design task cards.

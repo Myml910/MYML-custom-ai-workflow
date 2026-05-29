@@ -77,6 +77,7 @@ npm run check:hermes:stale
 - [ ] P4-A draft task input records both `originalModelRecommendation` and `normalizedModelRecommendation`; `imageModel` must be the normalized T8 model to avoid the old APIMart default route.
 - [ ] P4-A must not auto-generate all design tasks, batch-generate six directions, download references, use reference URLs as image inputs, create canvas nodes, or write back to the company system.
 - [ ] P4-B-1 Hermes runs can create a `HERMES_PROJECT` canvas node; the right-side Agent should show compact feedback while the canvas node becomes the main execution panel.
+- [ ] Only `completed` Hermes runs with a project code and usable payload create `HERMES_PROJECT` canvas nodes. Failed, timed out, running, or empty-payload runs must stay in Agent feedback and must not create blank failure nodes.
 - [ ] The Hermes Project node is draggable, selectable, deletable, and persisted in workflow JSON with redacted Hermes payload metadata.
 - [ ] The Hermes Project node may preview `safeToDisplay=true` reference images in the browser, but MYML Canvas must not server-download, proxy, or import those references in P4-B-1.
 - [ ] P4-B-2 auto-generates the current batch only when a fresh completed Hermes run is received; historical messages and refreshed workflow nodes must not resubmit the same run/task.
