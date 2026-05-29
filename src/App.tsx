@@ -132,6 +132,8 @@ const HERMES_DRAFT_DEFAULT_IMAGE_MODEL = HERMES_DRAFT_T8_NANO_BANANA_MODEL;
 
 type HermesDraftRun = NonNullable<NonNullable<NodeData['hermesProject']>['draftRunsByTaskId']>[string];
 type HermesDraftRunStatus = HermesDraftRun['status'];
+type HermesProjectMetadata = NonNullable<NodeData['hermesProject']>;
+type HermesGeneratedImage = NonNullable<HermesProjectMetadata['generatedImages']>[number];
 
 const asHermesString = (value: unknown): string => {
   if (value === undefined || value === null) return '';
@@ -145,6 +147,10 @@ const asHermesStringList = (value: unknown): string[] => {
   const values = Array.isArray(value) ? value : [value];
   return values.map(asHermesString).filter(Boolean);
 };
+
+const getHermesRecord = (value: unknown): Record<string, unknown> | null => (
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
+);
 
 const normalizeHermesDraftImageModel = (model: unknown): string => {
   const normalized = asHermesString(model);
@@ -247,15 +253,107 @@ const getHermesAutoDraftTasks = (hermesRun: HermesRunPayload) => {
   }));
 };
 
+const getHermesProjectCodeFromMetadata = (hermesProject: HermesProjectMetadata): string => {
+  const project = getHermesRecord(hermesProject.project);
+  const projectBrief = getHermesRecord(hermesProject.projectBrief);
+  return asHermesString(hermesProject.projectCode) ||
+    asHermesString(project?.code) ||
+    asHermesString(project?.projectCode) ||
+    asHermesString(projectBrief?.projectCode);
+};
+
+const getHermesReferenceUrlsByIds = (references: unknown, referenceIds: string[]): string[] => {
+  if (referenceIds.length === 0) return [];
+  const referencesRecord = getHermesRecord(references);
+  if (!referencesRecord) return [];
+  const candidates = [
+    ...(Array.isArray(referencesRecord.images) ? referencesRecord.images : []),
+    ...(Array.isArray(referencesRecord.links) ? referencesRecord.links : [])
+  ];
+  const wantedIds = new Set(referenceIds);
+  return candidates
+    .map(item => getHermesRecord(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item && wantedIds.has(asHermesString(item.id))))
+    .map(item => asHermesString(item.url) || asHermesString(item.resolvedUrl) || asHermesString(item.rawValue))
+    .filter(Boolean);
+};
+
+const mapDraftStatusToGeneratedImageStatus = (status: HermesDraftRunStatus): HermesGeneratedImage['status'] => {
+  if (status === 'completed') return 'completed';
+  if (status === 'failed') return 'failed';
+  if (status === 'queued') return 'queued';
+  if (status === 'running' || status === 'polling') return 'running';
+  return 'pending';
+};
+
+const buildHermesGeneratedImages = (hermesProject: HermesProjectMetadata): HermesGeneratedImage[] => {
+  const draftRunsByTaskId = hermesProject.draftRunsByTaskId || {};
+  const designTasks = Array.isArray(hermesProject.designTasks) ? hermesProject.designTasks : [];
+  const designTaskById = new Map<string, Record<string, unknown>>();
+
+  designTasks.forEach((task, index) => {
+    const record = getHermesRecord(task);
+    if (!record) return;
+    designTaskById.set(getHermesDesignTaskId(record, index), record);
+  });
+
+  const projectCode = getHermesProjectCodeFromMetadata(hermesProject);
+  const hermesRunId = asHermesString(hermesProject.hermesRunId);
+  const batchPlan = getHermesRecord(hermesProject.batchPlan);
+
+  return Object.entries(draftRunsByTaskId).map(([designTaskId, draftRun]) => {
+    const task = designTaskById.get(designTaskId) || {};
+    const referenceIds = asHermesStringList(task.referenceIds);
+    const resultUrl = asHermesString(draftRun.resultUrl);
+    const imageModel = asHermesString(draftRun.imageModel) ||
+      asHermesString(draftRun.normalizedModelRecommendation) ||
+      asHermesString(task.modelRecommendation) ||
+      HERMES_DRAFT_DEFAULT_IMAGE_MODEL;
+
+    return {
+      id: `hermes_image_${sanitizeHermesTaskIdPart(hermesRunId || projectCode || 'run')}_${sanitizeHermesTaskIdPart(designTaskId)}`,
+      projectCode,
+      hermesRunId: hermesRunId || undefined,
+      designTaskId,
+      generationTaskId: draftRun.generationTaskId,
+      batchId: asHermesString(batchPlan?.batchLabel) || undefined,
+      title: asHermesString(task.title) || undefined,
+      targetSize: asHermesString(task.targetSize) || undefined,
+      model: imageModel,
+      provider: draftRun.provider,
+      prompt: asHermesString(draftRun.prompt) || asHermesString(task.prompt) || undefined,
+      negativePrompt: asHermesString(draftRun.negativePrompt) || asHermesString(task.negativePrompt) || undefined,
+      structuredPromptDescription: task.structuredPromptDescription,
+      imageUrl: resultUrl || undefined,
+      resultUrl: resultUrl || undefined,
+      status: mapDraftStatusToGeneratedImageStatus(draftRun.status),
+      errorMessageSafe: asHermesString(draftRun.errorMessage) || undefined,
+      referenceIds,
+      referenceUrls: getHermesReferenceUrlsByIds(hermesProject.references, referenceIds),
+      triggerMode: 'hermes_auto' as const,
+      createdAt: draftRun.createdAt || draftRun.submittedAt,
+      updatedAt: draftRun.updatedAt || draftRun.completedAt
+    };
+  });
+};
+
+const withHermesGeneratedImages = (hermesProject: HermesProjectMetadata): HermesProjectMetadata => ({
+  ...hermesProject,
+  generatedImages: buildHermesGeneratedImages(hermesProject)
+});
+
 const mapRecoveredHermesTaskToDraftRun = (task: HermesGenerationTaskRecovery): HermesDraftRun => ({
   generationTaskId: task.generationTaskId,
   status: mapImageTaskStatusToHermesDraftStatus(task.status),
   progress: task.progress ?? null,
   imageModel: task.model || task.normalizedModelRecommendation || undefined,
+  provider: task.provider || undefined,
   originalModelRecommendation: task.originalModelRecommendation || undefined,
   normalizedModelRecommendation: task.normalizedModelRecommendation || task.model || undefined,
   resultUrl: task.resultUrl || null,
   errorMessage: task.errorMessageSafe || null,
+  createdAt: task.createdAt,
+  updatedAt: task.updatedAt,
   completedAt: task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled'
     ? (task.updatedAt || new Date().toISOString())
     : undefined
@@ -812,13 +910,15 @@ function CanvasApp({
         }
       };
 
+      const nextHermesProject = withHermesGeneratedImages({
+        ...hermesProject,
+        draftRunsByTaskId: nextRuns,
+        autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
+      });
+
       return {
         ...node,
-        hermesProject: {
-          ...hermesProject,
-          draftRunsByTaskId: nextRuns,
-          autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
-        }
+        hermesProject: nextHermesProject
       };
     }));
   }, [setNodes, summarizeHermesDraftRuns]);
@@ -852,13 +952,15 @@ function CanvasApp({
         };
       }
 
+      const nextHermesProject = withHermesGeneratedImages({
+        ...hermesProject,
+        draftRunsByTaskId: nextRuns,
+        autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
+      });
+
       return {
         ...node,
-        hermesProject: {
-          ...hermesProject,
-          draftRunsByTaskId: nextRuns,
-          autoDraftGeneration: summarizeHermesDraftRuns(nextRuns, hermesProject.autoDraftGeneration)
-        }
+        hermesProject: nextHermesProject
       };
     }));
   }, [setNodes, summarizeHermesDraftRuns]);
@@ -956,8 +1058,10 @@ function CanvasApp({
                 generationTaskId: taskUpdate.taskId,
                 status: mapImageTaskStatusToHermesDraftStatus(taskUpdate.status),
                 progress: taskUpdate.progress ?? null,
+                provider: taskUpdate.provider,
                 resultUrl: getGenerationTaskResultUrl(taskUpdate),
-                errorMessage: taskUpdate.errorMessage ? getSafeHermesDraftErrorMessage(taskUpdate.errorMessage) : null
+                errorMessage: taskUpdate.errorMessage ? getSafeHermesDraftErrorMessage(taskUpdate.errorMessage) : null,
+                updatedAt: taskUpdate.updatedAt
               });
             }
           });
@@ -968,20 +1072,24 @@ function CanvasApp({
               generationTaskId: completedTask.taskId,
               status: 'completed',
               progress: completedTask.progress ?? 100,
+              provider: completedTask.provider,
               resultUrl,
               errorMessage: null,
-              completedAt: new Date().toISOString()
+              completedAt: new Date().toISOString(),
+              updatedAt: completedTask.updatedAt
             });
           } else {
             patchHermesDraftRun(nodeId, designTaskId, {
               generationTaskId: completedTask.taskId,
               status: 'failed',
               progress: completedTask.progress ?? null,
+              provider: completedTask.provider,
               resultUrl: resultUrl || null,
               errorMessage: getSafeHermesDraftErrorMessage(
                 completedTask.errorMessage || '生成任务未返回可用图片。'
               ),
-              completedAt: new Date().toISOString()
+              completedAt: new Date().toISOString(),
+              updatedAt: completedTask.updatedAt
             });
           }
         } catch (error) {
@@ -1049,6 +1157,33 @@ function CanvasApp({
       };
       return acc;
     }, {});
+    const initialHermesProject = withHermesGeneratedImages({
+      hermesRunId,
+      chatSessionId: undefined,
+      projectCode,
+      status: hermesRun.status,
+      project: hermesRun.project,
+      projectBrief: hermesRun.projectBrief,
+      projectFields: hermesRun.project,
+      references: hermesRun.references,
+      designStrategy: hermesRun.designStrategy,
+      designTasks: Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [],
+      expectedDesignTaskCount: hermesRun.expectedDesignTaskCount ?? null,
+      actualDesignTaskCount: hermesRun.actualDesignTaskCount ?? null,
+      maxDesignsPerGeneration: hermesRun.maxDesignsPerGeneration ?? null,
+      batchPlan: hermesRun.batchPlan,
+      generationReadiness: hermesRun.generationReadiness,
+      warnings: hermesRun.warnings,
+      autoDraftGeneration: {
+        status: autoDraftTasks.length > 0 ? 'pending' : 'idle',
+        startedAt: autoDraftStartedAt,
+        expectedCount: autoDraftTasks.length,
+        submittedCount: autoDraftTasks.length,
+        completedCount: 0,
+        failedCount: 0
+      },
+      draftRunsByTaskId: initialDraftRunsByTaskId
+    });
 
     const newNode: NodeData = {
       id: crypto.randomUUID(),
@@ -1062,33 +1197,7 @@ function CanvasApp({
       resolution: 'Auto',
       title: `Hermes 项目：${projectCode || hermesRunId.slice(0, 8)}`,
       hideGenerationControls: true,
-      hermesProject: {
-        hermesRunId,
-        chatSessionId: undefined,
-        projectCode,
-        status: hermesRun.status,
-        project: hermesRun.project,
-        projectBrief: hermesRun.projectBrief,
-        projectFields: hermesRun.project,
-        references: hermesRun.references,
-        designStrategy: hermesRun.designStrategy,
-        designTasks: Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [],
-        expectedDesignTaskCount: hermesRun.expectedDesignTaskCount ?? null,
-        actualDesignTaskCount: hermesRun.actualDesignTaskCount ?? null,
-        maxDesignsPerGeneration: hermesRun.maxDesignsPerGeneration ?? null,
-        batchPlan: hermesRun.batchPlan,
-        generationReadiness: hermesRun.generationReadiness,
-        warnings: hermesRun.warnings,
-        autoDraftGeneration: {
-          status: autoDraftTasks.length > 0 ? 'pending' : 'idle',
-          startedAt: autoDraftStartedAt,
-          expectedCount: autoDraftTasks.length,
-          submittedCount: autoDraftTasks.length,
-          completedCount: 0,
-          failedCount: 0
-        },
-        draftRunsByTaskId: initialDraftRunsByTaskId
-      }
+      hermesProject: initialHermesProject
     };
 
     setNodes(prev => [...prev, newNode]);

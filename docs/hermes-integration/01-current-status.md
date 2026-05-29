@@ -130,6 +130,14 @@ P5-C scope:
 - Refreshing the browser or reloading a workflow should update candidate task status / result URLs without resubmitting `/api/tasks/image`.
 - Recovery does not download references, does not access external links, does not use reference images as generation inputs, and does not write back to the company system.
 
+P5-D scope:
+
+- Hermes Project node metadata now normalizes candidate results into `hermesProject.generatedImages`.
+- `generatedImages` is derived from existing `designTasks`, `draftRunsByTaskId`, references, and recovered `generation_tasks`; it does not require a new database table.
+- Each generated image record carries project code, Hermes run id, design task id, generation task id, model/provider, prompt metadata, status, result URL, safe error text, reference ids/urls, and trigger mode.
+- `generatedImages` is intended as the stable handoff structure for later external comparison against company-system final submitted images.
+- P5-D does not query final submission images, add scoring UI, download references, or rerun failed tasks.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -144,6 +152,7 @@ Do not do these during this migration preparation phase:
 - Do not let Hermes call image generation directly or bypass MYML Canvas workers.
 - Do not automatically execute later `batchPlan` batches. P4-B-2 only auto-generates the current batch for a fresh Hermes run.
 - Do not resubmit candidate generation tasks when a saved Hermes Project node is restored; use read-only task recovery instead.
+- Do not add candidate statistics tables or scoring UI in P5-D; `generatedImages` is a workflow JSON / node metadata normalization step only.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
 - Do not download or proxy P3-C reference images.
 - Do not crawl Amazon or any product reference URL.

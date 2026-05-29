@@ -88,6 +88,9 @@ npm run check:hermes:stale
 - [ ] P5-C recovery is current-user scoped and must not accept frontend `userId` / `teamId` overrides.
 - [ ] Reloading a workflow with a Hermes Project node should call only the recovery API, not `POST /api/tasks/image`.
 - [ ] Recovered task rows should return safe fields only: status, model, provider, progress, result URL, safe error text, and Hermes metadata.
+- [ ] P5-D Hermes Project nodes should maintain `hermesProject.generatedImages` as the normalized candidate image array.
+- [ ] `generatedImages` should include `projectCode`, `hermesRunId`, `designTaskId`, `generationTaskId`, model/provider, prompt metadata, result URL, status, safe error text, reference metadata, and `triggerMode`.
+- [ ] P5-D must not add a new database table, query final company submission images, create scoring UI, or rerun failed tasks.
 
 ## Hermes API Server
 
@@ -148,6 +151,7 @@ Expected:
 - [ ] Each Hermes Project node design task shows queued/running/completed/failed status, `generationTaskId`, actual draft model, result URL, and safe error text.
 - [ ] Auto candidate task input must not contain `referenceImages`; reference IDs and usage are metadata only.
 - [ ] After browser refresh or workflow reload, Hermes Project node candidate statuses recover from existing `generation_tasks` without duplicate image generation.
+- [ ] After auto generation or recovery, Hermes Project node `generatedImages` should reflect the same candidate statuses/results shown in the design task cards.
 - [ ] Saving and reloading the workflow preserves the Hermes Project node without requiring a new Hermes run.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.

@@ -105,6 +105,9 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
     const designTasks = Array.isArray(hermesProject.designTasks) ? hermesProject.designTasks.filter(isRecord) : [];
     const referenceImages = Array.isArray(references.images) ? references.images.filter(isRecord) : [];
     const referenceLinks = Array.isArray(references.links) ? references.links.filter(isRecord) : [];
+    const generatedImages = Array.isArray(hermesProject.generatedImages)
+        ? hermesProject.generatedImages.filter(isRecord)
+        : [];
     const draftRunsByTaskId = isRecord(hermesProject.draftRunsByTaskId)
         ? hermesProject.draftRunsByTaskId
         : {};
@@ -196,6 +199,13 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
     const expected = typeof hermesProject.expectedDesignTaskCount === 'number' ? hermesProject.expectedDesignTaskCount : null;
     const actual = typeof hermesProject.actualDesignTaskCount === 'number' ? hermesProject.actualDesignTaskCount : designTasks.length;
     const max = typeof hermesProject.maxDesignsPerGeneration === 'number' ? hermesProject.maxDesignsPerGeneration : null;
+    const generatedImageByTaskId = new Map<string, Record<string, unknown>>();
+    generatedImages.forEach((image) => {
+        const designTaskId = asString(image.designTaskId);
+        if (designTaskId) {
+            generatedImageByTaskId.set(designTaskId, image);
+        }
+    });
 
     const summaryRows = ([
         [text.customer, getField(project, ['customer', 'customerName']) || getField(projectBrief, ['customer'])],
@@ -392,12 +402,14 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                             {designTasks.map((task, index) => {
                                 const taskId = getDesignTaskId(task, index);
                                 const draftRun = isRecord(draftRunsByTaskId[taskId]) ? draftRunsByTaskId[taskId] : null;
+                                const generatedImage = generatedImageByTaskId.get(taskId) || null;
                                 const title = asString(task.title) || taskId || `Task ${index + 1}`;
-                                const draftStatus = asString(draftRun?.status) || 'idle';
-                                const draftResultUrl = asString(draftRun?.resultUrl);
-                                const promptToCopy = asString(draftRun?.prompt) || asString(task.prompt);
-                                const draftImageModel = asString(draftRun?.imageModel) || asString(draftRun?.normalizedModelRecommendation);
-                                const generationTaskId = asString(draftRun?.generationTaskId);
+                                const draftStatus = asString(generatedImage?.status) || asString(draftRun?.status) || 'idle';
+                                const draftResultUrl = asString(generatedImage?.imageUrl) || asString(generatedImage?.resultUrl) || asString(draftRun?.resultUrl);
+                                const promptToCopy = asString(generatedImage?.prompt) || asString(draftRun?.prompt) || asString(task.prompt);
+                                const draftImageModel = asString(generatedImage?.model) || asString(draftRun?.imageModel) || asString(draftRun?.normalizedModelRecommendation);
+                                const generationTaskId = asString(generatedImage?.generationTaskId) || asString(draftRun?.generationTaskId);
+                                const draftProvider = asString(generatedImage?.provider) || asString(draftRun?.provider);
                                 const draftProgress = typeof draftRun?.progress === 'number' ? draftRun.progress : null;
                                 return (
                                     <div key={taskId} className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs">
@@ -448,6 +460,7 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
 
                                             <div className="mt-2 space-y-1 text-[10px] text-[var(--myml-text-muted)]">
                                                 {draftImageModel && <div>{draftText.draftModel}: {draftImageModel}</div>}
+                                                {draftProvider && <div>Provider: {draftProvider}</div>}
                                                 {generationTaskId && <div>{draftText.generationTask}: {generationTaskId}</div>}
                                                 {draftProgress !== null && <div>{draftText.progress}: {Math.round(draftProgress)}%</div>}
                                                 {!draftRun && <div>{draftText.noDraftYet}</div>}
@@ -482,9 +495,9 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                                 </div>
                                             )}
 
-                                            {draftStatus === 'failed' && asString(draftRun?.errorMessage) && (
+                                            {draftStatus === 'failed' && (asString(generatedImage?.errorMessageSafe) || asString(draftRun?.errorMessage)) && (
                                                 <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] text-red-200">
-                                                    {asString(draftRun?.errorMessage)}
+                                                    {asString(generatedImage?.errorMessageSafe) || asString(draftRun?.errorMessage)}
                                                 </div>
                                             )}
                                         </div>

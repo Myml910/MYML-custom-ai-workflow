@@ -154,6 +154,31 @@ export interface NodeData {
     batchPlan?: unknown;
     generationReadiness?: unknown;
     warnings?: unknown[];
+    generatedImages?: Array<{
+      id: string;
+      projectCode: string;
+      hermesRunId?: string;
+      designTaskId?: string;
+      generationTaskId?: string;
+      batchId?: string;
+      title?: string;
+      targetSize?: string;
+      model: string;
+      provider?: string;
+      prompt?: string;
+      negativePrompt?: string;
+      structuredPromptDescription?: unknown;
+      imageUrl?: string;
+      thumbnailUrl?: string;
+      resultUrl?: string;
+      status: 'completed' | 'failed' | 'pending' | 'running' | 'queued';
+      errorMessageSafe?: string;
+      referenceIds?: string[];
+      referenceUrls?: string[];
+      triggerMode?: 'hermes_auto' | 'manual_task' | 'regeneration' | 'unknown';
+      createdAt?: string;
+      updatedAt?: string;
+    }>;
     autoDraftGeneration?: {
       status?: 'idle' | 'pending' | 'running' | 'completed' | 'partial' | 'failed';
       startedAt?: string;
@@ -168,6 +193,7 @@ export interface NodeData {
       status: 'idle' | 'pending' | 'queued' | 'running' | 'polling' | 'completed' | 'failed';
       progress?: number | null;
       imageModel?: string;
+      provider?: string;
       originalModelRecommendation?: string;
       normalizedModelRecommendation?: string;
       resultUrl?: string | null;
@@ -176,6 +202,8 @@ export interface NodeData {
       negativePrompt?: string;
       submittedAt?: string;
       completedAt?: string;
+      createdAt?: string;
+      updatedAt?: string;
     }>;
   };
 }
