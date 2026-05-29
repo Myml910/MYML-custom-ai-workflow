@@ -11,6 +11,7 @@ import { NodeData, NodeStatus, NodeType } from '../../types';
 import { Language, t } from '../../i18n/translations';
 import { cancelTask } from '../../services/generationService';
 import { analyzeImagePromptReverse } from '../../services/imagePromptReverseService';
+import { HermesProjectNodeContent } from './HermesProjectNodeContent';
 
 interface NodeContentProps {
     data: NodeData;
@@ -402,6 +403,8 @@ export const NodeContent: React.FC<NodeContentProps> = ({
                         </div>
                     )}
                 </div>
+            ) : data.type === NodeType.HERMES_PROJECT ? (
+                <HermesProjectNodeContent data={data} language={language} />
             ) : data.type === NodeType.TEXT ? (
                 /* Text Node - Menu or Editing Mode */
                 <div className={`relative w-full overflow-hidden rounded-[var(--myml-radius-panel)] bg-[var(--myml-surface-raised)] ${selected ? 'ring-1 ring-[var(--myml-border-active)]' : ''}`}>

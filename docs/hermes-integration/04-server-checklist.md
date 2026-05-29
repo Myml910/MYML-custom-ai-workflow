@@ -76,6 +76,10 @@ npm run check:hermes:stale
 - [ ] P4-A maps legacy Hermes model IDs to T8 draft models: `custom-image-gpt-image-2` -> `custom-image-t8-gpt-image-2`, and `custom-image-nano-banana-3-1-flash` -> `custom-image-t8-nano-banana-3-1-flash`.
 - [ ] P4-A draft task input records both `originalModelRecommendation` and `normalizedModelRecommendation`; `imageModel` must be the normalized T8 model to avoid the old APIMart default route.
 - [ ] P4-A must not auto-generate all design tasks, batch-generate six directions, download references, use reference URLs as image inputs, create canvas nodes, or write back to the company system.
+- [ ] P4-B-1 Hermes runs can create a `HERMES_PROJECT` canvas node; the right-side Agent should show compact feedback while the canvas node becomes the main execution panel.
+- [ ] The Hermes Project node is draggable, selectable, deletable, and persisted in workflow JSON with redacted Hermes payload metadata.
+- [ ] The Hermes Project node may preview `safeToDisplay=true` reference images in the browser, but MYML Canvas must not server-download, proxy, or import those references in P4-B-1.
+- [ ] P4-B-1 must not auto-generate all design tasks, create image nodes, use references as image-to-image inputs, or write back to the company system.
 
 ## Hermes API Server
 
@@ -131,6 +135,8 @@ Expected:
 - [ ] If Hermes returns `maxDesignsPerGeneration` / `batchPlan`, MYML Canvas ChatPanel shows the single-batch limit, current batch label, and remaining directions.
 - [ ] If a designer manually clicks one design task's "Generate Draft" button, MYML Canvas creates one `/api/tasks/image` task for that task only.
 - [ ] Manual draft task input may include `source='hermes_design_task'`, `projectCode`, `hermesRunId`, `designTaskId`, `referenceIds`, `referenceUsage`, `originalModelRecommendation`, and `normalizedModelRecommendation`; reference URLs remain metadata only.
+- [ ] A successful Hermes run also creates a canvas Hermes Project node showing the project summary, references, and simplified design tasks.
+- [ ] Saving and reloading the workflow preserves the Hermes Project node without requiring a new Hermes run.
 - [ ] `hermes_runs.response_payload->'generationReadiness'->>'readyForImageGeneration' = 'false'` for P3-A proposal runs.
 - [ ] `hermes_runs.status = 'completed'`.
 - [ ] `hermes_assets` contains the mock local image asset.

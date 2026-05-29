@@ -8,6 +8,7 @@ export enum NodeType {
   VIDEO_EDITOR = 'Video Editor',
   STORYBOARD = 'Storyboard Manager',
   CAMERA_ANGLE = 'Camera Angle',
+  HERMES_PROJECT = 'Hermes Project',
   // Local open-source model nodes
   LOCAL_IMAGE_MODEL = 'Local Image Model',
   LOCAL_VIDEO_MODEL = 'Local Video Model'
@@ -134,6 +135,26 @@ export interface NodeData {
 
   // Storyboard Generator specific
   characterReferenceUrls?: string[]; // URLs of character images for reference in generation
+
+  // Hermes Project node specific
+  hermesProject?: {
+    hermesRunId?: string;
+    chatSessionId?: string;
+    projectCode?: string;
+    status?: string;
+    project?: unknown;
+    projectBrief?: unknown;
+    projectFields?: unknown;
+    references?: unknown;
+    designStrategy?: unknown;
+    designTasks?: unknown[];
+    expectedDesignTaskCount?: number | null;
+    actualDesignTaskCount?: number | null;
+    maxDesignsPerGeneration?: number | null;
+    batchPlan?: unknown;
+    generationReadiness?: unknown;
+    warnings?: unknown[];
+  };
 }
 
 export interface ContextMenuState {

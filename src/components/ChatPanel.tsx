@@ -37,6 +37,7 @@ interface ChatPanelProps {
     canvasTheme?: 'dark' | 'light';
     language?: Language;
     getCanvasContext?: (message?: string) => AgentCanvasContext;
+    onHermesRunReceived?: (hermesRun: HermesRunPayload) => void;
 }
 
 type HermesDesignTask = NonNullable<HermesRunPayload['designTasks']>[number];
@@ -1490,6 +1491,76 @@ const HermesResultCard: React.FC<{
     );
 };
 
+const HermesCanvasSummaryCard: React.FC<{
+    hermesRun: HermesRunPayload;
+    canvasTheme: 'dark' | 'light';
+    language: Language;
+}> = ({ hermesRun, canvasTheme, language }) => {
+    const [showDetails, setShowDetails] = useState(false);
+    const isDark = canvasTheme === 'dark';
+    const project = isRecord(hermesRun.project) ? hermesRun.project : {};
+    const projectCode = hermesRun.projectCode || safeHermesCopyValue(getProjectField(project, ['code', 'projectCode']));
+    const projectName = safeHermesCopyValue(getProjectField(project, ['name', 'projectName']));
+    const summaryText = language === 'zh'
+        ? {
+            title: '\u5df2\u6dfb\u52a0\u5230\u753b\u5e03',
+            message: '\u5df2\u5728\u753b\u5e03\u4e2d\u521b\u5efa Hermes \u9879\u76ee\u5361\u7247',
+            details: '\u67e5\u770b\u8be6\u60c5',
+            hideDetails: '\u6536\u8d77\u8be6\u60c5',
+        }
+        : {
+            title: 'Added to canvas',
+            message: 'Created a Hermes project card on the canvas',
+            details: 'View details',
+            hideDetails: 'Hide details',
+        };
+
+    return (
+        <div className="mb-4">
+            <div className={`rounded-xl border p-3 text-sm ${
+                isDark
+                    ? 'border-[#D8FF00]/25 bg-[#D8FF00]/10 text-neutral-200'
+                    : 'border-lime-300 bg-lime-50 text-neutral-800'
+            }`}>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className={`text-xs font-semibold uppercase tracking-[0.08em] ${isDark ? 'text-[#D8FF00]' : 'text-lime-700'}`}>
+                            {summaryText.title}
+                        </div>
+                        <div className="mt-1 font-semibold leading-5">
+                            {summaryText.message}{projectCode ? `: ${projectCode}` : ''}
+                        </div>
+                        {projectName && (
+                            <div className={`mt-0.5 truncate text-xs ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                                {projectName}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowDetails(prev => !prev)}
+                        className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                            isDark
+                                ? 'border-neutral-800 bg-neutral-950/60 text-neutral-300 hover:bg-neutral-900'
+                                : 'border-neutral-200 bg-white/80 text-neutral-700 hover:bg-white'
+                        }`}
+                    >
+                        {showDetails ? summaryText.hideDetails : summaryText.details}
+                    </button>
+                </div>
+            </div>
+
+            {showDetails && (
+                <HermesResultCard
+                    hermesRun={hermesRun}
+                    canvasTheme={canvasTheme}
+                    language={language}
+                />
+            )}
+        </div>
+    );
+};
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -1502,6 +1573,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     canvasTheme = 'dark',
     language = 'zh',
     getCanvasContext,
+    onHermesRunReceived,
 }) => {
     // --- State ---
     const [message, setMessage] = useState('');
@@ -1527,7 +1599,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         loadSession,
         deleteSession,
         hasMessages,
-    } = useChatAgent();
+    } = useChatAgent({ onHermesRunReceived });
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1964,11 +2036,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     language={language}
                                 />
                                 {msg.role === 'assistant' && msg.hermesRun && (
-                                    <HermesResultCard
-                                        hermesRun={msg.hermesRun}
-                                        canvasTheme={canvasTheme}
-                                        language={language}
-                                    />
+                                    onHermesRunReceived && !msg.id.startsWith('loaded-') ? (
+                                        <HermesCanvasSummaryCard
+                                            hermesRun={msg.hermesRun}
+                                            canvasTheme={canvasTheme}
+                                            language={language}
+                                        />
+                                    ) : (
+                                        <HermesResultCard
+                                            hermesRun={msg.hermesRun}
+                                            canvasTheme={canvasTheme}
+                                            language={language}
+                                        />
+                                    )
                                 )}
                             </React.Fragment>
                         ))}

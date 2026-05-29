@@ -206,6 +206,10 @@ interface UseChatAgentReturn {
     hasMessages: boolean;
 }
 
+interface UseChatAgentOptions {
+    onHermesRunReceived?: (hermesRun: HermesRunPayload) => void;
+}
+
 interface ApiErrorPayload {
     code?: string;
     message?: string;
@@ -259,7 +263,9 @@ async function readApiError(response: Response, fallback: string): Promise<strin
 // HOOK
 // ============================================================================
 
-export function useChatAgent(): UseChatAgentReturn {
+export function useChatAgent(options: UseChatAgentOptions = {}): UseChatAgentReturn {
+    const { onHermesRunReceived } = options;
+
     // --- State ---
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [topic, setTopic] = useState<string | null>(null);
@@ -420,6 +426,14 @@ export function useChatAgent(): UseChatAgentReturn {
             };
             setMessages(prev => [...prev, aiMessage]);
 
+            if (data.hermesRun && onHermesRunReceived) {
+                try {
+                    onHermesRunReceived(data.hermesRun);
+                } catch (callbackError) {
+                    console.error('[ChatAgent] Failed to handle Hermes run callback:', callbackError);
+                }
+            }
+
             // Update topic if returned
             if (data.topic) {
                 setTopic(data.topic);
@@ -443,7 +457,7 @@ export function useChatAgent(): UseChatAgentReturn {
         } finally {
             setIsLoading(false);
         }
-    }, [ensureSession, refreshSessions]);
+    }, [ensureSession, refreshSessions, onHermesRunReceived]);
 
     /**
      * Start a new chat session

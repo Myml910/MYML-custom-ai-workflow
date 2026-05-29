@@ -57,6 +57,7 @@ import { uploadAsset } from './services/assetService';
 import { getEffectiveImageReference } from './utils/imageReferences';
 import { AuthUser, useAuth } from './auth/AuthContext';
 import { LoginPage } from './components/LoginPage';
+import type { HermesRunPayload } from './hooks/useChatAgent';
 import {
   T8_GPT_IMAGE_2_EDIT_MODEL_ID,
   T8_GPT_IMAGE_2_MODEL_ID,
@@ -612,6 +613,89 @@ function CanvasApp({
     canvasTitle,
     userMessage
   }), [nodes, groups, selectedNodeIds, viewport, workflowId, canvasTitle]);
+
+  const createdHermesProjectRunIdsRef = React.useRef<Set<string>>(new Set());
+
+  const createHermesProjectNodeFromRun = React.useCallback((hermesRun: HermesRunPayload) => {
+    const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
+    if (!hermesRunId) return;
+
+    const projectRecord = hermesRun.project && typeof hermesRun.project === 'object'
+      ? hermesRun.project
+      : null;
+    const projectCode = hermesRun.projectCode ||
+      (typeof projectRecord?.code === 'string' ? projectRecord.code : '') ||
+      (typeof projectRecord?.projectCode === 'string' ? projectRecord.projectCode : '');
+
+    const existingNode = nodes.find(node =>
+      node.type === NodeType.HERMES_PROJECT &&
+      node.hermesProject?.hermesRunId === hermesRunId
+    );
+
+    if (existingNode) {
+      createdHermesProjectRunIdsRef.current.add(hermesRunId);
+      setSelectedNodeIds([existingNode.id]);
+      return;
+    }
+
+    if (createdHermesProjectRunIdsRef.current.has(hermesRunId)) {
+      return;
+    }
+    createdHermesProjectRunIdsRef.current.add(hermesRunId);
+
+    const canvasBounds = canvasRef.current?.getBoundingClientRect();
+    const visibleWidth = canvasBounds?.width ?? window.innerWidth;
+    const visibleHeight = canvasBounds?.height ?? window.innerHeight;
+    const chatPanelWidth = isChatOpen ? 400 : 0;
+    const screenCenterX = Math.max(380, (visibleWidth - chatPanelWidth) / 2);
+    const screenCenterY = Math.max(280, visibleHeight * 0.42);
+    const x = Math.round((screenCenterX - viewport.x) / viewport.zoom - 360);
+    const y = Math.round((screenCenterY - viewport.y) / viewport.zoom - 260);
+
+    const newNode: NodeData = {
+      id: crypto.randomUUID(),
+      type: NodeType.HERMES_PROJECT,
+      x,
+      y,
+      prompt: '',
+      status: hermesRun.status === 'failed' ? NodeStatus.ERROR : NodeStatus.SUCCESS,
+      model: 'Hermes',
+      aspectRatio: 'Auto',
+      resolution: 'Auto',
+      title: `Hermes 项目：${projectCode || hermesRunId.slice(0, 8)}`,
+      hideGenerationControls: true,
+      hermesProject: {
+        hermesRunId,
+        chatSessionId: undefined,
+        projectCode,
+        status: hermesRun.status,
+        project: hermesRun.project,
+        projectBrief: hermesRun.projectBrief,
+        projectFields: hermesRun.project,
+        references: hermesRun.references,
+        designStrategy: hermesRun.designStrategy,
+        designTasks: Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [],
+        expectedDesignTaskCount: hermesRun.expectedDesignTaskCount ?? null,
+        actualDesignTaskCount: hermesRun.actualDesignTaskCount ?? null,
+        maxDesignsPerGeneration: hermesRun.maxDesignsPerGeneration ?? null,
+        batchPlan: hermesRun.batchPlan,
+        generationReadiness: hermesRun.generationReadiness,
+        warnings: hermesRun.warnings
+      }
+    };
+
+    setNodes(prev => [...prev, newNode]);
+    setSelectedNodeIds([newNode.id]);
+  }, [
+    canvasRef,
+    isChatOpen,
+    nodes,
+    setNodes,
+    setSelectedNodeIds,
+    viewport.x,
+    viewport.y,
+    viewport.zoom
+  ]);
 
   // Video Frame Extraction (auto-extract lastFrame for videos missing thumbnails)
   useVideoFrameExtraction({
@@ -1589,6 +1673,7 @@ function CanvasApp({
           canvasTheme={canvasTheme}
           language={language}
           getCanvasContext={getAgentCanvasContext}
+          onHermesRunReceived={createHermesProjectNodeFromRun}
         />
       )}
 

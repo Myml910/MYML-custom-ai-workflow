@@ -1090,7 +1090,13 @@ const CanvasNodeComponent: React.FC<CanvasNodeProps> = ({
 
         {/* Main Node Card - Video nodes are wider to fit more controls */}
         <div
-          className={`myml-canvas-node-card relative ${data.type === NodeType.VIDEO ? 'w-[385px]' : 'w-[365px]'} rounded-[var(--myml-radius-panel)] border ${mainNodeCardTransitionClass} flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
+          className={`myml-canvas-node-card relative ${
+            data.type === NodeType.HERMES_PROJECT
+              ? 'w-[720px]'
+              : data.type === NodeType.VIDEO
+                ? 'w-[385px]'
+                : 'w-[365px]'
+          } rounded-[var(--myml-radius-panel)] border ${mainNodeCardTransitionClass} flex flex-col shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${
             data.hideGenerationControls
               ? 'bg-transparent'
               : isDark

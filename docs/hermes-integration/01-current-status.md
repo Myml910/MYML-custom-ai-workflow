@@ -25,8 +25,8 @@ The intended server-side flow is:
 5. Hermes loads the `company-system:project-lookup` skill.
 6. Hermes calls `company_project_lookup`.
 7. The company-system plugin reads the read-only MySQL View.
-8. Hermes returns a JSON object with project fields, design strategy, design tasks, prompts, and P3-A generation readiness metadata.
-9. MYML Canvas renders the Hermes project card in ChatPanel.
+8. Hermes returns a JSON object with project fields, design strategy, design tasks, prompts, references, and generation readiness metadata.
+9. MYML Canvas creates a Hermes Project canvas node and keeps the right-side Agent as the trigger / summary surface.
 10. MYML Canvas writes `hermes_runs` and `hermes_assets`.
 
 The browser must not call Hermes directly and must never receive the Hermes API key.
@@ -107,6 +107,14 @@ P4-A scope:
 - P4-A does not download or access reference images/links and does not use reference URLs as image-to-image inputs.
 - P4-A does not write back to the company system.
 
+P4-B-1 scope:
+
+- Successful Hermes runs can create a `HERMES_PROJECT` canvas node.
+- The right-side Agent remains the trigger and compact feedback surface; the canvas node is the main project execution panel.
+- The Hermes Project node is a normal canvas node: it can be dragged, selected, deleted, and persisted in workflow JSON.
+- The node displays project summary, reference image/link cards, and simplified design task cards.
+- P4-B-1 does not auto-generate all design tasks, does not download references, does not use reference URLs as image-to-image inputs, and does not write back to the company system.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:
@@ -117,7 +125,7 @@ Do not do these during this migration preparation phase:
 - Do not visit or crawl `ref_link`.
 - Do not download `design_img` or `oper_img`.
 - Do not visit `design_link` or `oper_link`.
-- Do not create real canvas nodes from Hermes results.
+- Do not create image-generation nodes or asset records automatically from Hermes results.
 - Do not automatically execute image generation from P3-A design tasks.
 - Do not automatically execute image generation from P3-E task batches. P4-A only allows a designer-triggered single-task draft.
 - Do not treat `ref_img` or `ref_link` as downloaded or trusted local assets.
