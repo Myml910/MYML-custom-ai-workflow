@@ -92,6 +92,15 @@ npm run check:hermes:stale
 - [ ] P5-D Hermes Project nodes should maintain `hermesProject.generatedImages` as the normalized candidate image array.
 - [ ] `generatedImages` should include `projectCode`, `hermesRunId`, `designTaskId`, `generationTaskId`, model/provider, prompt metadata, result URL, status, safe error text, reference metadata, and `triggerMode`.
 - [ ] P5-D must not add a new database table, query final company submission images, create scoring UI, or rerun failed tasks.
+- [ ] P5-E-1 guards complex multi-product bundle projects in the Hermes prompt. Bundle signals include gift sets, multiple `1pc` products, plus-separated product names, multiple sizes, or multiple crafts.
+- [ ] For complex bundles, Hermes should output `multiProductBundle=true` and concise `productTasks` before deriving `designTasks`.
+- [ ] For complex bundles, `expectedDesignTaskCount` should follow product demand while `maxDesignsPerGeneration=6` remains the single-batch cap, not a fixed required count.
+- [ ] Complex bundle output should be concise: short brief/strategy, at most two reference notes, at most two task notes, and no repeated full reference URLs in every task.
+- [ ] P5-E-2 compact output mode is enabled for `multiProductBundle=true`: designTasks must keep `prompt`, `negativePrompt`, model recommendation, reference metadata, and can omit full `structuredPromptDescription`.
+- [ ] Compact bundle tasks should remain image-generation-ready even when `structuredPromptDescription` is missing or minimal.
+- [ ] P5-E-3A Hermes starts complex projects in `lightweight_decomposition` mode: Stage 1 should return project summary, `productTasks`, references, count metadata, `batchPlan`, and `generationReadiness` only.
+- [ ] Lightweight Stage 1 must not return `designTasks`, full prompts, `negativePrompt`, or `structuredPromptDescription`.
+- [ ] `lightweightMode=true` Hermes Project nodes should not auto-submit image tasks; they should display product decomposition and wait for Stage 2 prompt generation.
 
 ## Hermes API Server
 

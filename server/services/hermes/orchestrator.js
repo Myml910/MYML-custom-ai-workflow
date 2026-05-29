@@ -2,7 +2,15 @@ import crypto from 'crypto';
 import { getDb } from '../../db/index.js';
 import { getUserPrimaryTeam } from '../../db/providerCredentials.js';
 import { assertValidYxfProjectCode } from './projectCode.js';
-import { getHermesClientConfig, runHermesProjectClient } from './client.js';
+import {
+    HERMES_RESPONSE_MODE_FULL,
+    HERMES_RESPONSE_MODE_LIGHTWEIGHT,
+    getHermesClientConfig,
+    runHermesProjectClient
+} from './client.js';
+
+export const HERMES_RUN_MODE_LIGHTWEIGHT = HERMES_RESPONSE_MODE_LIGHTWEIGHT;
+const HERMES_RUN_MODE_VERSION = 'p5-e-3a-v1';
 
 function requireUser(user) {
     if (!user?.id) {
@@ -14,10 +22,16 @@ function requireUser(user) {
     return user;
 }
 
-function buildIdempotencyKey({ userId, projectCode, chatSessionId, message }) {
+function normalizeHermesRunMode(mode) {
+    return mode === HERMES_RESPONSE_MODE_LIGHTWEIGHT
+        ? HERMES_RESPONSE_MODE_LIGHTWEIGHT
+        : HERMES_RESPONSE_MODE_FULL;
+}
+
+function buildIdempotencyKey({ userId, projectCode, chatSessionId, message, mode, version }) {
     return crypto
         .createHash('sha256')
-        .update([userId, projectCode, chatSessionId || '', message || ''].join('\n'))
+        .update([userId, projectCode, chatSessionId || '', message || '', mode || '', version || ''].join('\n'))
         .digest('hex');
 }
 
@@ -34,10 +48,15 @@ function serializeHermesRun(row, assets = []) {
         workflowId: row.workflow_id,
         hermesRequestId: row.hermes_request_id,
         hermesRunId: row.hermes_run_id,
+        mode: responsePayload.mode || responsePayload.hermesRunMode || null,
+        lightweightMode: responsePayload.lightweightMode === true,
+        fallbackReason: responsePayload.fallbackReason || null,
         project: row.project_fields || null,
         strategy: row.generation_strategy || null,
         designTask: row.design_task || null,
         projectBrief: responsePayload.projectBrief || null,
+        multiProductBundle: responsePayload.multiProductBundle === true,
+        productTasks: Array.isArray(responsePayload.productTasks) ? responsePayload.productTasks : [],
         designStrategy: responsePayload.designStrategy || null,
         designTasks: Array.isArray(responsePayload.designTasks) ? responsePayload.designTasks : [],
         references: responsePayload.references || null,
@@ -99,7 +118,8 @@ async function insertHermesRun({
     workflowId,
     message,
     idempotencyKey,
-    hermesClientMode
+    hermesClientMode,
+    hermesRunMode
 }) {
     const result = await client.query(`
         INSERT INTO hermes_runs (
@@ -133,6 +153,8 @@ async function insertHermesRun({
             username: user.username || null,
             teamId: team?.id || null,
             hermesClientMode,
+            hermesRunMode,
+            hermesRunModeVersion: HERMES_RUN_MODE_VERSION,
             mock: hermesClientMode === 'mock'
         }
     ]);
@@ -303,6 +325,15 @@ export function buildHermesAssistantText(hermesRun) {
         return `Hermes 执行失败：${hermesRun.errorMessage || '请稍后重试'}`;
     }
 
+    if (hermesRun.lightweightMode) {
+        const productTaskCount = Array.isArray(hermesRun.productTasks) ? hermesRun.productTasks.length : 0;
+        return [
+            `Hermes lightweight decomposition completed for ${hermesRun.projectCode}.`,
+            `Product tasks: ${productTaskCount}.`,
+            'A Hermes project card has been added to the canvas. Stage 2 will generate prompts per product task.'
+        ].join('\n');
+    }
+
     return [
         `已为 ${hermesRun.projectCode} 创建 Hermes 执行记录。`,
         `项目：${project.name || hermesRun.projectCode}`,
@@ -311,15 +342,18 @@ export function buildHermesAssistantText(hermesRun) {
     ].join('\n');
 }
 
-export async function runHermesProject({ user, projectCode, message, chatSessionId, workflowId }) {
+export async function runHermesProject({ user, projectCode, message, chatSessionId, workflowId, mode = HERMES_RESPONSE_MODE_FULL }) {
     const currentUser = requireUser(user);
     const normalizedProjectCode = assertValidYxfProjectCode(projectCode);
     const team = await getUserPrimaryTeam(currentUser.id);
+    const hermesRunMode = normalizeHermesRunMode(mode);
     const idempotencyKey = buildIdempotencyKey({
         userId: currentUser.id,
         projectCode: normalizedProjectCode,
         chatSessionId,
-        message
+        message,
+        mode: hermesRunMode,
+        version: HERMES_RUN_MODE_VERSION
     });
     const db = getDb();
     const hermesClientConfig = getHermesClientConfig();
@@ -351,7 +385,8 @@ export async function runHermesProject({ user, projectCode, message, chatSession
             workflowId,
             message,
             idempotencyKey,
-            hermesClientMode: hermesClientConfig.mode
+            hermesClientMode: hermesClientConfig.mode,
+            hermesRunMode
         });
         await client.query('COMMIT');
     } catch (error) {
@@ -366,9 +401,11 @@ export async function runHermesProject({ user, projectCode, message, chatSession
         response = await runHermesProjectClient({
             user: currentUser,
             projectCode: normalizedProjectCode,
-            message
+            message,
+            mode: hermesRunMode
         });
         response.hermesClientMode = hermesClientConfig.mode;
+        response.hermesRunMode = hermesRunMode;
     } catch (error) {
         return await markHermesRunFailed({
             db,

@@ -16,7 +16,7 @@ import { spawn } from 'child_process';
 import chatAgent from './agent/index.js';
 import { analyzeImagePromptReverse } from './agent/imagePromptReverse.js';
 import { extractYxfProjectCode, isHermesProjectStartIntent } from './services/hermes/projectCode.js';
-import { runHermesProject } from './services/hermes/orchestrator.js';
+import { HERMES_RUN_MODE_LIGHTWEIGHT, runHermesProject } from './services/hermes/orchestrator.js';
 import { requireAuth } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import { getDatabaseLabel, getDb } from './db/index.js';
@@ -1638,7 +1638,8 @@ app.post('/api/chat', async (req, res) => {
                 projectCode,
                 message,
                 chatSessionId: sessionId,
-                workflowId: canvasContext?.workflow?.id || null
+                workflowId: canvasContext?.workflow?.id || null,
+                mode: HERMES_RUN_MODE_LIGHTWEIGHT
             });
             const recorded = chatAgent.recordHermesExchange(
                 sessionId,

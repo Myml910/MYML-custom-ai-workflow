@@ -145,6 +145,10 @@ export interface NodeData {
     project?: unknown;
     projectBrief?: unknown;
     projectFields?: unknown;
+    lightweightMode?: boolean;
+    fallbackReason?: string | null;
+    multiProductBundle?: boolean;
+    productTasks?: unknown[];
     references?: unknown;
     designStrategy?: unknown;
     designTasks?: unknown[];

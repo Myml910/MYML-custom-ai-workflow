@@ -139,6 +139,32 @@ P5-D scope:
 - `generatedImages` is intended as the stable handoff structure for later external comparison against company-system final submitted images.
 - P5-D does not query final submission images, add scoring UI, download references, or rerun failed tasks.
 
+P5-E-1 scope:
+
+- Complex multi-product bundle projects are guarded in the Hermes system prompt to reduce timeout risk.
+- Hermes should detect `multiProductBundle=true` when project fields contain signals such as gift sets, multiple `1pc` products, plus-separated products, multiple sizes, or multiple crafts.
+- Hermes should output concise `productTasks` first, then derive `designTasks` from those product tasks.
+- For multi-product bundles, design task count follows product demand while `maxDesignsPerGeneration=6` remains the current single-batch limit, not a fixed required count.
+- Complex bundle output should stay concise: short `projectBrief`, short `designStrategy`, at most two reference notes, at most two task notes, and 1-2 sentences per structured prompt section.
+- P5-E-1 does not change the Hermes plugin, database schema, reference download policy, or image generation flow.
+
+P5-E-2 scope:
+
+- Complex multi-product bundle projects use compact output mode to reduce Hermes timeout risk.
+- In compact mode, Hermes must prioritize `productTasks` plus image-generation-ready `designTasks` containing `prompt`, `negativePrompt`, model recommendation, and lightweight reference metadata.
+- In compact mode, full 10-section `structuredPromptDescription` is not required. It may be omitted or reduced to a few one-sentence fields.
+- Compact mode still keeps the product-demand count rules: `expectedDesignTaskCount` follows project demand and `maxDesignsPerGeneration=6` remains the single-batch cap.
+- P5-E-2 does not change the Hermes plugin, database schema, reference download policy, external link policy, or MYML image-generation worker path.
+
+P5-E-3A scope:
+
+- Complex projects now start with `lightweight_decomposition` mode by default from the MYML Agent Hermes intent.
+- Stage 1 asks Hermes only for project summary, `productTasks`, references, count metadata, `batchPlan`, and `generationReadiness`.
+- Stage 1 must not return `designTasks`, full prompts, `negativePrompt`, or `structuredPromptDescription`.
+- Hermes Project canvas nodes can display `productTasks` and show that prompt generation is waiting for Stage 2.
+- `lightweightMode=true` runs do not auto-submit `/api/tasks/image`; candidate generation waits for Stage 2 per-product prompt generation.
+- P5-E-3A does not change the Hermes plugin, database schema, reference download policy, external link policy, or MYML image-generation worker path.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:

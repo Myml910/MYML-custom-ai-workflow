@@ -103,6 +103,7 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
     const projectBrief = isRecord(hermesProject.projectBrief) ? hermesProject.projectBrief : {};
     const references = isRecord(hermesProject.references) ? hermesProject.references : {};
     const designTasks = Array.isArray(hermesProject.designTasks) ? hermesProject.designTasks.filter(isRecord) : [];
+    const productTasks = Array.isArray(hermesProject.productTasks) ? hermesProject.productTasks.filter(isRecord) : [];
     const referenceImages = Array.isArray(references.images) ? references.images.filter(isRecord) : [];
     const referenceLinks = Array.isArray(references.links) ? references.links.filter(isRecord) : [];
     const generatedImages = Array.isArray(hermesProject.generatedImages)
@@ -190,6 +191,17 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
         noDraftYet: language === 'zh' ? '等待自动生成' : 'Waiting for auto generation'
     };
 
+    const productText = {
+        productTasks: language === 'zh' ? '\u4ea7\u54c1\u62c6\u89e3' : 'Product Decomposition',
+        product: language === 'zh' ? '\u4ea7\u54c1' : 'Product',
+        referenceHint: language === 'zh' ? '\u53c2\u8003' : 'Reference',
+        designFocus: language === 'zh' ? '\u8bbe\u8ba1\u91cd\u70b9' : 'Design focus',
+        priority: language === 'zh' ? '\u4f18\u5148\u7ea7' : 'Priority',
+        waitingStage2: language === 'zh'
+            ? '\u5df2\u5b8c\u6210\u4ea7\u54c1\u62c6\u89e3\uff0c\u7b49\u5f85 Stage 2 \u751f\u6210\u63d0\u793a\u8bcd\u3002'
+            : 'Product decomposition is complete. Waiting for Stage 2 prompt generation.'
+    };
+
     const projectCode = asString(hermesProject.projectCode) ||
         asString(getField(project, ['code', 'projectCode'])) ||
         asString(getField(projectBrief, ['projectCode']));
@@ -211,9 +223,9 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
         [text.customer, getField(project, ['customer', 'customerName']) || getField(projectBrief, ['customer'])],
         [text.category, getField(project, ['category']) || getField(projectBrief, ['category'])],
         [text.craft, getField(project, ['craft']) || getField(projectBrief, ['craft'])],
-        [text.size, getField(project, ['sizeRequirement', 'size']) || getField(projectBrief, ['size'])],
-        [text.quantity, getField(project, ['quantityRequirement', 'quantity']) || getField(projectBrief, ['quantity'])],
-        [text.requirement, getField(project, ['developmentRequirement', 'brief', 'objective']) || getField(projectBrief, ['designRequirement'])],
+        [text.size, getField(project, ['sizeRequirement', 'size']) || getField(projectBrief, ['sizeRequirement', 'size'])],
+        [text.quantity, getField(project, ['quantityRequirement', 'quantity']) || getField(projectBrief, ['quantityRequirement', 'quantity'])],
+        [text.requirement, getField(project, ['developmentRequirement', 'brief', 'objective']) || getField(projectBrief, ['designRequirement', 'summary'])],
     ] as [string, unknown][]).filter(([, value]) => asString(value));
 
     const markImageFailed = (id: string) => {
@@ -391,11 +403,59 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                     )}
                 </section>
 
+                {productTasks.length > 0 && (
+                    <section className="mb-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--myml-text-primary)]">
+                            <Layers size={14} />
+                            <span>{productText.productTasks}</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                            {productTasks.map((task, index) => {
+                                const productTaskId = asString(task.productTaskId) || `product-${index}`;
+                                const product = asString(task.product) || `${productText.product} ${index + 1}`;
+                                const size = asString(task.size);
+                                const referenceHint = asString(task.referenceHint);
+                                const designFocus = asString(task.designFocus);
+                                const priority = typeof task.priority === 'number' ? task.priority : null;
+
+                                return (
+                                    <div
+                                        key={productTaskId}
+                                        className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="font-semibold text-[var(--myml-text-primary)]">{product}</div>
+                                                {size && (
+                                                    <div className="mt-0.5 text-[10px] text-[var(--myml-text-muted)]">
+                                                        {text.size}: {size}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {priority !== null && (
+                                                <span className="shrink-0 rounded-md border border-[var(--myml-border-default)] px-2 py-0.5 text-[10px] text-[var(--myml-text-muted)]">
+                                                    {productText.priority}: {priority}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {(referenceHint || designFocus) && (
+                                            <div className="mt-2 space-y-1 text-[11px] text-[var(--myml-text-muted)]">
+                                                {referenceHint && <div>{productText.referenceHint}: {truncateText(referenceHint, 120)}</div>}
+                                                {designFocus && <div>{productText.designFocus}: {truncateText(designFocus, 180)}</div>}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+
                 <section>
                     <div className="mb-2 text-xs font-semibold text-[var(--myml-text-primary)]">{text.designTasks}</div>
                     {designTasks.length === 0 ? (
                         <div className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs text-[var(--myml-text-muted)]">
-                            {text.noTasks}
+                            {hermesProject.lightweightMode === true ? productText.waitingStage2 : text.noTasks}
                         </div>
                     ) : (
                         <div className="space-y-2">

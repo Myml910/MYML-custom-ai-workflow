@@ -168,13 +168,14 @@ const hasHermesCanvasNodePayload = (hermesRun: HermesRunPayload): boolean => {
   const companyFields = getHermesRecord(project?.companyFields);
 
   const hasDesignTasks = Array.isArray(hermesRun.designTasks) && hermesRun.designTasks.length > 0;
+  const hasProductTasks = Array.isArray(hermesRun.productTasks) && hermesRun.productTasks.length > 0;
   const hasProjectBrief = Boolean(projectBrief && Object.keys(projectBrief).length > 0);
   const hasProjectFields = Boolean(project && Object.keys(project).length > 0);
   const hasCompanyFields = Boolean(companyFields && Object.keys(companyFields).length > 0);
   const hasReferenceImages = Array.isArray(references?.images) && references.images.length > 0;
   const hasReferenceLinks = Array.isArray(references?.links) && references.links.length > 0;
 
-  return hasDesignTasks || hasProjectBrief || hasProjectFields || hasCompanyFields || hasReferenceImages || hasReferenceLinks;
+  return hasDesignTasks || hasProductTasks || hasProjectBrief || hasProjectFields || hasCompanyFields || hasReferenceImages || hasReferenceLinks;
 };
 
 const canCreateHermesCanvasNodeFromRun = (hermesRun: HermesRunPayload): boolean => (
@@ -265,6 +266,7 @@ const sanitizeHermesTaskIdPart = (value: string): string => (
 );
 
 const getHermesAutoDraftTasks = (hermesRun: HermesRunPayload) => {
+  if (hermesRun.lightweightMode === true) return [];
   const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
   const reportedMaxPerBatch = typeof hermesRun.maxDesignsPerGeneration === 'number' && hermesRun.maxDesignsPerGeneration > 0
     ? hermesRun.maxDesignsPerGeneration
@@ -998,6 +1000,7 @@ function CanvasApp({
 
   const startHermesAutoDraftGeneration = React.useCallback((nodeId: string, hermesRun: HermesRunPayload) => {
     if (hermesRun.status !== 'completed') return;
+    if (hermesRun.lightweightMode === true) return;
 
     const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
     if (!hermesRunId) return;
@@ -1194,6 +1197,10 @@ function CanvasApp({
       project: hermesRun.project,
       projectBrief: hermesRun.projectBrief,
       projectFields: hermesRun.project,
+      lightweightMode: hermesRun.lightweightMode === true,
+      fallbackReason: hermesRun.fallbackReason ?? null,
+      multiProductBundle: hermesRun.multiProductBundle === true,
+      productTasks: Array.isArray(hermesRun.productTasks) ? hermesRun.productTasks : [],
       references: hermesRun.references,
       designStrategy: hermesRun.designStrategy,
       designTasks: Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [],

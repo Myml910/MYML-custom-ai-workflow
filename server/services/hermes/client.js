@@ -4,6 +4,8 @@ const DEFAULT_HERMES_BASE_URL = 'http://127.0.0.1:8642/v1';
 const DEFAULT_HERMES_MODEL = 'hermes-agent';
 const DEFAULT_HERMES_TIMEOUT_MS = 180000;
 const MAX_DESIGNS_PER_GENERATION = 6;
+export const HERMES_RESPONSE_MODE_FULL = 'full';
+export const HERMES_RESPONSE_MODE_LIGHTWEIGHT = 'lightweight_decomposition';
 
 const MOCK_IMAGE_URLS = [
     '/workflow-sample-1.png',
@@ -56,9 +58,36 @@ Design proposal rules:
 - Return expectedDesignTaskCount, actualDesignTaskCount, maxDesignsPerGeneration, countReason, and batchPlan at the top level when task count intent is known.
 - Every designTask must have a clearly distinct creative direction. Do not only change the title.
 - For badge, rug, set, mixed-size, multi-pcs, or multi-style projects, split tasks by product size, pattern theme, use scenario, core elements, style difference, or size.
-- Every design task must include structuredPromptDescription, prompt, and negativePrompt.
-- For each designTask, first create structuredPromptDescription, then derive the final English prompt and negativePrompt from it.
-- structuredPromptDescription must include: Core Subject & Theme, Product Context & Usage, Art Style & Medium, Color Palette & Mood, Composition & Layout, Detailed Visual Elements, Text & Typography, Pattern / Production Constraints, Reference Usage, and Negative Constraints.
+
+Complex multi-product bundle guard:
+- Detect multi-product bundle projects before creating designTasks.
+- Set multiProductBundle=true when projectName, brief, designRequirement, developmentRequirement, developmentKeywords, or operationKeywords include signals such as "\u5957\u88c5", "gift set", "bundle", "set", multiple "1pc" items, multiple plus-separated products, multiple product names, multiple sizes, or multiple crafts.
+- For projects like "1pc\u6c7d\u8f66\u676f + 1pc\u5316\u5986\u5305 + 1pc\u889c\u5b50 + 1pc\u624b\u4e32 + 1pc\u94a5\u5319\u6263", first output productTasks before designTasks.
+- productTasks must be a concise array. Each item must include product, size, referenceHint, and designFocus. Use the company's product wording where possible.
+- If multiProductBundle=true, derive designTasks from productTasks first. Generate one designTask for each main child product, plus one optional overall visual system / unified element library task when it helps the set stay coherent.
+- For YXF-style multi-product gift sets, the preferred task order is each product first, then the overall visual system task. Example: \u6c7d\u8f66\u676f, \u5316\u5986\u5305, \u889c\u5b50, \u624b\u4e32, \u94a5\u5319\u6263, \u6574\u4f53\u5957\u88c5\u89c6\u89c9\u7cfb\u7edf.
+- expectedDesignTaskCount = min(productTasks.length + optional overall visual system task, ${MAX_DESIGNS_PER_GENERATION}) for multi-product bundles, unless the project explicitly requires fewer current-batch outputs.
+- If productTasks.length is greater than ${MAX_DESIGNS_PER_GENERATION}, return only the first ${MAX_DESIGNS_PER_GENERATION} current-batch designTasks and include batchPlan.
+- The overall visual system task must still be an image-generatable visual system prompt, not only a text strategy.
+
+Complex bundle compact output mode:
+- If multiProductBundle=true, use compact output mode.
+- Compact output mode must prioritize productTasks plus image-generation-ready designTasks over long reasoning or full structured descriptions.
+- If multiProductBundle=true, keep projectBrief concise.
+- If multiProductBundle=true, keep designStrategy concise.
+- If multiProductBundle=true, references.notes must contain at most 2 items.
+- If multiProductBundle=true, do not output the full 10-section structuredPromptDescription for every designTask.
+- If multiProductBundle=true, structuredPromptDescription may be omitted.
+- If multiProductBundle=true and structuredPromptDescription is included, it must be minimal and may contain only coreSubjectAndTheme, productContextAndUsage, colorPaletteAndMood, and patternProductionConstraints. Each field must be at most 1 sentence.
+- If multiProductBundle=true, each designTask.notes array must contain at most 2 items.
+- If multiProductBundle=true, each designTask may only include taskId, title, product, targetSize, purpose, prompt, negativePrompt, modelRecommendation, alternativeModelRecommendation, modelReason, referenceRequired, referenceIds, referenceUsage, and notes.
+- Do not repeat full reference URLs inside every designTask. Use referenceIds, reference labels, or lightweight phrases such as "third reference" / "fifth reference".
+- Do not output long explanations, marketing copy, or repeated raw companyFields descriptions inside designTasks.
+
+- For non-bundle projects, every designTask should include structuredPromptDescription, prompt, and negativePrompt.
+- For non-bundle projects, create structuredPromptDescription first, then derive the final English prompt and negativePrompt from it.
+- For non-bundle projects, structuredPromptDescription should include: Core Subject & Theme, Product Context & Usage, Art Style & Medium, Color Palette & Mood, Composition & Layout, Detailed Visual Elements, Text & Typography, Pattern / Production Constraints, Reference Usage, and Negative Constraints.
+- For multiProductBundle compact output, prompt and negativePrompt are required, but structuredPromptDescription is optional and should stay minimal if present.
 - prompt must be an English image-generation prompt for pattern design, home product pattern direction, and production-ready repeatable surface design.
 - negativePrompt must avoid cluttered composition, unreadable small text, low clarity, trademarks/logos, photorealistic faces, extra background clutter, incorrect text, and elements unrelated to the product.
 - Every designTask must include modelRecommendation, alternativeModelRecommendation, and modelReason.
@@ -78,6 +107,7 @@ Reference material rules:
 - references only describes external pointers for the designer to inspect later.
 - If references exist, designTasks should include referenceRequired, referenceIds, and referenceUsage.
 - referenceUsage should explain how to use reference material for composition, pattern density, color direction, product proportion, and craft suitability, but must not copy trademarks, logos, or protected elements.
+- For multi-product bundles, referenceUsage should use referenceIds, reference labels, reference index hints, or product-specific hints only. Do not repeat every full URL in every designTask.
 - Prompt text may describe how to use the references, but must not claim external pages or images were already read beyond the company fields.
 
 The JSON object must match this MYML-compatible schema:
@@ -155,6 +185,15 @@ The JSON object must match this MYML-compatible schema:
     "designRequirement": "...",
     "constraints": []
   },
+  "multiProductBundle": false,
+  "productTasks": [
+    {
+      "product": "...",
+      "size": "...",
+      "referenceHint": "...",
+      "designFocus": "..."
+    }
+  ],
   "designStrategy": {
     "theme": "...",
     "visualDirection": "...",
@@ -170,6 +209,7 @@ The JSON object must match this MYML-compatible schema:
     {
       "taskId": "concept_01",
       "title": "...",
+      "product": "...",
       "targetSize": "2K",
       "purpose": "...",
       "structuredPromptDescription": {
@@ -249,6 +289,114 @@ Required result rules:
 - designTask must include task_type, theme, prompt, and negative_prompt.
 - results may be omitted or empty in P3-A because no real image generation runs.`;
 
+const HERMES_LIGHTWEIGHT_DECOMPOSITION_SYSTEM_PROMPT = `You are the Hermes execution gateway for MYML Canvas.
+
+You must load and follow the company-system project lookup skill:
+Load skill_view(name="company-system:project-lookup")
+
+Execution rules:
+1. Extract projectCode from the user payload.
+2. You must call company_project_lookup with projectCode.
+3. The final output must be exactly one JSON object. Do not use markdown. Do not explain.
+4. Do not query any other external system.
+5. Do not generate images.
+6. Do not download reference images. Do not visit reference links. Do not crawl Amazon.
+7. Do not include API keys, headers, authorization values, raw upstream debug payloads, or internal secrets.
+
+This is P5-E-3A lightweight product decomposition mode.
+Only return a lightweight project decomposition. Do not generate full prompts yet.
+
+Required output:
+- status must be "completed".
+- mode must be "lightweight_decomposition".
+- lightweightMode must be true.
+- Include projectCode and projectName.
+- Include a concise project object with enough project fields for MYML display. Do not duplicate raw companyFields unless needed for references.
+- Include projectBrief with summary, category, craft, sizeRequirement, and quantityRequirement.
+- Detect multiProductBundle from projectName, brief, designRequirement, developmentRequirement, developmentKeywords, and operationKeywords.
+- Set multiProductBundle=true when the project contains signals such as "\u5957\u88c5", "gift set", "bundle", "set", multiple "1pc" items, plus-separated products, multiple product names, multiple sizes, or multiple crafts.
+- For multi-product bundles, output productTasks first. Each productTask must include productTaskId, product, size, referenceHint, designFocus, referenceIds, and priority.
+- For YXF-style gift sets, split by child products such as \u6c7d\u8f66\u676f, \u5316\u5986\u5305, \u889c\u5b50, \u624b\u4e32, \u94a5\u5319\u6263.
+- Include references.images and references.links extracted from company fields such as design_img, oper_img, design_link, oper_link, ref_img, ref_link, reference_image, reference_url, amazon_url, amazon_link, and product_url.
+- Preserve reference fields such as rawValue, resolvedUrl, url, isHttpUrl, safeToDisplay, and safeToOpen when provided by the company-system tool.
+- Include expectedDesignTaskCount based on project demand.
+- Include actualDesignTaskCount as 0.
+- Include maxDesignsPerGeneration as ${MAX_DESIGNS_PER_GENERATION}.
+- Include batchPlan when useful.
+- Include generationReadiness.readyForImageGeneration=false with reason "Lightweight decomposition only. Prompt generation is handled in Stage 2."
+- Include fallbackReason "complex_multi_product_bundle_lightweight_mode" for complex bundle projects.
+
+Do not output:
+- designTasks
+- prompt
+- negativePrompt
+- structuredPromptDescription
+- long designStrategy
+- generated image URLs
+- marketing copy
+- reasoning text
+
+Return this JSON shape:
+{
+  "status": "completed",
+  "mode": "lightweight_decomposition",
+  "lightweightMode": true,
+  "projectCode": "YXF...",
+  "projectName": "...",
+  "project": {
+    "projectCode": "YXF...",
+    "projectName": "...",
+    "code": "YXF...",
+    "name": "...",
+    "category": "...",
+    "craft": "...",
+    "sizeRequirement": "...",
+    "quantityRequirement": "...",
+    "developmentRequirement": "..."
+  },
+  "projectBrief": {
+    "summary": "...",
+    "category": "...",
+    "craft": "...",
+    "sizeRequirement": "...",
+    "quantityRequirement": "..."
+  },
+  "multiProductBundle": true,
+  "productTasks": [
+    {
+      "productTaskId": "product_01",
+      "product": "\u6c7d\u8f66\u676f",
+      "size": "276.5mm x 154.7mm",
+      "referenceHint": "\u53c2\u8003\u6a21\u677f",
+      "designFocus": "\u676f\u8eab\u56fe\u6848\u4e0e\u7c89\u7d2b K-pop \u4e3b\u9898\u7edf\u4e00",
+      "referenceIds": ["ref_01"],
+      "priority": 1
+    }
+  ],
+  "references": {
+    "images": [],
+    "links": [],
+    "notes": []
+  },
+  "expectedDesignTaskCount": 6,
+  "actualDesignTaskCount": 0,
+  "maxDesignsPerGeneration": 6,
+  "batchPlan": {
+    "totalRequired": 6,
+    "maxPerBatch": 6,
+    "totalBatches": 1,
+    "currentBatch": 1,
+    "batchLabel": "Batch 1 / 1",
+    "remainingCount": 0,
+    "reason": "Lightweight decomposition only. Stage 2 will generate prompts per product task."
+  },
+  "generationReadiness": {
+    "readyForImageGeneration": false,
+    "reason": "Lightweight decomposition only. Prompt generation is handled in Stage 2."
+  },
+  "fallbackReason": "complex_multi_product_bundle_lightweight_mode"
+}`;
+
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
@@ -282,6 +430,15 @@ function normalizeClientMode(value) {
         'Invalid HERMES_CLIENT_MODE. Use "mock" or "api".',
         500
     );
+}
+
+function normalizeHermesResponseMode(value) {
+    const rawMode = cleanString(value);
+    if (!rawMode) return HERMES_RESPONSE_MODE_FULL;
+    const mode = rawMode.toLowerCase();
+    return mode === HERMES_RESPONSE_MODE_LIGHTWEIGHT
+        ? HERMES_RESPONSE_MODE_LIGHTWEIGHT
+        : HERMES_RESPONSE_MODE_FULL;
 }
 
 export function getHermesClientConfig(env = process.env) {
@@ -433,7 +590,7 @@ function normalizeHermesProjectFields(rawProject, requestProjectCode) {
     };
 }
 
-function validateHermesP1Response(payload) {
+function validateHermesP1Response(payload, { lightweightMode = false } = {}) {
     if (!isPlainObject(payload)) {
         throw createHermesError(
             'HERMES_INVALID_RESPONSE',
@@ -445,8 +602,10 @@ function validateHermesP1Response(payload) {
     const missing = [];
     if (typeof payload.status !== 'string') missing.push('status');
     if (!isPlainObject(payload.project)) missing.push('project');
-    if (!isPlainObject(payload.strategy)) missing.push('strategy');
-    if (!isPlainObject(payload.designTask)) missing.push('designTask');
+    if (!lightweightMode) {
+        if (!isPlainObject(payload.strategy)) missing.push('strategy');
+        if (!isPlainObject(payload.designTask)) missing.push('designTask');
+    }
     if (missing.length) {
         throw createHermesError(
             'HERMES_INVALID_RESPONSE',
@@ -998,11 +1157,14 @@ function normalizeHermesReferences(value, project) {
 function normalizeHermesProjectBrief(value, project) {
     if (!isPlainObject(value)) return null;
     return {
+        summary: firstNonEmpty(value.summary, project.summary, project.developmentRequirement, project.brief),
         projectCode: firstNonEmpty(value.projectCode, project.projectCode, project.code),
         projectName: firstNonEmpty(value.projectName, project.projectName, project.name),
         customer: firstNonEmpty(value.customer, project.customer, project.customerName),
         category: firstNonEmpty(value.category, project.category),
         craft: firstNonEmpty(value.craft, project.craft),
+        sizeRequirement: firstNonEmpty(value.sizeRequirement, value.size, project.sizeRequirement, project.size),
+        quantityRequirement: firstNonEmpty(value.quantityRequirement, value.quantity, project.quantityRequirement),
         size: firstNonEmpty(value.size, project.sizeRequirement, project.size),
         quantity: firstNonEmpty(value.quantity, project.quantityRequirement),
         deadline: firstNonEmpty(value.deadline, project.deadline),
@@ -1029,6 +1191,31 @@ function normalizeHermesDesignStrategy(value) {
         materialAndCraftNotes: normalizeStringArray(value.materialAndCraftNotes),
         avoid: normalizeStringArray(value.avoid)
     };
+}
+
+function normalizeHermesProductTasks(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .filter(isPlainObject)
+        .map((item, index) => {
+            const productTaskId = firstNonEmpty(
+                item.productTaskId,
+                item.taskId,
+                item.id,
+                `product_${String(index + 1).padStart(2, '0')}`
+            );
+            const priority = normalizeOptionalPositiveInteger(item.priority) || index + 1;
+            return {
+                productTaskId,
+                product: firstNonEmpty(item.product, item.productName, item.name, `Product ${index + 1}`),
+                size: firstNonEmpty(item.size, item.targetSize, item.sizeRequirement, ''),
+                referenceHint: firstNonEmpty(item.referenceHint, item.reference, item.referenceUsage, ''),
+                designFocus: firstNonEmpty(item.designFocus, item.focus, item.purpose, ''),
+                referenceIds: normalizeStringArray(item.referenceIds),
+                priority
+            };
+        })
+        .filter(item => item.product || item.size || item.referenceHint || item.designFocus || item.referenceIds.length > 0);
 }
 
 function normalizeHermesStructuredPromptDescription(value) {
@@ -1078,6 +1265,7 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
             return {
                 taskId: firstNonEmpty(item.taskId, `concept_${String(index + 1).padStart(2, '0')}`),
                 title: firstNonEmpty(item.title, `Concept ${index + 1}`),
+                ...(firstNonEmpty(item.product, item.productName) ? { product: firstNonEmpty(item.product, item.productName) } : {}),
                 targetSize: firstNonEmpty(item.targetSize, ''),
                 purpose: firstNonEmpty(item.purpose, ''),
                 ...(structuredPromptDescription ? { structuredPromptDescription } : {}),
@@ -1141,14 +1329,19 @@ function normalizeHermesBatchPlan(value) {
     };
 }
 
-function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
-    validateHermesP1Response(payload);
+function normalizeHermesApiPayload(payload, { projectCode, envelope, mode }) {
+    const lightweightMode = mode === HERMES_RESPONSE_MODE_LIGHTWEIGHT ||
+        payload?.lightweightMode === true ||
+        payload?.mode === HERMES_RESPONSE_MODE_LIGHTWEIGHT;
+    validateHermesP1Response(payload, { lightweightMode });
     const project = normalizeHermesProjectFields(payload.project, projectCode);
     const projectBrief = normalizeHermesProjectBrief(payload.projectBrief, project);
-    const designStrategy = normalizeHermesDesignStrategy(payload.designStrategy);
+    const productTasks = normalizeHermesProductTasks(payload.productTasks);
+    const multiProductBundle = payload.multiProductBundle === true || productTasks.length > 0;
     const references = normalizeHermesReferences(payload.references, project);
-    const designTasks = normalizeHermesDesignTasks(payload.designTasks, references);
-    const results = Array.isArray(payload.results) ? payload.results : [];
+    const designStrategy = lightweightMode ? null : normalizeHermesDesignStrategy(payload.designStrategy);
+    const designTasks = lightweightMode ? [] : normalizeHermesDesignTasks(payload.designTasks, references);
+    const results = lightweightMode ? [] : (Array.isArray(payload.results) ? payload.results : []);
     const expectedDesignTaskCount = normalizeOptionalPositiveInteger(
         firstNonEmpty(payload.expectedDesignTaskCount, payload.generationReadiness?.expectedDesignTaskCount)
     );
@@ -1161,6 +1354,8 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
 
     const normalized = {
         status: payload.status,
+        mode: lightweightMode ? HERMES_RESPONSE_MODE_LIGHTWEIGHT : firstNonEmpty(payload.mode, HERMES_RESPONSE_MODE_FULL),
+        lightweightMode,
         hermesRequestId: payload.hermesRequestId || envelope?.id || null,
         hermesRunId: payload.hermesRunId || payload.runId || null,
         project,
@@ -1177,6 +1372,8 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     };
 
     if (projectBrief) normalized.projectBrief = projectBrief;
+    if (multiProductBundle) normalized.multiProductBundle = true;
+    if (productTasks.length > 0) normalized.productTasks = productTasks;
     if (designStrategy) normalized.designStrategy = designStrategy;
     if (designTasks.length > 0) normalized.designTasks = designTasks;
     if (references.images.length > 0 || references.links.length > 0 || references.notes.length > 0) {
@@ -1187,14 +1384,15 @@ function normalizeHermesApiPayload(payload, { projectCode, envelope }) {
     normalized.maxDesignsPerGeneration = maxDesignsPerGeneration;
     if (countReason) normalized.countReason = countReason;
     if (batchPlan) normalized.batchPlan = batchPlan;
-    if (projectBrief || designStrategy || designTasks.length > 0 || payload.generationReadiness) {
+    if (firstNonEmpty(payload.fallbackReason)) normalized.fallbackReason = firstNonEmpty(payload.fallbackReason);
+    if (lightweightMode || projectBrief || designStrategy || designTasks.length > 0 || payload.generationReadiness) {
         normalized.generationReadiness = normalizeHermesGenerationReadiness(payload.generationReadiness);
     }
 
     return redactSensitiveFieldsDeep(normalized);
 }
 
-async function callHermesApi({ user, projectCode, message, config }) {
+async function callHermesApi({ user, projectCode, message, config, mode }) {
     if (!config.apiKey) {
         throw createHermesError(
             'HERMES_NOT_CONFIGURED',
@@ -1207,6 +1405,10 @@ async function callHermesApi({ user, projectCode, message, config }) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     const startedAt = Date.now();
+    const responseMode = normalizeHermesResponseMode(mode);
+    const systemPrompt = responseMode === HERMES_RESPONSE_MODE_LIGHTWEIGHT
+        ? HERMES_LIGHTWEIGHT_DECOMPOSITION_SYSTEM_PROMPT
+        : HERMES_API_SYSTEM_PROMPT;
 
     const body = {
         model: config.model,
@@ -1214,13 +1416,14 @@ async function callHermesApi({ user, projectCode, message, config }) {
         messages: [
             {
                 role: 'system',
-                content: HERMES_API_SYSTEM_PROMPT,
+                content: systemPrompt,
             },
             {
                 role: 'user',
                 content: JSON.stringify({
                     projectCode,
                     message: message || '',
+                    mode: responseMode,
                     user: {
                         id: user?.id || null,
                         username: user?.username || null,
@@ -1232,6 +1435,7 @@ async function callHermesApi({ user, projectCode, message, config }) {
                         noExternalImageDownload: true,
                         noExternalLinkVisit: true,
                         noAmazonCrawl: true,
+                        lightweightDecompositionOnly: responseMode === HERMES_RESPONSE_MODE_LIGHTWEIGHT,
                     },
                 }),
             },
@@ -1241,6 +1445,7 @@ async function callHermesApi({ user, projectCode, message, config }) {
     console.log('[HermesClient] Calling Hermes API', {
         url,
         model: config.model,
+        mode: responseMode,
         timeoutMs: config.timeoutMs,
         projectCode,
     });
@@ -1303,11 +1508,12 @@ async function callHermesApi({ user, projectCode, message, config }) {
 
     const content = envelope?.choices?.[0]?.message?.content;
     const parsedPayload = parseHermesJsonContent(content);
-    const normalized = normalizeHermesApiPayload(parsedPayload, { projectCode, envelope });
+    const normalized = normalizeHermesApiPayload(parsedPayload, { projectCode, envelope, mode: responseMode });
 
     console.log('[HermesClient] Hermes API completed', {
         projectCode,
         model: config.model,
+        mode: responseMode,
         elapsedMs: Date.now() - startedAt,
         resultCount: normalized.results.length,
     });
@@ -1315,9 +1521,69 @@ async function callHermesApi({ user, projectCode, message, config }) {
     return normalized;
 }
 
-export async function runHermesProjectMock({ user, projectCode, message }) {
+export async function runHermesProjectMock({ user, projectCode, message, mode }) {
     const requestId = `mock_req_${crypto.randomUUID()}`;
     const runId = `mock_run_${crypto.randomUUID()}`;
+    const responseMode = normalizeHermesResponseMode(mode);
+    if (responseMode === HERMES_RESPONSE_MODE_LIGHTWEIGHT) {
+        return {
+            status: 'completed',
+            mode: HERMES_RESPONSE_MODE_LIGHTWEIGHT,
+            lightweightMode: true,
+            hermesRequestId: requestId,
+            hermesRunId: runId,
+            project: {
+                code: projectCode,
+                projectCode,
+                name: `Mock ${projectCode} Product Decomposition`,
+                projectName: `Mock ${projectCode} Product Decomposition`,
+                category: 'Textile pattern',
+                customer: user?.username || 'MYML internal designer',
+                developmentRequirement: message || `Decompose product tasks for ${projectCode}.`,
+                craft: 'Digital print mock',
+                sizeRequirement: 'Project-defined sizes',
+                quantityRequirement: 1
+            },
+            projectBrief: {
+                summary: `Lightweight decomposition for ${projectCode}.`,
+                category: 'Textile pattern',
+                craft: 'Digital print mock',
+                sizeRequirement: 'Project-defined sizes',
+                quantityRequirement: 1
+            },
+            multiProductBundle: false,
+            productTasks: [
+                {
+                    productTaskId: 'product_01',
+                    product: 'Mock product',
+                    size: 'Project-defined size',
+                    referenceHint: 'Use company references if present.',
+                    designFocus: 'Prepare Stage 2 prompt generation.',
+                    referenceIds: [],
+                    priority: 1
+                }
+            ],
+            references: { images: [], links: [], notes: [] },
+            expectedDesignTaskCount: 1,
+            actualDesignTaskCount: 0,
+            maxDesignsPerGeneration: MAX_DESIGNS_PER_GENERATION,
+            batchPlan: {
+                totalRequired: 1,
+                maxPerBatch: MAX_DESIGNS_PER_GENERATION,
+                totalBatches: 1,
+                currentBatch: 1,
+                batchLabel: 'Batch 1 / 1',
+                remainingCount: 0,
+                reason: 'Mock lightweight decomposition only.'
+            },
+            generationReadiness: {
+                readyForImageGeneration: false,
+                reason: 'Lightweight decomposition only. Prompt generation is handled in Stage 2.'
+            },
+            fallbackReason: 'mock_lightweight_decomposition'
+        };
+    }
+
     const prompt = [
         `Create a production-ready textile pattern concept for project ${projectCode}.`,
         'Use the available company fields to infer a restrained but distinctive visual direction.',
@@ -1362,7 +1628,7 @@ export async function runHermesProjectMock({ user, projectCode, message }) {
     };
 }
 
-export async function runHermesProjectClient({ user, projectCode, message, env = process.env } = {}) {
+export async function runHermesProjectClient({ user, projectCode, message, mode = HERMES_RESPONSE_MODE_FULL, env = process.env } = {}) {
     const config = getHermesClientConfig(env);
     if (config.mode === 'api') {
         return await callHermesApi({
@@ -1370,10 +1636,11 @@ export async function runHermesProjectClient({ user, projectCode, message, env =
             projectCode,
             message,
             config,
+            mode,
         });
     }
 
-    return await runHermesProjectMock({ user, projectCode, message });
+    return await runHermesProjectMock({ user, projectCode, message, mode });
 }
 
 export default {

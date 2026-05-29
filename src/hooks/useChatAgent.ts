@@ -57,17 +57,33 @@ export interface HermesRunPayload {
         negative_prompt?: string;
     } | null;
     projectBrief?: Record<string, unknown> & {
+        summary?: string;
         projectCode?: string;
         projectName?: string;
         customer?: string;
         category?: string;
         craft?: string;
+        sizeRequirement?: string;
+        quantityRequirement?: string;
         size?: string;
         quantity?: string;
         deadline?: string;
         designRequirement?: string;
         constraints?: unknown[];
     } | null;
+    mode?: string | null;
+    lightweightMode?: boolean;
+    fallbackReason?: string | null;
+    multiProductBundle?: boolean;
+    productTasks?: {
+        productTaskId?: string;
+        product?: string;
+        size?: string;
+        referenceHint?: string;
+        designFocus?: string;
+        referenceIds?: string[];
+        priority?: number;
+    }[];
     designStrategy?: {
         theme?: string;
         visualDirection?: string;
@@ -82,6 +98,7 @@ export interface HermesRunPayload {
     designTasks?: {
         taskId?: string;
         title?: string;
+        product?: string;
         targetSize?: string;
         purpose?: string;
         structuredPromptDescription?: {
