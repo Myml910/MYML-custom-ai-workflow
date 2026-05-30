@@ -109,6 +109,9 @@ export function buildTaskReferenceCriteria(task) {
 function scoreAsset(asset, criteria) {
     if (normalizeToken(asset.approvedStatus) !== 'approved') return 0;
 
+    const assetDesignTaskId = normalizeToken(asset.designTaskId);
+    if (assetDesignTaskId && assetDesignTaskId !== criteria.designTaskId) return 0;
+
     let score = 0;
     if (criteria.projectCode && normalizeToken(asset.projectCode) === criteria.projectCode) score += 30;
     if (criteria.designTaskId && normalizeToken(asset.designTaskId) === criteria.designTaskId) score += 25;
