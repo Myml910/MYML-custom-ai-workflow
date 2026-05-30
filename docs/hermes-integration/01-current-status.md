@@ -165,6 +165,17 @@ P5-E-3A scope:
 - `lightweightMode=true` runs do not auto-submit `/api/tasks/image`; candidate generation waits for Stage 2 per-product prompt generation.
 - P5-E-3A does not change the Hermes plugin, database schema, reference download policy, external link policy, or MYML image-generation worker path.
 
+P5-E-3B scope:
+
+- Stage 2 generates prompts one `productTask` at a time after lightweight decomposition succeeds.
+- Each Stage 2 call returns one short JSON `designTask` with `structuredPromptDescription`, `generationPrompt`, `prompt`, `negativePrompt`, model recommendation, reference metadata, and `productTaskId`.
+- `generationPrompt` is the sectioned Markdown package used as the preferred image-model input. The shorter `prompt` is retained as the final prompt / fallback.
+- Stage 2 `designTask.taskId` is forced to be unique and product-order based (`product_01 -> concept_01`, `product_02 -> concept_02`, etc.) so auto generation, recovery, and `generatedImages` do not collapse multiple products into one task.
+- Stage 2 runs serially and processes only the current batch, capped at `maxDesignsPerGeneration=6`.
+- Product-task prompt failures are recorded in `productTaskPrompts` and `warnings`; they do not fail the whole Hermes run.
+- Successful Stage 2 `designTasks` reuse the existing MYML `/api/tasks/image` candidate generation path, passing `generationPrompt` as `input.prompt`.
+- Stage 2 does not download references, visit links, pass reference images as image inputs, write back to company systems, or add database schema.
+
 ## Current Non-Goals
 
 Do not do these during this migration preparation phase:

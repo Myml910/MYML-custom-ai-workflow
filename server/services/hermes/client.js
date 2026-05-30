@@ -397,6 +397,87 @@ Return this JSON shape:
   "fallbackReason": "complex_multi_product_bundle_lightweight_mode"
 }`;
 
+const HERMES_PRODUCT_TASK_PROMPT_SYSTEM_PROMPT = `You are Hermes Stage 2 prompt generation for MYML Canvas.
+
+You receive one productTask from a previously completed lightweight decomposition.
+Return exactly one short JSON object. Do not wrap the response in markdown fences. Do not explain.
+
+Rules:
+1. Process only the provided productTask.
+2. Do not call image generation.
+3. Do not download reference images.
+4. Do not visit reference links or crawl Amazon.
+5. Do not include API keys, headers, authorization values, raw upstream debug payloads, or internal secrets.
+6. Do not repeat full reference URLs. Use referenceIds, labels, productTask.referenceHint, and concise referenceUsage only.
+7. Do not claim external pages or images were read beyond the provided company fields.
+8. Do not copy trademarks, logos, celebrity likenesses, or protected elements.
+9. Keep JSON short and stable.
+10. designTask.taskId must be derived from productTask.productTaskId:
+    - product_01 -> concept_01
+    - product_02 -> concept_02
+    - product_03 -> concept_03
+    - product_04 -> concept_04
+    - product_05 -> concept_05
+    - product_06 -> concept_06
+    Do not output concept_01 for every productTask. If productTaskId cannot be parsed, use the provided expectedDesignTaskId.
+
+The designTask prompt must be:
+- English.
+- Directly usable by an image generation model.
+- Focused on pattern design / home product surface design / production-ready ornament.
+- Specific to the productTask product and size.
+- Consistent with the full product set style.
+- structuredPromptDescription is required. Keep each field concise, but do not omit sections.
+- prompt is the short final English prompt.
+- generationPrompt is the full sectioned Markdown prompt package that MYML will send to the image model.
+- generationPrompt must include "## Pattern Design Prompt Description", all ten sections, "## Final Image Generation Prompt", and "## Negative Prompt".
+
+Model recommendation rules:
+- Use "custom-image-t8-gpt-image-2" for clear structure, badge/typography, readable text, small-size printing, and high composition stability.
+- Use "custom-image-t8-nano-banana-3-1-flash" for decorative exploration, rich elements, fast style variants, K-pop inspired motifs, and ornament composition.
+- Always include alternativeModelRecommendation and a short modelReason.
+
+Required response:
+{
+  "status": "completed",
+  "productTaskId": "product_01",
+  "designTask": {
+    "taskId": "concept_01",
+    "productTaskId": "product_01",
+    "title": "...",
+    "product": "...",
+    "targetSize": "...",
+    "purpose": "...",
+    "structuredPromptDescription": {
+      "coreSubjectAndTheme": "...",
+      "productContextAndUsage": "...",
+      "artStyleAndMedium": "...",
+      "colorPaletteAndMood": "...",
+      "compositionAndLayout": "...",
+      "detailedVisualElements": {
+        "mainFocus": "...",
+        "backgroundAtmosphere": "...",
+        "foregroundFraming": "...",
+        "specificDetailsProps": "..."
+      },
+      "textAndTypography": "None",
+      "patternProductionConstraints": "...",
+      "referenceUsage": "...",
+      "negativeConstraints": "..."
+    },
+    "prompt": "...",
+    "generationPrompt": "## Pattern Design Prompt Description\\n\\n**1. Core Subject & Theme (\u6838\u5fc3\u4e3b\u4f53\u4e0e\u4e3b\u9898):**\\n...\\n\\n## Final Image Generation Prompt\\n...\\n\\n## Negative Prompt\\n...",
+    "negativePrompt": "...",
+    "modelRecommendation": "custom-image-t8-nano-banana-3-1-flash",
+    "alternativeModelRecommendation": "custom-image-t8-gpt-image-2",
+    "modelReason": "...",
+    "referenceRequired": true,
+    "referenceIds": ["ref_01"],
+    "referenceUsage": "...",
+    "notes": []
+  }
+}`;
+
 function cleanString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
@@ -1241,6 +1322,57 @@ function normalizeHermesStructuredPromptDescription(value) {
     };
 }
 
+function buildStructuredPromptPackage({ structuredPromptDescription, prompt, negativePrompt }) {
+    if (!isPlainObject(structuredPromptDescription)) return firstNonEmpty(prompt, '');
+    const details = isPlainObject(structuredPromptDescription.detailedVisualElements)
+        ? structuredPromptDescription.detailedVisualElements
+        : {};
+    const lines = [
+        '## Pattern Design Prompt Description',
+        '',
+        '**1. Core Subject & Theme (\u6838\u5fc3\u4e3b\u4f53\u4e0e\u4e3b\u9898):**',
+        firstNonEmpty(structuredPromptDescription.coreSubjectAndTheme, ''),
+        '',
+        '**2. Product Context & Usage (\u4ea7\u54c1\u8bed\u5883\u4e0e\u7528\u9014):**',
+        firstNonEmpty(structuredPromptDescription.productContextAndUsage, ''),
+        '',
+        '**3. Art Style & Medium (\u827a\u672f\u98ce\u683c\u4e0e\u5a92\u4ecb):**',
+        firstNonEmpty(structuredPromptDescription.artStyleAndMedium, ''),
+        '',
+        '**4. Color Palette & Mood (\u914d\u8272\u4e0e\u6c1b\u56f4):**',
+        firstNonEmpty(structuredPromptDescription.colorPaletteAndMood, ''),
+        '',
+        '**5. Composition & Layout (\u6784\u56fe\u4e0e\u5e03\u5c40):**',
+        firstNonEmpty(structuredPromptDescription.compositionAndLayout, ''),
+        '',
+        '**6. Detailed Visual Elements (\u5206\u5c42\u7ec6\u8282\u63cf\u8ff0):**',
+        `* **Main Focus (Center/Midground):** ${firstNonEmpty(details.mainFocus, '')}`,
+        `* **Background & Atmosphere:** ${firstNonEmpty(details.backgroundAtmosphere, '')}`,
+        `* **Foreground & Framing:** ${firstNonEmpty(details.foregroundFraming, '')}`,
+        `* **Specific Details/Props:** ${firstNonEmpty(details.specificDetailsProps, '')}`,
+        '',
+        '**7. Text & Typography (\u6587\u5b57\u4e0e\u5b57\u4f53\uff0c\u5982\u6709):**',
+        firstNonEmpty(structuredPromptDescription.textAndTypography, 'None'),
+        '',
+        '**8. Pattern / Production Constraints (\u56fe\u6848\u4e0e\u751f\u4ea7\u7ea6\u675f):**',
+        firstNonEmpty(structuredPromptDescription.patternProductionConstraints, ''),
+        '',
+        '**9. Reference Usage (\u53c2\u8003\u8d44\u6599\u4f7f\u7528\u8bf4\u660e):**',
+        firstNonEmpty(structuredPromptDescription.referenceUsage, ''),
+        '',
+        '**10. Negative Constraints (\u8d1f\u9762\u7ea6\u675f):**',
+        firstNonEmpty(structuredPromptDescription.negativeConstraints, ''),
+        '',
+        '## Final Image Generation Prompt',
+        firstNonEmpty(prompt, ''),
+        '',
+        '## Negative Prompt',
+        firstNonEmpty(negativePrompt, '')
+    ];
+
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function normalizeHermesDesignTasks(value, references = { images: [], links: [] }) {
     if (!Array.isArray(value)) return [];
     const availableReferenceIds = [
@@ -1254,6 +1386,13 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
         .map((item, index) => {
             const referenceIds = normalizeStringArray(item.referenceIds);
             const structuredPromptDescription = normalizeHermesStructuredPromptDescription(item.structuredPromptDescription);
+            const prompt = firstNonEmpty(item.prompt, '');
+            const negativePrompt = firstNonEmpty(item.negativePrompt, item.negative_prompt, '');
+            const generationPrompt = firstNonEmpty(
+                item.generationPrompt,
+                buildStructuredPromptPackage({ structuredPromptDescription, prompt, negativePrompt }),
+                prompt
+            );
             const referenceUsage = firstNonEmpty(
                 item.referenceUsage,
                 structuredPromptDescription?.referenceUsage,
@@ -1264,14 +1403,16 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
 
             return {
                 taskId: firstNonEmpty(item.taskId, `concept_${String(index + 1).padStart(2, '0')}`),
+                ...(firstNonEmpty(item.productTaskId) ? { productTaskId: firstNonEmpty(item.productTaskId) } : {}),
                 title: firstNonEmpty(item.title, `Concept ${index + 1}`),
                 ...(firstNonEmpty(item.product, item.productName) ? { product: firstNonEmpty(item.product, item.productName) } : {}),
                 targetSize: firstNonEmpty(item.targetSize, ''),
                 purpose: firstNonEmpty(item.purpose, ''),
                 ...(structuredPromptDescription ? { structuredPromptDescription } : {}),
-                prompt: firstNonEmpty(item.prompt, ''),
-                negativePrompt: firstNonEmpty(item.negativePrompt, item.negative_prompt, ''),
-                modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-t8-gpt-image-2'),
+                prompt,
+                generationPrompt,
+                negativePrompt,
+                modelRecommendation: firstNonEmpty(item.modelRecommendation, 'custom-image-t8-nano-banana-3-1-flash'),
                 alternativeModelRecommendation: firstNonEmpty(item.alternativeModelRecommendation, ''),
                 modelReason: firstNonEmpty(item.modelReason, ''),
                 referenceRequired: Boolean(item.referenceRequired) || hasAvailableReferences || referenceIds.length > 0,
@@ -1282,16 +1423,33 @@ function normalizeHermesDesignTasks(value, references = { images: [], links: [] 
         });
 }
 
-function normalizeHermesGenerationReadiness(value) {
+function normalizeHermesGenerationReadiness(value, fallback = {}) {
+    const readyForImageGeneration = isPlainObject(value) && typeof value.readyForImageGeneration === 'boolean'
+        ? value.readyForImageGeneration
+        : Boolean(fallback.readyForImageGeneration);
     const reason = isPlainObject(value)
         ? firstNonEmpty(
             value.reason,
-            'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.'
+            fallback.reason,
+            readyForImageGeneration
+                ? 'Product task prompts generated.'
+                : 'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.'
         )
-        : 'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.';
+        : firstNonEmpty(
+            fallback.reason,
+            readyForImageGeneration
+                ? 'Product task prompts generated.'
+                : 'P3-A only generates design tasks and prompts. Image generation is handled by MYML-CANVAS later.'
+        );
+    const status = firstNonEmpty(
+        isPlainObject(value) ? value.status : null,
+        fallback.status,
+        readyForImageGeneration ? 'ready' : 'not_ready'
+    );
 
     return {
-        readyForImageGeneration: false,
+        readyForImageGeneration,
+        status,
         reason
     };
 }
@@ -1521,6 +1679,292 @@ async function callHermesApi({ user, projectCode, message, config, mode }) {
     return normalized;
 }
 
+function summarizeProjectForProductPrompt(project) {
+    if (!isPlainObject(project)) return {};
+    return redactSensitiveFieldsDeep({
+        code: firstNonEmpty(project.code, project.projectCode),
+        name: firstNonEmpty(project.name, project.projectName),
+        category: project.category,
+        craft: project.craft,
+        sizeRequirement: project.sizeRequirement,
+        quantityRequirement: project.quantityRequirement,
+        developmentRequirement: firstNonEmpty(project.developmentRequirement, project.brief, project.objective)
+    });
+}
+
+function normalizeProductTaskForPrompt(productTask, index = 0) {
+    const item = isPlainObject(productTask) ? productTask : {};
+    return redactSensitiveFieldsDeep({
+        productTaskId: firstNonEmpty(item.productTaskId, item.taskId, item.id, `product_${String(index + 1).padStart(2, '0')}`),
+        product: firstNonEmpty(item.product, item.productName, item.name, `Product ${index + 1}`),
+        size: firstNonEmpty(item.size, item.targetSize, item.sizeRequirement, ''),
+        referenceHint: firstNonEmpty(item.referenceHint, item.reference, item.referenceUsage, ''),
+        designFocus: firstNonEmpty(item.designFocus, item.focus, item.purpose, ''),
+        referenceIds: normalizeStringArray(item.referenceIds),
+        priority: normalizeOptionalPositiveInteger(item.priority) || index + 1
+    });
+}
+
+function getConceptTaskIdForProductTask(productTaskId, index = 0) {
+    const normalizedProductTaskId = firstNonEmpty(productTaskId, '');
+    const match = normalizedProductTaskId.match(/(\d+)/);
+    const parsed = match ? Number.parseInt(match[1], 10) : NaN;
+    const number = Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
+    return `concept_${String(number).padStart(2, '0')}`;
+}
+
+function normalizeHermesProductTaskPromptPayload(payload, { productTask, productTaskIndex, references }) {
+    if (!isPlainObject(payload)) {
+        throw createHermesError(
+            'HERMES_INVALID_RESPONSE',
+            'Hermes product task prompt response must be a JSON object.',
+            502
+        );
+    }
+    if (!isPlainObject(payload.designTask)) {
+        throw createHermesError(
+            'HERMES_INVALID_RESPONSE',
+            'Hermes product task prompt response is missing designTask.',
+            502
+        );
+    }
+
+    const normalizedProductTask = normalizeProductTaskForPrompt(productTask, productTaskIndex);
+    const productTaskId = firstNonEmpty(
+        payload.productTaskId,
+        payload.designTask.productTaskId,
+        normalizedProductTask.productTaskId
+    );
+    const expectedDesignTaskId = getConceptTaskIdForProductTask(productTaskId, productTaskIndex);
+    const designTaskInput = {
+        ...payload.designTask,
+        productTaskId,
+        taskId: expectedDesignTaskId,
+        product: firstNonEmpty(payload.designTask.product, normalizedProductTask.product),
+        targetSize: firstNonEmpty(payload.designTask.targetSize, normalizedProductTask.size),
+        referenceIds: normalizeStringArray(payload.designTask.referenceIds).length > 0
+            ? payload.designTask.referenceIds
+            : normalizedProductTask.referenceIds,
+        referenceUsage: firstNonEmpty(payload.designTask.referenceUsage, normalizedProductTask.referenceHint)
+    };
+    const [designTask] = normalizeHermesDesignTasks([designTaskInput], references);
+
+    if (!designTask?.prompt) {
+        throw createHermesError(
+            'HERMES_INVALID_RESPONSE',
+            'Hermes product task prompt response is missing prompt.',
+            502
+        );
+    }
+
+    return redactSensitiveFieldsDeep({
+        productTaskId,
+        status: 'completed',
+        designTask
+    });
+}
+
+async function callHermesProductTaskPromptApi({
+    user,
+    projectCode,
+    project,
+    projectBrief,
+    references,
+    productTask,
+    productTasks,
+    productTaskIndex,
+    config
+}) {
+    if (!config.apiKey) {
+        throw createHermesError(
+            'HERMES_NOT_CONFIGURED',
+            'Hermes API key is not configured.',
+            503
+        );
+    }
+
+    const url = `${config.baseUrl}/chat/completions`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+    const startedAt = Date.now();
+    const normalizedProductTask = normalizeProductTaskForPrompt(productTask, productTaskIndex);
+
+    const body = {
+        model: config.model,
+        stream: false,
+        messages: [
+            {
+                role: 'system',
+                content: HERMES_PRODUCT_TASK_PROMPT_SYSTEM_PROMPT,
+            },
+            {
+                role: 'user',
+                content: JSON.stringify({
+                    projectCode,
+                    project: summarizeProjectForProductPrompt(project),
+                    projectBrief: redactSensitiveFieldsDeep(projectBrief || {}),
+                    references: redactSensitiveFieldsDeep(references || { images: [], links: [], notes: [] }),
+                    productTask: normalizedProductTask,
+                    expectedDesignTaskId: getConceptTaskIdForProductTask(
+                        normalizedProductTask.productTaskId,
+                        productTaskIndex
+                    ),
+                    productTasks: Array.isArray(productTasks)
+                        ? productTasks.map((item, index) => normalizeProductTaskForPrompt(item, index))
+                        : [normalizedProductTask],
+                    maxDesignsPerGeneration: MAX_DESIGNS_PER_GENERATION,
+                    user: {
+                        id: user?.id || null,
+                        username: user?.username || null,
+                    },
+                    boundaries: {
+                        oneProductTaskOnly: true,
+                        noRealImageGeneration: true,
+                        noExternalImageDownload: true,
+                        noExternalLinkVisit: true,
+                        noAmazonCrawl: true,
+                        referenceImagesAreMetadataOnly: true
+                    },
+                }),
+            },
+        ],
+    };
+
+    console.log('[HermesClient] Calling Hermes product task prompt API', {
+        url,
+        model: config.model,
+        timeoutMs: config.timeoutMs,
+        projectCode,
+        productTaskId: normalizedProductTask.productTaskId
+    });
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw createHermesError(
+                'HERMES_TIMEOUT',
+                `Hermes product task prompt timed out after ${config.timeoutMs}ms.`,
+                504
+            );
+        }
+        throw createHermesError(
+            'HERMES_API_REQUEST_FAILED',
+            `Hermes product task prompt request failed: ${error?.message || error}`,
+            502
+        );
+    } finally {
+        clearTimeout(timeout);
+    }
+
+    const rawText = await response.text();
+    let envelope;
+    try {
+        envelope = rawText ? JSON.parse(rawText) : {};
+    } catch {
+        throw createHermesError(
+            'HERMES_INVALID_RESPONSE',
+            'Hermes product task prompt returned a non-JSON envelope.',
+            502
+        );
+    }
+
+    if (!response.ok) {
+        const messageText =
+            envelope?.error?.message ||
+            envelope?.message ||
+            response.statusText ||
+            'Hermes product task prompt request failed.';
+        throw createHermesError(
+            response.status === 401 || response.status === 403
+                ? 'HERMES_AUTH_ERROR'
+                : 'HERMES_API_ERROR',
+            `Hermes product task prompt failed: ${String(messageText).slice(0, 240)}`,
+            response.status
+        );
+    }
+
+    const content = envelope?.choices?.[0]?.message?.content;
+    const parsedPayload = parseHermesJsonContent(content);
+    const normalized = normalizeHermesProductTaskPromptPayload(parsedPayload, {
+        productTask,
+        productTaskIndex,
+        references
+    });
+
+    console.log('[HermesClient] Hermes product task prompt completed', {
+        projectCode,
+        model: config.model,
+        productTaskId: normalized.productTaskId,
+        elapsedMs: Date.now() - startedAt
+    });
+
+    return normalized;
+}
+
+function buildMockDesignTaskForProduct({ productTask, productTaskIndex, references }) {
+    const normalizedProductTask = normalizeProductTaskForPrompt(productTask, productTaskIndex);
+    const product = normalizedProductTask.product || `Product ${productTaskIndex + 1}`;
+    const prompt = [
+        `Create a production-ready surface pattern for ${product}.`,
+        normalizedProductTask.size ? `Target product size: ${normalizedProductTask.size}.` : '',
+        normalizedProductTask.designFocus || 'Keep the visual system coherent with the full product set.',
+        'Use a refined decorative composition, clean repeatable motifs, and craft-safe color separation.'
+    ].filter(Boolean).join(' ');
+    const [designTask] = normalizeHermesDesignTasks([{
+        taskId: `concept_${String(productTaskIndex + 1).padStart(2, '0')}`,
+        productTaskId: normalizedProductTask.productTaskId,
+        title: `${product} pattern concept`,
+        product,
+        targetSize: normalizedProductTask.size,
+        purpose: normalizedProductTask.designFocus,
+        structuredPromptDescription: {
+            coreSubjectAndTheme: `A cohesive decorative pattern concept for ${product}.`,
+            productContextAndUsage: normalizedProductTask.size
+                ? `Designed for ${product} at ${normalizedProductTask.size}.`
+                : `Designed for ${product}.`,
+            artStyleAndMedium: 'Clean production-ready surface pattern with refined decorative linework.',
+            colorPaletteAndMood: 'Coherent project color direction with balanced contrast and a polished commercial mood.',
+            compositionAndLayout: 'Repeatable layout with stable rhythm, clear focal motifs, and clean negative space.',
+            detailedVisualElements: {
+                mainFocus: normalizedProductTask.designFocus || `The central motif system for ${product}.`,
+                backgroundAtmosphere: 'Subtle supporting texture that keeps the product printable and not visually noisy.',
+                foregroundFraming: 'Light framing elements that support the repeat without blocking product usability.',
+                specificDetailsProps: normalizedProductTask.referenceHint || 'Reference cues are used only as high-level visual direction.'
+            },
+            textAndTypography: 'None',
+            patternProductionConstraints: 'Avoid tiny unreadable details, protected logos, cluttered composition, and unprintable color complexity.',
+            referenceUsage: normalizedProductTask.referenceHint,
+            negativeConstraints: 'No trademarks, logos, photorealistic faces, low-resolution artifacts, incorrect text, or unrelated background objects.'
+        },
+        prompt,
+        negativePrompt: 'low quality, blurry details, incorrect text, trademarks, logos, cluttered composition, unrelated objects',
+        modelRecommendation: 'custom-image-t8-nano-banana-3-1-flash',
+        alternativeModelRecommendation: 'custom-image-t8-gpt-image-2',
+        modelReason: 'Use Nano Banana for fast decorative style exploration; use GPT Image 2 if typography or tighter layout stability is required.',
+        referenceRequired: normalizedProductTask.referenceIds.length > 0,
+        referenceIds: normalizedProductTask.referenceIds,
+        referenceUsage: normalizedProductTask.referenceHint,
+        notes: []
+    }], references);
+
+    return {
+        productTaskId: normalizedProductTask.productTaskId,
+        status: 'completed',
+        designTask
+    };
+}
+
 export async function runHermesProjectMock({ user, projectCode, message, mode }) {
     const requestId = `mock_req_${crypto.randomUUID()}`;
     const runId = `mock_run_${crypto.randomUUID()}`;
@@ -1643,9 +2087,43 @@ export async function runHermesProjectClient({ user, projectCode, message, mode 
     return await runHermesProjectMock({ user, projectCode, message, mode });
 }
 
+export async function runHermesProductTaskPromptClient({
+    user,
+    projectCode,
+    project,
+    projectBrief,
+    references,
+    productTask,
+    productTasks,
+    productTaskIndex = 0,
+    env = process.env
+} = {}) {
+    const config = getHermesClientConfig(env);
+    if (config.mode === 'api') {
+        return await callHermesProductTaskPromptApi({
+            user,
+            projectCode,
+            project,
+            projectBrief,
+            references,
+            productTask,
+            productTasks,
+            productTaskIndex,
+            config
+        });
+    }
+
+    return buildMockDesignTaskForProduct({
+        productTask,
+        productTaskIndex,
+        references
+    });
+}
+
 export default {
     getHermesClientConfig,
     getHermesStartupSummary,
     runHermesProjectMock,
-    runHermesProjectClient
+    runHermesProjectClient,
+    runHermesProductTaskPromptClient
 };

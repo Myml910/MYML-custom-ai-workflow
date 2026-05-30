@@ -101,6 +101,9 @@ npm run check:hermes:stale
 - [ ] P5-E-3A Hermes starts complex projects in `lightweight_decomposition` mode: Stage 1 should return project summary, `productTasks`, references, count metadata, `batchPlan`, and `generationReadiness` only.
 - [ ] Lightweight Stage 1 must not return `designTasks`, full prompts, `negativePrompt`, or `structuredPromptDescription`.
 - [ ] `lightweightMode=true` Hermes Project nodes should not auto-submit image tasks; they should display product decomposition and wait for Stage 2 prompt generation.
+- [ ] P5-E-3B Stage 2 should generate one short JSON prompt per `productTask`, serially, for the current batch only.
+- [ ] Stage 2 results should populate `productTaskPrompts` and successful `designTasks`; partial failures should become warnings rather than failed Hermes runs.
+- [ ] Stage 2 must not download references, visit links, pass `referenceImages`, or create a parallel image-generation system; successful `designTasks` should reuse the existing MYML task worker path.
 
 ## Hermes API Server
 
@@ -158,6 +161,8 @@ Expected:
 - [ ] Manual draft task input may include `source='hermes_design_task'`, `projectCode`, `hermesRunId`, `designTaskId`, `referenceIds`, `referenceUsage`, `originalModelRecommendation`, and `normalizedModelRecommendation`; reference URLs remain metadata only.
 - [ ] A successful Hermes run also creates a canvas Hermes Project node showing the project summary, references, and simplified design tasks.
 - [ ] A fresh successful Hermes run automatically submits current-batch candidate image tasks through `/api/tasks/image`.
+- [ ] Stage 2 `designTasks` include `structuredPromptDescription` and `generationPrompt`; auto/manual candidate tasks send the structured `generationPrompt` as the image-model prompt and keep the shorter final prompt as metadata.
+- [ ] Stage 2 `designTasks[].taskId` values are unique and product-order based (`concept_01`, `concept_02`, ...); duplicate `concept_01` values would break candidate generation/recovery.
 - [ ] Each Hermes Project node design task shows queued/running/completed/failed status, `generationTaskId`, actual draft model, result URL, and safe error text.
 - [ ] Auto candidate task input must not contain `referenceImages`; reference IDs and usage are metadata only.
 - [ ] After browser refresh or workflow reload, Hermes Project node candidate statuses recover from existing `generation_tasks` without duplicate image generation.

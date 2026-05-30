@@ -6,11 +6,13 @@ import {
     HERMES_RESPONSE_MODE_FULL,
     HERMES_RESPONSE_MODE_LIGHTWEIGHT,
     getHermesClientConfig,
+    runHermesProductTaskPromptClient,
     runHermesProjectClient
 } from './client.js';
 
 export const HERMES_RUN_MODE_LIGHTWEIGHT = HERMES_RESPONSE_MODE_LIGHTWEIGHT;
-const HERMES_RUN_MODE_VERSION = 'p5-e-3a-v1';
+const HERMES_RUN_MODE_VERSION = 'p5-e-3b-structured-v1';
+const MAX_STAGE2_PRODUCT_TASKS = 6;
 
 function requireUser(user) {
     if (!user?.id) {
@@ -57,6 +59,7 @@ function serializeHermesRun(row, assets = []) {
         projectBrief: responsePayload.projectBrief || null,
         multiProductBundle: responsePayload.multiProductBundle === true,
         productTasks: Array.isArray(responsePayload.productTasks) ? responsePayload.productTasks : [],
+        productTaskPrompts: Array.isArray(responsePayload.productTaskPrompts) ? responsePayload.productTaskPrompts : [],
         designStrategy: responsePayload.designStrategy || null,
         designTasks: Array.isArray(responsePayload.designTasks) ? responsePayload.designTasks : [],
         references: responsePayload.references || null,
@@ -105,6 +108,145 @@ function appendHermesWarning(response, warning) {
             ...(Array.isArray(response?.warnings) ? response.warnings : []),
             warning
         ]
+    };
+}
+
+function getSafeProductTaskPromptError(error) {
+    if (error?.code === 'HERMES_TIMEOUT') {
+        return 'Product task prompt generation timed out. This product task was skipped.';
+    }
+    if (error?.code === 'HERMES_AUTH_ERROR' || error?.code === 'HERMES_NOT_CONFIGURED') {
+        return 'Product task prompt generation is not configured correctly. This product task was skipped.';
+    }
+    return 'Product task prompt generation failed. This product task was skipped.';
+}
+
+function getProductTaskId(productTask, index) {
+    if (productTask && typeof productTask === 'object' && !Array.isArray(productTask)) {
+        const record = productTask;
+        const explicitId = record.productTaskId || record.taskId || record.id;
+        if (typeof explicitId === 'string' && explicitId.trim()) return explicitId.trim();
+    }
+    return `product_${String(index + 1).padStart(2, '0')}`;
+}
+
+function getConceptTaskIdForProductTask(productTaskId, index) {
+    const normalizedProductTaskId = typeof productTaskId === 'string' ? productTaskId.trim() : '';
+    const match = normalizedProductTaskId.match(/(\d+)/);
+    const parsed = match ? Number.parseInt(match[1], 10) : NaN;
+    const number = Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
+    return `concept_${String(number).padStart(2, '0')}`;
+}
+
+function normalizeStage2DesignTaskIdentity({ designTask, productTaskId, index, usedTaskIds }) {
+    if (!designTask || typeof designTask !== 'object' || Array.isArray(designTask)) return null;
+    const expectedId = getConceptTaskIdForProductTask(productTaskId, index);
+    let nextId = expectedId;
+    let nextIndex = index + 1;
+    while (usedTaskIds.has(nextId)) {
+        nextIndex += 1;
+        nextId = `concept_${String(nextIndex).padStart(2, '0')}`;
+    }
+    usedTaskIds.add(nextId);
+    return {
+        ...designTask,
+        productTaskId,
+        taskId: nextId
+    };
+}
+
+function getStage2ProductTasks(response) {
+    const productTasks = Array.isArray(response?.productTasks) ? response.productTasks : [];
+    if (productTasks.length === 0) return [];
+    const maxPerGeneration = Number.isFinite(Number(response.maxDesignsPerGeneration))
+        ? Math.max(1, Number.parseInt(response.maxDesignsPerGeneration, 10))
+        : MAX_STAGE2_PRODUCT_TASKS;
+    return productTasks.slice(0, Math.min(MAX_STAGE2_PRODUCT_TASKS, maxPerGeneration, productTasks.length));
+}
+
+async function enrichHermesResponseWithProductTaskPrompts({ response, user, projectCode }) {
+    if (!response?.lightweightMode) return response;
+
+    const productTasks = getStage2ProductTasks(response);
+    if (productTasks.length === 0) return response;
+
+    const productTaskPrompts = [];
+    const designTasks = [];
+    const usedDesignTaskIds = new Set();
+    let enrichedResponse = response;
+
+    for (const [index, productTask] of productTasks.entries()) {
+        const productTaskId = getProductTaskId(productTask, index);
+        try {
+            const promptResult = await runHermesProductTaskPromptClient({
+                user,
+                projectCode,
+                project: response.project,
+                projectBrief: response.projectBrief,
+                references: response.references,
+                productTask,
+                productTasks: response.productTasks,
+                productTaskIndex: index
+            });
+            const designTask = promptResult.designTask
+                ? normalizeStage2DesignTaskIdentity({
+                    designTask: promptResult.designTask,
+                    productTaskId: promptResult.productTaskId || productTaskId,
+                    index,
+                    usedTaskIds: usedDesignTaskIds
+                })
+                : null;
+            productTaskPrompts.push({
+                productTaskId: promptResult.productTaskId || productTaskId,
+                status: 'completed',
+                designTask
+            });
+            if (designTask) {
+                designTasks.push(designTask);
+            }
+        } catch (error) {
+            const warning = buildHermesWarning(
+                'HERMES_PRODUCT_TASK_PROMPT_FAILED',
+                'product_task_prompt',
+                getSafeProductTaskPromptError(error)
+            );
+            enrichedResponse = appendHermesWarning(enrichedResponse, warning);
+            productTaskPrompts.push({
+                productTaskId,
+                status: 'failed',
+                errorCode: error?.code || 'HERMES_PRODUCT_TASK_PROMPT_FAILED',
+                errorMessageSafe: warning.message
+            });
+            console.warn('[Hermes] Product task prompt generation failed.', {
+                projectCode,
+                productTaskId,
+                warningCode: warning.code,
+                errorCode: error?.code || 'UNKNOWN'
+            });
+        }
+    }
+
+    const promptFailures = productTaskPrompts.filter(item => item.status === 'failed').length;
+    const readinessStatus = designTasks.length === 0
+        ? 'not_ready'
+        : promptFailures > 0
+            ? 'partial'
+            : 'ready';
+
+    return {
+        ...enrichedResponse,
+        productTaskPrompts,
+        designTasks,
+        actualDesignTaskCount: designTasks.length,
+        generationReadiness: {
+            readyForImageGeneration: designTasks.length > 0,
+            status: readinessStatus,
+            reason: designTasks.length > 0
+                ? promptFailures > 0
+                    ? 'Product task prompts generated partially.'
+                    : 'Product task prompts generated.'
+                : 'Product task prompt generation failed for this run.'
+        }
     };
 }
 
@@ -327,10 +469,14 @@ export function buildHermesAssistantText(hermesRun) {
 
     if (hermesRun.lightweightMode) {
         const productTaskCount = Array.isArray(hermesRun.productTasks) ? hermesRun.productTasks.length : 0;
+        const designTaskCount = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks.length : 0;
         return [
             `Hermes lightweight decomposition completed for ${hermesRun.projectCode}.`,
             `Product tasks: ${productTaskCount}.`,
-            'A Hermes project card has been added to the canvas. Stage 2 will generate prompts per product task.'
+            designTaskCount > 0
+                ? `Stage 2 generated prompts for ${designTaskCount} product tasks.`
+                : 'Stage 2 prompt generation is still pending.',
+            'A Hermes project card has been added to the canvas.'
         ].join('\n');
     }
 
@@ -406,6 +552,11 @@ export async function runHermesProject({ user, projectCode, message, chatSession
         });
         response.hermesClientMode = hermesClientConfig.mode;
         response.hermesRunMode = hermesRunMode;
+        response = await enrichHermesResponseWithProductTaskPrompts({
+            response,
+            user: currentUser,
+            projectCode: normalizedProjectCode
+        });
     } catch (error) {
         return await markHermesRunFailed({
             db,
