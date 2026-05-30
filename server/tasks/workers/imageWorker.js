@@ -40,6 +40,7 @@ import {
     submitImageTask as submitT8ImageTask
 } from '../../services/ai/providers/t8Provider.js';
 import { getInternalReferenceConfig } from '../../services/internalReferences/config.js';
+import { buildCarrierPreservingHiddenReferenceEditPrompt } from '../../services/internalReferences/editPromptBuilder.js';
 import { lookupHiddenInternalReferences } from '../../services/internalReferences/lookup.js';
 import {
     addTaskEvent,
@@ -221,7 +222,8 @@ function getHiddenReferenceProviderOptions(hiddenReferenceContext, providerConfi
     });
 
     return {
-        hiddenReferenceImages: hiddenReferenceContext.images.map(image => image.dataUri).filter(Boolean)
+        hiddenReferenceImages: hiddenReferenceContext.images.map(image => image.dataUri).filter(Boolean),
+        promptOverride: options.promptOverride || undefined
     };
 }
 
@@ -644,9 +646,13 @@ function getRuntimeImageInputOverride(task, hiddenReferenceContext, hiddenRefere
             return null;
         }
 
+        const editPrompt = buildCarrierPreservingHiddenReferenceEditPrompt(task);
+
         console.log('[InternalReferences] Runtime image model override applied', {
             ...hiddenReferenceContext.summary,
             hiddenReferenceUsage: 'runtime_model_override_applied',
+            editPromptMode: 'carrier_preserving_hidden_reference',
+            promptLength: editPrompt.length,
             originalImageModelId: task.model || null,
             runtimeImageModelId: overrideModelId,
             provider: overrideResolved.providerConfig?.provider || null
@@ -655,7 +661,8 @@ function getRuntimeImageInputOverride(task, hiddenReferenceContext, hiddenRefere
         return {
             task: overrideTask,
             resolved: overrideResolved,
-            modelId: overrideModelId
+            modelId: overrideModelId,
+            editPrompt
         };
     } catch (error) {
         console.warn('[InternalReferences] Runtime image model override skipped', {
@@ -810,7 +817,7 @@ function buildT8Input(task, config, providerConfig, modelConfig, options = {}) {
     const aspectRatio = input.aspectRatio || input.size || null;
 
     return {
-        prompt: input.prompt || task.prompt || '',
+        prompt: options.promptOverride || input.prompt || task.prompt || '',
         projectModelId: task.model,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
         size: input.size || 'auto',
@@ -962,7 +969,8 @@ export async function executeImageTask(task, options = {}) {
             providerConfig,
             resolved.modelConfig,
             {
-                useImageInput: hiddenReferenceConfig.useImageInput
+                useImageInput: hiddenReferenceConfig.useImageInput,
+                promptOverride: runtimeOverride?.editPrompt || null
             }
         );
 
