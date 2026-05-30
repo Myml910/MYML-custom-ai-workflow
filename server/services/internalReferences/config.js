@@ -3,7 +3,7 @@ import path from 'path';
 const DEFAULT_MANIFEST_PATH = 'server/internal-references/manifest.sample.json';
 const DEFAULT_REFERENCE_ROOT = 'library/internal-references';
 const DEFAULT_MAX_IMAGES = 2;
-const DEFAULT_IMAGE_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
+const DEFAULT_IMAGE_MODEL_ID = 'custom-image-t8-gpt-image-2-edit';
 
 function isEnabledFlag(value) {
     return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());

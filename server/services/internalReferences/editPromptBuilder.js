@@ -39,6 +39,61 @@ function getDesignIntent(task = {}) {
     };
 }
 
+export const FIXED_IMAGE_NEGATIVE_PROMPT = [
+    'blurry details',
+    'distorted text',
+    'misspelled words',
+    'unreadable typography',
+    'broken letters',
+    'extra letters',
+    'malformed icons',
+    'deformed objects',
+    'warped product shape',
+    'changed product structure',
+    'messy layout',
+    'low resolution',
+    'pixelated edges',
+    'noisy texture',
+    'over-sharpened artifacts',
+    'duplicated elements',
+    'floating fragments',
+    'watermark',
+    'logo',
+    'trademark',
+    'celebrity likeness',
+    'copyrighted character',
+    'real band name',
+    'photorealistic clutter',
+    'muddy colors',
+    'over-dense micro details',
+    'changed mockup',
+    'changed carrier shape',
+    'changed camera angle',
+    'changed lighting',
+    'changed background',
+    'new product mockup',
+    'removed product parts',
+    'altered print area'
+].join(', ');
+
+export function buildPromptWithFixedNegativePrompt(task = {}, basePrompt = '') {
+    const designIntent = getDesignIntent(task);
+    const prompt = cleanString(basePrompt) || designIntent.generationPrompt || designIntent.finalPrompt || '';
+    const negativePrompt = [designIntent.negativePrompt, FIXED_IMAGE_NEGATIVE_PROMPT]
+        .map(cleanString)
+        .filter(Boolean)
+        .join(', ');
+
+    if (!negativePrompt) return prompt;
+
+    return [
+        prompt || 'Follow the current Hermes design task.',
+        '',
+        '## Negative Prompt',
+        negativePrompt
+    ].join('\n');
+}
+
 export function buildCarrierPreservingHiddenReferenceEditPrompt(task = {}) {
     const designIntent = getDesignIntent(task);
 
@@ -82,6 +137,9 @@ export function buildCarrierPreservingHiddenReferenceEditPrompt(task = {}) {
         '- Do not change the product type.',
         '- Do not change the carrier shape, angle, lighting, background, framing, or layout.',
         '- Do not turn the result into a flat artwork-only image unless the reference image is already a flat artwork template.',
-        '- Do not include trademarks, celebrity likenesses, copyrighted characters, real band names, watermarks, or low-resolution artifacts.'
+        '- Do not include trademarks, celebrity likenesses, copyrighted characters, real band names, watermarks, or low-resolution artifacts.',
+        '',
+        'Fixed negative prompt:',
+        FIXED_IMAGE_NEGATIVE_PROMPT
     ].join('\n');
 }

@@ -40,7 +40,10 @@ import {
     submitImageTask as submitT8ImageTask
 } from '../../services/ai/providers/t8Provider.js';
 import { getInternalReferenceConfig } from '../../services/internalReferences/config.js';
-import { buildCarrierPreservingHiddenReferenceEditPrompt } from '../../services/internalReferences/editPromptBuilder.js';
+import {
+    buildCarrierPreservingHiddenReferenceEditPrompt,
+    buildPromptWithFixedNegativePrompt
+} from '../../services/internalReferences/editPromptBuilder.js';
 import { lookupHiddenInternalReferences } from '../../services/internalReferences/lookup.js';
 import {
     addTaskEvent,
@@ -67,6 +70,8 @@ const DEFAULT_TASK_HEARTBEAT_MS = 30000;
 const DEFAULT_IMAGE_TASK_TIMEOUT_MS = 600000;
 const ATLAS_RESULT_SAVE_RETRY_COUNT = 6;
 const ATLAS_RESULT_SAVE_RETRY_DELAY_MS = 5000;
+const HERMES_DESIGN_TASK_SOURCE = 'hermes_design_task';
+const HERMES_DEFAULT_TEXT_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash';
 
 function parsePositiveInteger(value, fallback) {
     const parsed = Number.parseInt(value, 10);
@@ -161,6 +166,10 @@ function normalizeInputArray(input) {
 
 function getTaskInput(task) {
     return task.input && typeof task.input === 'object' ? task.input : {};
+}
+
+function isHermesDesignTask(task) {
+    return getTaskInput(task).source === HERMES_DESIGN_TASK_SOURCE;
 }
 
 function mergeRuntimeHiddenImages(imageUrls, options = {}) {
@@ -651,6 +660,7 @@ function getRuntimeImageInputOverride(task, hiddenReferenceContext, hiddenRefere
         console.log('[InternalReferences] Runtime image model override applied', {
             ...hiddenReferenceContext.summary,
             hiddenReferenceUsage: 'runtime_model_override_applied',
+            runtimeModelOverrideApplied: true,
             editPromptMode: 'carrier_preserving_hidden_reference',
             promptLength: editPrompt.length,
             originalImageModelId: task.model || null,
@@ -669,6 +679,53 @@ function getRuntimeImageInputOverride(task, hiddenReferenceContext, hiddenRefere
             ...hiddenReferenceContext.summary,
             hiddenReferenceUsage: 'skipped_by_override_model_unavailable',
             runtimeImageModelId: overrideModelId,
+            errorType: error?.name || 'Error'
+        });
+        return null;
+    }
+}
+
+function getRuntimeHermesTextModelOverride(task, hiddenReferenceContext) {
+    if (!isHermesDesignTask(task)) {
+        return null;
+    }
+
+    const hiddenReferenceCount = getHiddenReferenceImageCount(hiddenReferenceContext);
+    const overrideTask = {
+        ...task,
+        model: HERMES_DEFAULT_TEXT_MODEL_ID,
+        provider: null
+    };
+
+    try {
+        const overrideResolved = getTaskProviderConfig(overrideTask);
+        const promptOverride = buildPromptWithFixedNegativePrompt(task);
+
+        console.log('[InternalReferences] Hermes design task text model override applied', {
+            ...(hiddenReferenceContext?.summary || {}),
+            hiddenReferenceMatched: hiddenReferenceCount > 0,
+            hiddenReferenceCount,
+            hiddenReferenceUsage: 'fallback_text_to_image',
+            runtimeModelOverrideApplied: true,
+            fallbackTextModelId: HERMES_DEFAULT_TEXT_MODEL_ID,
+            originalImageModelId: task.model || null,
+            provider: overrideResolved.providerConfig?.provider || null,
+            promptLength: promptOverride.length
+        });
+
+        return {
+            task: overrideTask,
+            resolved: overrideResolved,
+            modelId: HERMES_DEFAULT_TEXT_MODEL_ID,
+            promptOverride
+        };
+    } catch (error) {
+        console.warn('[InternalReferences] Hermes design task text model override skipped', {
+            ...(hiddenReferenceContext?.summary || {}),
+            hiddenReferenceMatched: hiddenReferenceCount > 0,
+            hiddenReferenceCount,
+            hiddenReferenceUsage: 'fallback_text_model_unavailable',
+            fallbackTextModelId: HERMES_DEFAULT_TEXT_MODEL_ID,
             errorType: error?.name || 'Error'
         });
         return null;
@@ -933,11 +990,12 @@ export async function executeImageTask(task, options = {}) {
         const hiddenReferenceContext = await lookupHiddenInternalReferences(task, {
             config: hiddenReferenceConfig
         });
-        const runtimeOverride = getRuntimeImageInputOverride(
+        const imageInputOverride = getRuntimeImageInputOverride(
             task,
             hiddenReferenceContext,
             hiddenReferenceConfig
         );
+        const runtimeOverride = imageInputOverride || getRuntimeHermesTextModelOverride(task, hiddenReferenceContext);
         const taskForSubmit = runtimeOverride?.task || task;
         const resolved = runtimeOverride?.resolved || getTaskProviderConfig(taskForSubmit);
         providerConfig = resolved.providerConfig;
@@ -970,7 +1028,7 @@ export async function executeImageTask(task, options = {}) {
             resolved.modelConfig,
             {
                 useImageInput: hiddenReferenceConfig.useImageInput,
-                promptOverride: runtimeOverride?.editPrompt || null
+                promptOverride: runtimeOverride?.editPrompt || runtimeOverride?.promptOverride || null
             }
         );
 
