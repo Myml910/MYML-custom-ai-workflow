@@ -84,6 +84,13 @@ export interface HermesRunPayload {
         referenceIds?: string[];
         priority?: number;
     }[];
+    productTaskPrompts?: {
+        productTaskId?: string;
+        status?: 'completed' | 'failed' | string;
+        designTask?: unknown;
+        errorCode?: string;
+        errorMessageSafe?: string;
+    }[];
     designStrategy?: {
         theme?: string;
         visualDirection?: string;
@@ -97,6 +104,7 @@ export interface HermesRunPayload {
     } | null;
     designTasks?: {
         taskId?: string;
+        productTaskId?: string;
         title?: string;
         product?: string;
         targetSize?: string;
@@ -119,6 +127,7 @@ export interface HermesRunPayload {
             negativeConstraints?: string;
         } | null;
         prompt?: string;
+        generationPrompt?: string;
         negativePrompt?: string;
         modelRecommendation?: string;
         alternativeModelRecommendation?: string;
@@ -174,6 +183,7 @@ export interface HermesRunPayload {
     } | null;
     generationReadiness?: {
         readyForImageGeneration?: boolean;
+        status?: string;
         reason?: string;
     } | null;
     warnings?: {

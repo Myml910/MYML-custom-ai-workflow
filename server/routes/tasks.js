@@ -83,6 +83,8 @@ router.post('/image', async (req, res) => {
         const capability = normalizeString(req.body.capability) || null;
         const referenceImages = normalizeReferenceImages(req.body.referenceImages);
         const negativePrompt = normalizeString(req.body.negativePrompt) || null;
+        const finalPrompt = normalizeString(req.body.finalPrompt) || null;
+        const generationPrompt = normalizeString(req.body.generationPrompt) || null;
         const projectCode = normalizeString(req.body.projectCode) || null;
         const hermesRunId = normalizeString(req.body.hermesRunId) || null;
         const designTaskId = normalizeString(req.body.designTaskId) || null;
@@ -151,6 +153,8 @@ router.post('/image', async (req, res) => {
             capability,
             referenceImages,
             negativePrompt,
+            finalPrompt,
+            generationPrompt,
             projectCode,
             hermesRunId,
             designTaskId,

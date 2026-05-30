@@ -152,6 +152,65 @@ const getHermesRecord = (value: unknown): Record<string, unknown> | null => (
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
 );
 
+const buildHermesStructuredPromptPackage = (task: Record<string, unknown>): string => {
+  const explicitGenerationPrompt = asHermesString(task.generationPrompt);
+  if (explicitGenerationPrompt) return explicitGenerationPrompt;
+
+  const structuredPromptDescription = getHermesRecord(task.structuredPromptDescription);
+  const prompt = asHermesString(task.prompt);
+  const negativePrompt = asHermesString(task.negativePrompt);
+
+  if (!structuredPromptDescription) {
+    return prompt;
+  }
+
+  const details = getHermesRecord(structuredPromptDescription.detailedVisualElements) || {};
+  const lines = [
+    '## Pattern Design Prompt Description',
+    '',
+    '**1. Core Subject & Theme (核心主体与主题):**',
+    asHermesString(structuredPromptDescription.coreSubjectAndTheme),
+    '',
+    '**2. Product Context & Usage (产品语境与用途):**',
+    asHermesString(structuredPromptDescription.productContextAndUsage),
+    '',
+    '**3. Art Style & Medium (艺术风格与媒介):**',
+    asHermesString(structuredPromptDescription.artStyleAndMedium),
+    '',
+    '**4. Color Palette & Mood (配色与氛围):**',
+    asHermesString(structuredPromptDescription.colorPaletteAndMood),
+    '',
+    '**5. Composition & Layout (构图与布局):**',
+    asHermesString(structuredPromptDescription.compositionAndLayout),
+    '',
+    '**6. Detailed Visual Elements (分层细节描述):**',
+    `* **Main Focus (Center/Midground):** ${asHermesString(details.mainFocus)}`,
+    `* **Background & Atmosphere:** ${asHermesString(details.backgroundAtmosphere)}`,
+    `* **Foreground & Framing:** ${asHermesString(details.foregroundFraming)}`,
+    `* **Specific Details/Props:** ${asHermesString(details.specificDetailsProps)}`,
+    '',
+    '**7. Text & Typography (文字与字体，如有):**',
+    asHermesString(structuredPromptDescription.textAndTypography) || 'None',
+    '',
+    '**8. Pattern / Production Constraints (图案与生产约束):**',
+    asHermesString(structuredPromptDescription.patternProductionConstraints),
+    '',
+    '**9. Reference Usage (参考资料使用说明):**',
+    asHermesString(structuredPromptDescription.referenceUsage),
+    '',
+    '**10. Negative Constraints (负面约束):**',
+    asHermesString(structuredPromptDescription.negativeConstraints),
+    '',
+    '## Final Image Generation Prompt',
+    prompt,
+    '',
+    '## Negative Prompt',
+    negativePrompt
+  ];
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+};
+
 const getHermesProjectCodeFromRun = (hermesRun: HermesRunPayload): string => {
   const project = getHermesRecord(hermesRun.project);
   const projectBrief = getHermesRecord(hermesRun.projectBrief);
@@ -266,7 +325,10 @@ const sanitizeHermesTaskIdPart = (value: string): string => (
 );
 
 const getHermesAutoDraftTasks = (hermesRun: HermesRunPayload) => {
-  if (hermesRun.lightweightMode === true) return [];
+  if (
+    hermesRun.lightweightMode === true &&
+    hermesRun.generationReadiness?.readyForImageGeneration !== true
+  ) return [];
   const designTasks = Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [];
   const reportedMaxPerBatch = typeof hermesRun.maxDesignsPerGeneration === 'number' && hermesRun.maxDesignsPerGeneration > 0
     ? hermesRun.maxDesignsPerGeneration
@@ -354,7 +416,9 @@ const buildHermesGeneratedImages = (hermesProject: HermesProjectMetadata): Herme
       targetSize: asHermesString(task.targetSize) || undefined,
       model: imageModel,
       provider: draftRun.provider,
-      prompt: asHermesString(draftRun.prompt) || asHermesString(task.prompt) || undefined,
+      prompt: asHermesString(draftRun.prompt) || asHermesString(task.generationPrompt) || buildHermesStructuredPromptPackage(task) || asHermesString(task.prompt) || undefined,
+      finalPrompt: asHermesString(draftRun.finalPrompt) || asHermesString(task.prompt) || undefined,
+      generationPrompt: asHermesString(draftRun.generationPrompt) || asHermesString(task.generationPrompt) || buildHermesStructuredPromptPackage(task) || undefined,
       negativePrompt: asHermesString(draftRun.negativePrompt) || asHermesString(task.negativePrompt) || undefined,
       structuredPromptDescription: task.structuredPromptDescription,
       imageUrl: resultUrl || undefined,
@@ -385,6 +449,8 @@ const mapRecoveredHermesTaskToDraftRun = (task: HermesGenerationTaskRecovery): H
   normalizedModelRecommendation: task.normalizedModelRecommendation || task.model || undefined,
   resultUrl: task.resultUrl || null,
   errorMessage: task.errorMessageSafe || null,
+  finalPrompt: task.finalPrompt || null,
+  generationPrompt: task.generationPrompt || null,
   createdAt: task.createdAt,
   updatedAt: task.updatedAt,
   completedAt: task.status === 'completed' || task.status === 'failed' || task.status === 'timeout' || task.status === 'cancelled'
@@ -1000,7 +1066,10 @@ function CanvasApp({
 
   const startHermesAutoDraftGeneration = React.useCallback((nodeId: string, hermesRun: HermesRunPayload) => {
     if (hermesRun.status !== 'completed') return;
-    if (hermesRun.lightweightMode === true) return;
+    if (
+      hermesRun.lightweightMode === true &&
+      hermesRun.generationReadiness?.readyForImageGeneration !== true
+    ) return;
 
     const hermesRunId = typeof hermesRun.id === 'string' ? hermesRun.id : '';
     if (!hermesRunId) return;
@@ -1022,7 +1091,9 @@ function CanvasApp({
       }
       autoSubmittedHermesDraftKeysRef.current.add(dedupeKey);
 
-      const prompt = asHermesString(task.prompt);
+      const finalPrompt = asHermesString(task.prompt);
+      const generationPrompt = asHermesString(task.generationPrompt) || buildHermesStructuredPromptPackage(task);
+      const prompt = generationPrompt || finalPrompt;
       const negativePrompt = asHermesString(task.negativePrompt);
       const originalModelRecommendation = asHermesString(task.modelRecommendation);
       const normalizedModelRecommendation = normalizeHermesDraftImageModel(originalModelRecommendation);
@@ -1051,6 +1122,8 @@ function CanvasApp({
         originalModelRecommendation,
         normalizedModelRecommendation,
         prompt,
+        finalPrompt,
+        generationPrompt: prompt,
         negativePrompt,
         progress: 0,
         errorMessage: null,
@@ -1065,6 +1138,8 @@ function CanvasApp({
             prompt,
             imageModel: normalizedModelRecommendation,
             negativePrompt,
+            finalPrompt,
+            generationPrompt: prompt,
             source: 'hermes_design_task',
             capability: 'hermes-design-auto-candidate',
             projectCode,
@@ -1201,6 +1276,7 @@ function CanvasApp({
       fallbackReason: hermesRun.fallbackReason ?? null,
       multiProductBundle: hermesRun.multiProductBundle === true,
       productTasks: Array.isArray(hermesRun.productTasks) ? hermesRun.productTasks : [],
+      productTaskPrompts: Array.isArray(hermesRun.productTaskPrompts) ? hermesRun.productTaskPrompts : [],
       references: hermesRun.references,
       designStrategy: hermesRun.designStrategy,
       designTasks: Array.isArray(hermesRun.designTasks) ? hermesRun.designTasks : [],

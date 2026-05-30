@@ -138,6 +138,8 @@ function serializeHermesGenerationTask(row) {
         errorMessageSafe: redactTaskErrorMessage(row.error_message || row.last_error),
         originalModelRecommendation: normalizeString(input.originalModelRecommendation) || null,
         normalizedModelRecommendation: normalizeString(input.normalizedModelRecommendation) || null,
+        finalPrompt: normalizeString(input.finalPrompt) || null,
+        generationPrompt: normalizeString(input.generationPrompt) || null,
         referenceIds: Array.isArray(input.referenceIds) ? input.referenceIds.filter(item => normalizeString(item)) : [],
         createdAt: row.created_at,
         updatedAt: row.updated_at
@@ -258,6 +260,8 @@ export async function createTask(input) {
         capability: input.capability || null,
         referenceImages: input.referenceImages || null,
         negativePrompt: input.negativePrompt || null,
+        finalPrompt: input.finalPrompt || null,
+        generationPrompt: input.generationPrompt || null,
         projectCode: input.projectCode || null,
         hermesRunId: input.hermesRunId || null,
         designTaskId: input.designTaskId || null,
@@ -339,7 +343,8 @@ export async function createTask(input) {
                 designTaskId: input.designTaskId || null,
                 projectCode: input.projectCode || null,
                 originalModelRecommendation: input.originalModelRecommendation || null,
-                normalizedModelRecommendation: input.normalizedModelRecommendation || null
+                normalizedModelRecommendation: input.normalizedModelRecommendation || null,
+                hasGenerationPrompt: Boolean(input.generationPrompt)
             }
         ]);
 

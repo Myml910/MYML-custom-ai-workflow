@@ -51,6 +51,8 @@ export interface CreateImageTaskParams {
   legacySource?: string;
   capability?: string;
   negativePrompt?: string;
+  finalPrompt?: string;
+  generationPrompt?: string;
   projectCode?: string;
   hermesRunId?: string;
   designTaskId?: string;
@@ -108,6 +110,8 @@ export interface HermesGenerationTaskRecovery {
   errorMessageSafe?: string | null;
   originalModelRecommendation?: string | null;
   normalizedModelRecommendation?: string | null;
+  finalPrompt?: string | null;
+  generationPrompt?: string | null;
   referenceIds?: string[];
   createdAt?: string;
   updatedAt?: string;

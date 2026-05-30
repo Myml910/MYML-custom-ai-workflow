@@ -149,6 +149,7 @@ export interface NodeData {
     fallbackReason?: string | null;
     multiProductBundle?: boolean;
     productTasks?: unknown[];
+    productTaskPrompts?: unknown[];
     references?: unknown;
     designStrategy?: unknown;
     designTasks?: unknown[];
@@ -170,6 +171,8 @@ export interface NodeData {
       model: string;
       provider?: string;
       prompt?: string;
+      finalPrompt?: string;
+      generationPrompt?: string;
       negativePrompt?: string;
       structuredPromptDescription?: unknown;
       imageUrl?: string;
@@ -203,6 +206,8 @@ export interface NodeData {
       resultUrl?: string | null;
       errorMessage?: string | null;
       prompt?: string;
+      finalPrompt?: string;
+      generationPrompt?: string;
       negativePrompt?: string;
       submittedAt?: string;
       completedAt?: string;

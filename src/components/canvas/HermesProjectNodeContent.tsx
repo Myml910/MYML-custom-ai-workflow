@@ -91,6 +91,80 @@ async function copyTextToClipboard(text: string): Promise<void> {
     document.body.removeChild(textarea);
 }
 
+function buildStructuredPromptPackage(task: Record<string, unknown>): string {
+    const explicitGenerationPrompt = asString(task.generationPrompt);
+    if (explicitGenerationPrompt) return explicitGenerationPrompt;
+
+    const structuredPromptDescription = isRecord(task.structuredPromptDescription)
+        ? task.structuredPromptDescription
+        : null;
+    const prompt = asString(task.prompt);
+    const negativePrompt = asString(task.negativePrompt);
+
+    if (!structuredPromptDescription) return prompt;
+
+    const details = isRecord(structuredPromptDescription.detailedVisualElements)
+        ? structuredPromptDescription.detailedVisualElements
+        : {};
+    const lines = [
+        '## Pattern Design Prompt Description',
+        '',
+        '**1. Core Subject & Theme (核心主体与主题):**',
+        asString(structuredPromptDescription.coreSubjectAndTheme),
+        '',
+        '**2. Product Context & Usage (产品语境与用途):**',
+        asString(structuredPromptDescription.productContextAndUsage),
+        '',
+        '**3. Art Style & Medium (艺术风格与媒介):**',
+        asString(structuredPromptDescription.artStyleAndMedium),
+        '',
+        '**4. Color Palette & Mood (配色与氛围):**',
+        asString(structuredPromptDescription.colorPaletteAndMood),
+        '',
+        '**5. Composition & Layout (构图与布局):**',
+        asString(structuredPromptDescription.compositionAndLayout),
+        '',
+        '**6. Detailed Visual Elements (分层细节描述):**',
+        `* **Main Focus (Center/Midground):** ${asString(details.mainFocus)}`,
+        `* **Background & Atmosphere:** ${asString(details.backgroundAtmosphere)}`,
+        `* **Foreground & Framing:** ${asString(details.foregroundFraming)}`,
+        `* **Specific Details/Props:** ${asString(details.specificDetailsProps)}`,
+        '',
+        '**7. Text & Typography (文字与字体，如有):**',
+        asString(structuredPromptDescription.textAndTypography) || 'None',
+        '',
+        '**8. Pattern / Production Constraints (图案与生产约束):**',
+        asString(structuredPromptDescription.patternProductionConstraints),
+        '',
+        '**9. Reference Usage (参考资料使用说明):**',
+        asString(structuredPromptDescription.referenceUsage),
+        '',
+        '**10. Negative Constraints (负面约束):**',
+        asString(structuredPromptDescription.negativeConstraints),
+        '',
+        '## Final Image Generation Prompt',
+        prompt,
+        '',
+        '## Negative Prompt',
+        negativePrompt
+    ];
+
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function getStructuredPromptSummary(task: Record<string, unknown>): string {
+    const structuredPromptDescription = isRecord(task.structuredPromptDescription)
+        ? task.structuredPromptDescription
+        : null;
+    if (!structuredPromptDescription) return '';
+    return [
+        asString(structuredPromptDescription.coreSubjectAndTheme),
+        asString(structuredPromptDescription.productContextAndUsage),
+        asString(structuredPromptDescription.colorPaletteAndMood),
+        asString(structuredPromptDescription.patternProductionConstraints)
+    ].filter(Boolean).join(' ');
+}
+
 export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> = ({
     data,
     language = 'zh'
@@ -104,6 +178,9 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
     const references = isRecord(hermesProject.references) ? hermesProject.references : {};
     const designTasks = Array.isArray(hermesProject.designTasks) ? hermesProject.designTasks.filter(isRecord) : [];
     const productTasks = Array.isArray(hermesProject.productTasks) ? hermesProject.productTasks.filter(isRecord) : [];
+    const productTaskPrompts = Array.isArray(hermesProject.productTaskPrompts)
+        ? hermesProject.productTaskPrompts.filter(isRecord)
+        : [];
     const referenceImages = Array.isArray(references.images) ? references.images.filter(isRecord) : [];
     const referenceLinks = Array.isArray(references.links) ? references.links.filter(isRecord) : [];
     const generatedImages = Array.isArray(hermesProject.generatedImages)
@@ -184,11 +261,16 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
         draftModel: language === 'zh' ? '草稿模型' : 'Draft model',
         generationTask: language === 'zh' ? '生成任务' : 'Generation task',
         openResult: language === 'zh' ? '打开结果' : 'Open result',
-        copyPrompt: language === 'zh' ? '复制 Prompt' : 'Copy prompt',
+        copyPrompt: language === 'zh' ? '复制结构化 Prompt' : 'Copy structured prompt',
         copied: language === 'zh' ? '已复制' : 'Copied',
         progress: language === 'zh' ? '进度' : 'Progress',
         resultImage: language === 'zh' ? '生成结果' : 'Generated result',
-        noDraftYet: language === 'zh' ? '等待自动生成' : 'Waiting for auto generation'
+        noDraftYet: language === 'zh' ? '等待自动生成' : 'Waiting for auto generation',
+        structuredReady: language === 'zh' ? '结构化 Prompt 已生成' : 'Structured prompt ready',
+        structuredMissing: language === 'zh' ? '结构化 Prompt 未生成' : 'Structured prompt missing',
+        structuredDetails: language === 'zh' ? '结构化提示词描述' : 'Structured prompt description',
+        finalPrompt: 'Final Prompt',
+        negativePrompt: 'Negative Prompt'
     };
 
     const productText = {
@@ -197,6 +279,8 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
         referenceHint: language === 'zh' ? '\u53c2\u8003' : 'Reference',
         designFocus: language === 'zh' ? '\u8bbe\u8ba1\u91cd\u70b9' : 'Design focus',
         priority: language === 'zh' ? '\u4f18\u5148\u7ea7' : 'Priority',
+        promptStatus: language === 'zh' ? '\u63d0\u793a\u8bcd\u72b6\u6001' : 'Prompt status',
+        promptFailed: language === 'zh' ? '\u90e8\u5206\u4ea7\u54c1\u4efb\u52a1\u63d0\u793a\u8bcd\u751f\u6210\u5931\u8d25\uff0c\u5df2\u8bb0\u5f55\u5b89\u5168\u9519\u8bef\u3002' : 'Some product task prompts failed; safe errors are recorded.',
         waitingStage2: language === 'zh'
             ? '\u5df2\u5b8c\u6210\u4ea7\u54c1\u62c6\u89e3\uff0c\u7b49\u5f85 Stage 2 \u751f\u6210\u63d0\u793a\u8bcd\u3002'
             : 'Product decomposition is complete. Waiting for Stage 2 prompt generation.'
@@ -218,6 +302,14 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
             generatedImageByTaskId.set(designTaskId, image);
         }
     });
+    const productPromptByTaskId = new Map<string, Record<string, unknown>>();
+    productTaskPrompts.forEach((item) => {
+        const productTaskId = asString(item.productTaskId);
+        if (productTaskId) {
+            productPromptByTaskId.set(productTaskId, item);
+        }
+    });
+    const hasProductPromptFailures = productTaskPrompts.some(item => asString(item.status) === 'failed');
 
     const summaryRows = ([
         [text.customer, getField(project, ['customer', 'customerName']) || getField(projectBrief, ['customer'])],
@@ -417,6 +509,9 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                 const referenceHint = asString(task.referenceHint);
                                 const designFocus = asString(task.designFocus);
                                 const priority = typeof task.priority === 'number' ? task.priority : null;
+                                const promptStatus = productPromptByTaskId.get(productTaskId);
+                                const promptStatusText = asString(promptStatus?.status);
+                                const promptError = asString(promptStatus?.errorMessageSafe);
 
                                 return (
                                     <div
@@ -444,6 +539,16 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                                 {designFocus && <div>{productText.designFocus}: {truncateText(designFocus, 180)}</div>}
                                             </div>
                                         )}
+                                        {promptStatusText && (
+                                            <div className="mt-2 text-[10px] text-[var(--myml-text-muted)]">
+                                                {productText.promptStatus}: {promptStatusText}
+                                            </div>
+                                        )}
+                                        {promptError && (
+                                            <div className="mt-2 rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] text-red-200">
+                                                {promptError}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -455,7 +560,7 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                     <div className="mb-2 text-xs font-semibold text-[var(--myml-text-primary)]">{text.designTasks}</div>
                     {designTasks.length === 0 ? (
                         <div className="rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-base)] p-3 text-xs text-[var(--myml-text-muted)]">
-                            {hermesProject.lightweightMode === true ? productText.waitingStage2 : text.noTasks}
+                            {hasProductPromptFailures ? productText.promptFailed : hermesProject.lightweightMode === true ? productText.waitingStage2 : text.noTasks}
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -466,7 +571,22 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                 const title = asString(task.title) || taskId || `Task ${index + 1}`;
                                 const draftStatus = asString(generatedImage?.status) || asString(draftRun?.status) || 'idle';
                                 const draftResultUrl = asString(generatedImage?.imageUrl) || asString(generatedImage?.resultUrl) || asString(draftRun?.resultUrl);
-                                const promptToCopy = asString(generatedImage?.prompt) || asString(draftRun?.prompt) || asString(task.prompt);
+                                const structuredPromptPackage = asString(generatedImage?.generationPrompt) ||
+                                    asString(draftRun?.generationPrompt) ||
+                                    asString(task.generationPrompt) ||
+                                    buildStructuredPromptPackage(task);
+                                const finalPrompt = asString(generatedImage?.finalPrompt) ||
+                                    asString(draftRun?.finalPrompt) ||
+                                    asString(task.prompt);
+                                const negativePrompt = asString(generatedImage?.negativePrompt) ||
+                                    asString(draftRun?.negativePrompt) ||
+                                    asString(task.negativePrompt);
+                                const promptToCopy = structuredPromptPackage ||
+                                    asString(generatedImage?.prompt) ||
+                                    asString(draftRun?.prompt) ||
+                                    finalPrompt;
+                                const hasStructuredPrompt = Boolean(asString(task.generationPrompt) || isRecord(task.structuredPromptDescription));
+                                const structuredPromptSummary = getStructuredPromptSummary(task);
                                 const draftImageModel = asString(generatedImage?.model) || asString(draftRun?.imageModel) || asString(draftRun?.normalizedModelRecommendation);
                                 const generationTaskId = asString(generatedImage?.generationTaskId) || asString(draftRun?.generationTaskId);
                                 const draftProvider = asString(generatedImage?.provider) || asString(draftRun?.provider);
@@ -476,6 +596,11 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <div className="font-semibold text-[var(--myml-text-primary)]">{title}</div>
+                                                {asString(task.product) && (
+                                                    <div className="mt-0.5 text-[10px] text-[var(--myml-text-muted)]">
+                                                        {productText.product}: {asString(task.product)}
+                                                    </div>
+                                                )}
                                                 {asString(task.targetSize) && (
                                                     <div className="mt-0.5 text-[10px] text-[var(--myml-text-muted)]">
                                                         {text.targetSize}: {asString(task.targetSize)}
@@ -498,6 +623,35 @@ export const HermesProjectNodeContent: React.FC<HermesProjectNodeContentProps> =
                                                 )}
                                             </div>
                                         )}
+                                        <details className="mt-2 rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] px-2 py-1 text-[10px] text-[var(--myml-text-muted)]">
+                                            <summary
+                                                className="cursor-pointer select-none font-semibold text-[var(--myml-text-secondary)]"
+                                                onPointerDown={(event) => event.stopPropagation()}
+                                                onClick={(event) => event.stopPropagation()}
+                                            >
+                                                {hasStructuredPrompt ? draftText.structuredReady : draftText.structuredMissing}
+                                            </summary>
+                                            <div className="mt-2 space-y-1">
+                                                {structuredPromptSummary && (
+                                                    <div>
+                                                        <span className="font-semibold text-[var(--myml-text-secondary)]">{draftText.structuredDetails}: </span>
+                                                        {truncateText(structuredPromptSummary, 260)}
+                                                    </div>
+                                                )}
+                                                {finalPrompt && (
+                                                    <div>
+                                                        <span className="font-semibold text-[var(--myml-text-secondary)]">{draftText.finalPrompt}: </span>
+                                                        {truncateText(finalPrompt, 260)}
+                                                    </div>
+                                                )}
+                                                {negativePrompt && (
+                                                    <div>
+                                                        <span className="font-semibold text-[var(--myml-text-secondary)]">{draftText.negativePrompt}: </span>
+                                                        {truncateText(negativePrompt, 220)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </details>
                                         <div className="mt-3 rounded-lg border border-[var(--myml-border-default)] bg-[var(--myml-surface-raised)] p-2">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                 <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${getDraftStatusClass(draftStatus)}`}>

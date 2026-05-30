@@ -297,6 +297,9 @@ function getSafeHermesRunFailureSummary(hermesRun: HermesRunPayload, language: L
 }
 
 function buildStructuredPromptMarkdown(task: HermesDesignTask): string {
+    const explicitGenerationPrompt = safeHermesCopyValue(task.generationPrompt);
+    if (explicitGenerationPrompt) return explicitGenerationPrompt;
+
     const structuredPrompt = isRecord(task.structuredPromptDescription) ? task.structuredPromptDescription : {};
     const details = isRecord(structuredPrompt.detailedVisualElements) ? structuredPrompt.detailedVisualElements : {};
 
@@ -804,7 +807,9 @@ const HermesResultCard: React.FC<{
         }));
     };
     const handleGenerateDraft = async (task: HermesDesignTask, taskKey: string) => {
-        const prompt = safeHermesCopyValue(task.prompt);
+        const finalPrompt = safeHermesCopyValue(task.prompt);
+        const generationPrompt = safeHermesCopyValue(task.generationPrompt) || buildStructuredPromptMarkdown(task) || finalPrompt;
+        const prompt = generationPrompt || finalPrompt;
         if (!prompt.trim()) return;
 
         const originalModelRecommendation = safeHermesCopyValue(task.modelRecommendation);
@@ -827,6 +832,8 @@ const HermesResultCard: React.FC<{
                 prompt,
                 imageModel,
                 negativePrompt: safeHermesCopyValue(task.negativePrompt),
+                finalPrompt,
+                generationPrompt: prompt,
                 source: 'hermes_design_task',
                 capability: 'hermes-design-draft',
                 projectCode,
@@ -1232,8 +1239,9 @@ const HermesResultCard: React.FC<{
                                 ] as [string, unknown][]).filter(([, value]) => !isEmptyProjectValue(value)) : [];
                                 const isStructuredPromptExpanded = expandedStructuredPrompts.has(taskKey);
                                 const finalPromptText = safeHermesCopyValue(task.prompt);
+                                const generationPromptText = safeHermesCopyValue(task.generationPrompt) || buildStructuredPromptMarkdown(task) || finalPromptText;
                                 const negativePromptText = safeHermesCopyValue(task.negativePrompt);
-                                const structuredPromptMarkdown = structuredPrompt ? buildStructuredPromptMarkdown(task) : '';
+                                const structuredPromptMarkdown = generationPromptText || (structuredPrompt ? buildStructuredPromptMarkdown(task) : '');
                                 const generationPackage = buildTaskGenerationPackage(task);
                                 const originalModelRecommendation = safeHermesCopyValue(task.modelRecommendation);
                                 const draftModelNormalization = getHermesDraftModelNormalization(originalModelRecommendation);
@@ -1245,7 +1253,7 @@ const HermesResultCard: React.FC<{
                                     draftState.status === 'queued' ||
                                     draftState.status === 'running' ||
                                     draftState.status === 'polling';
-                                const canGenerateDraft = Boolean(finalPromptText.trim()) && !isDraftBusy;
+                                const canGenerateDraft = Boolean(generationPromptText.trim()) && !isDraftBusy;
                                 return (
                                     <div
                                         key={taskKey}
@@ -1271,7 +1279,7 @@ const HermesResultCard: React.FC<{
                                             <button
                                                 type="button"
                                                 disabled={!canGenerateDraft}
-                                                title={!finalPromptText.trim() ? proposalText.draftMissingPrompt : proposalText.generateDraft}
+                                                title={!generationPromptText.trim() ? proposalText.draftMissingPrompt : proposalText.generateDraft}
                                                 onClick={(event) => {
                                                     event.preventDefault();
                                                     event.stopPropagation();
