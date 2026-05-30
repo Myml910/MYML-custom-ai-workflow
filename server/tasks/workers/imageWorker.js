@@ -39,6 +39,7 @@ import {
     normalizeT8ImageResponse,
     submitImageTask as submitT8ImageTask
 } from '../../services/ai/providers/t8Provider.js';
+import { getInternalReferenceConfig } from '../../services/internalReferences/config.js';
 import { lookupHiddenInternalReferences } from '../../services/internalReferences/lookup.js';
 import {
     addTaskEvent,
@@ -180,7 +181,7 @@ function modelSupportsRuntimeReferenceImages(providerConfig, modelConfig) {
     );
 }
 
-function getHiddenReferenceProviderOptions(hiddenReferenceContext, providerConfig, modelConfig) {
+function getHiddenReferenceProviderOptions(hiddenReferenceContext, providerConfig, modelConfig, options = {}) {
     if (!hiddenReferenceContext?.enabled) return {};
 
     const count = hiddenReferenceContext.images?.length || 0;
@@ -188,6 +189,16 @@ function getHiddenReferenceProviderOptions(hiddenReferenceContext, providerConfi
         console.log('[InternalReferences] Hidden reference lookup summary', {
             ...hiddenReferenceContext.summary,
             hiddenReferenceUsage: hiddenReferenceContext.summary.hiddenReferenceUsage || 'not_matched'
+        });
+        return {};
+    }
+
+    if (!options.useImageInput) {
+        console.log('[InternalReferences] Hidden reference lookup summary', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: 'skipped_by_env_disabled',
+            provider: providerConfig?.provider || null,
+            modelSupportsImageInput: modelSupportsRuntimeReferenceImages(providerConfig, modelConfig)
         });
         return {};
     }
@@ -594,6 +605,69 @@ function warnUnavailableTaskModel(task, modelConfig, providers) {
     });
 }
 
+function getHiddenReferenceImageCount(hiddenReferenceContext) {
+    return hiddenReferenceContext?.images?.length || 0;
+}
+
+function getRuntimeImageInputOverride(task, hiddenReferenceContext, hiddenReferenceConfig) {
+    if (!hiddenReferenceContext?.enabled || getHiddenReferenceImageCount(hiddenReferenceContext) === 0) {
+        return null;
+    }
+    if (!hiddenReferenceConfig?.useImageInput) {
+        return null;
+    }
+
+    const overrideModelId = hiddenReferenceConfig.imageModelId;
+    if (!overrideModelId) {
+        console.warn('[InternalReferences] Runtime image model override skipped', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: 'skipped_by_missing_override_model'
+        });
+        return null;
+    }
+
+    const overrideTask = {
+        ...task,
+        model: overrideModelId,
+        provider: null
+    };
+
+    try {
+        const overrideResolved = getTaskProviderConfig(overrideTask);
+        if (!modelSupportsRuntimeReferenceImages(overrideResolved.providerConfig, overrideResolved.modelConfig)) {
+            console.warn('[InternalReferences] Runtime image model override skipped', {
+                ...hiddenReferenceContext.summary,
+                hiddenReferenceUsage: 'skipped_by_override_model_capability',
+                runtimeImageModelId: overrideModelId,
+                provider: overrideResolved.providerConfig?.provider || null
+            });
+            return null;
+        }
+
+        console.log('[InternalReferences] Runtime image model override applied', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: 'runtime_model_override_applied',
+            originalImageModelId: task.model || null,
+            runtimeImageModelId: overrideModelId,
+            provider: overrideResolved.providerConfig?.provider || null
+        });
+
+        return {
+            task: overrideTask,
+            resolved: overrideResolved,
+            modelId: overrideModelId
+        };
+    } catch (error) {
+        console.warn('[InternalReferences] Runtime image model override skipped', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: 'skipped_by_override_model_unavailable',
+            runtimeImageModelId: overrideModelId,
+            errorType: error?.name || 'Error'
+        });
+        return null;
+    }
+}
+
 function getTaskProviderConfig(task) {
     const modelConfig = getImageModelConfig(task.model);
     const providers = getImageProviders(task.model);
@@ -848,9 +922,19 @@ export async function executeImageTask(task, options = {}) {
 
     try {
         const baseConfig = options.config || getAiProviderConfig();
-        const resolved = getTaskProviderConfig(task);
+        const hiddenReferenceConfig = getInternalReferenceConfig();
+        const hiddenReferenceContext = await lookupHiddenInternalReferences(task, {
+            config: hiddenReferenceConfig
+        });
+        const runtimeOverride = getRuntimeImageInputOverride(
+            task,
+            hiddenReferenceContext,
+            hiddenReferenceConfig
+        );
+        const taskForSubmit = runtimeOverride?.task || task;
+        const resolved = runtimeOverride?.resolved || getTaskProviderConfig(taskForSubmit);
         providerConfig = resolved.providerConfig;
-        const runtime = await resolveTaskRuntimeConfig(task, providerConfig, baseConfig);
+        const runtime = await resolveTaskRuntimeConfig(taskForSubmit, providerConfig, baseConfig);
         const config = runtime.config;
         credentialContext = runtime.credentialContext;
 
@@ -873,18 +957,20 @@ export async function executeImageTask(task, options = {}) {
             throw new Error('T8 image provider is not configured. Add T8_BASE_URL and T8_API_KEY to .env.');
         }
 
-        const hiddenReferenceContext = await lookupHiddenInternalReferences(task);
         const providerInputOptions = getHiddenReferenceProviderOptions(
             hiddenReferenceContext,
             providerConfig,
-            resolved.modelConfig
+            resolved.modelConfig,
+            {
+                useImageInput: hiddenReferenceConfig.useImageInput
+            }
         );
 
         if (providerConfig.provider === 'dataler') {
-            const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+            const providerInput = buildDatalerInput(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitDatalerImageTask(providerInput, {
                 config,
-                user: getTaskUser(task)
+                user: getTaskUser(taskForSubmit)
             });
 
             if (submitResult.status !== 'completed') {
@@ -892,7 +978,7 @@ export async function executeImageTask(task, options = {}) {
             }
 
             const normalizedResult = normalizeDatalerImageResponse(submitResult);
-            return await completeImageTaskWithResult(task, normalizedResult, {
+            return await completeImageTaskWithResult(taskForSubmit, normalizedResult, {
                 provider: submitResult.provider,
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,
@@ -906,10 +992,10 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'pikachu') {
-            const providerInput = buildPikachuInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+            const providerInput = buildPikachuInput(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitPikachuImageTask(providerInput, {
                 config,
-                user: getTaskUser(task)
+                user: getTaskUser(taskForSubmit)
             });
 
             if (submitResult.status !== 'completed') {
@@ -917,7 +1003,7 @@ export async function executeImageTask(task, options = {}) {
             }
 
             const normalizedResult = normalizePikachuImageResult(submitResult);
-            return await completeImageTaskWithResult(task, normalizedResult, {
+            return await completeImageTaskWithResult(taskForSubmit, normalizedResult, {
                 provider: submitResult.provider,
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,
@@ -931,15 +1017,15 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'atlas') {
-            const providerInput = buildAtlasInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+            const providerInput = buildAtlasInput(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitAtlasImageTask(providerInput, {
                 config,
-                user: getTaskUser(task)
+                user: getTaskUser(taskForSubmit)
             });
 
             if (submitResult.status === 'completed') {
                 const normalizedResult = normalizeAtlasImageResult(submitResult.raw || submitResult);
-                return await completeImageTaskWithResult(task, normalizedResult, {
+                return await completeImageTaskWithResult(taskForSubmit, normalizedResult, {
                     provider: submitResult.provider,
                     model: submitResult.model,
                     rawStatus: submitResult.rawStatus || submitResult.status,
@@ -972,10 +1058,10 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'newapi') {
-            const providerInput = buildNewapiInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+            const providerInput = buildNewapiInput(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitNewapiImageTask(providerInput, {
                 config,
-                user: getTaskUser(task)
+                user: getTaskUser(taskForSubmit)
             });
 
             if (submitResult.status !== 'completed') {
@@ -985,7 +1071,7 @@ export async function executeImageTask(task, options = {}) {
             const normalizedResult = normalizeNewapiImageResponse(submitResult.raw || submitResult, {
                 model: submitResult.model
             });
-            return await completeImageTaskWithResult(task, normalizedResult, {
+            return await completeImageTaskWithResult(taskForSubmit, normalizedResult, {
                 provider: submitResult.provider,
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,
@@ -999,10 +1085,10 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 't8') {
-            const providerInput = buildT8Input(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+            const providerInput = buildT8Input(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitT8ImageTask(providerInput, {
                 config,
-                user: getTaskUser(task)
+                user: getTaskUser(taskForSubmit)
             });
 
             if (submitResult.status !== 'completed') {
@@ -1012,7 +1098,7 @@ export async function executeImageTask(task, options = {}) {
             const normalizedResult = normalizeT8ImageResponse(submitResult.raw || submitResult, {
                 model: submitResult.model
             });
-            return await completeImageTaskWithResult(task, normalizedResult, {
+            return await completeImageTaskWithResult(taskForSubmit, normalizedResult, {
                 provider: submitResult.provider,
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,
@@ -1029,11 +1115,11 @@ export async function executeImageTask(task, options = {}) {
             throw new Error(`Unsupported image task provider: ${providerConfig.provider}`);
         }
 
-        const providerInput = buildApimartInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
+        const providerInput = buildApimartInput(taskForSubmit, config, providerConfig, resolved.modelConfig, providerInputOptions);
         const submitResult = await submitImageTask(providerInput, { config });
 
         if (submitResult.status === 'completed') {
-            return await completeImageTaskWithResult(task, { images: submitResult.images }, {
+            return await completeImageTaskWithResult(taskForSubmit, { images: submitResult.images }, {
                 provider: submitResult.provider,
                 model: submitResult.model,
                 rawStatus: submitResult.rawStatus || submitResult.status,

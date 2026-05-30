@@ -3,6 +3,7 @@ import path from 'path';
 const DEFAULT_MANIFEST_PATH = 'server/internal-references/manifest.sample.json';
 const DEFAULT_REFERENCE_ROOT = 'library/internal-references';
 const DEFAULT_MAX_IMAGES = 2;
+const DEFAULT_IMAGE_MODEL_ID = 'custom-image-t8-nano-banana-3-1-flash-edit';
 
 function isEnabledFlag(value) {
     return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
@@ -23,6 +24,10 @@ export function getInternalReferenceConfig(env = process.env) {
         enabled: isEnabledFlag(env.INTERNAL_REFERENCE_LOOKUP_ENABLED),
         manifestPath: resolveWorkspacePath(env.INTERNAL_REFERENCE_MANIFEST_PATH, DEFAULT_MANIFEST_PATH),
         rootPath: resolveWorkspacePath(env.INTERNAL_REFERENCE_ROOT, DEFAULT_REFERENCE_ROOT),
-        maxImages: parsePositiveInteger(env.INTERNAL_REFERENCE_MAX_IMAGES, DEFAULT_MAX_IMAGES)
+        maxImages: parsePositiveInteger(env.INTERNAL_REFERENCE_MAX_IMAGES, DEFAULT_MAX_IMAGES),
+        useImageInput: isEnabledFlag(env.INTERNAL_REFERENCE_USE_IMAGE_INPUT),
+        imageModelId: typeof env.INTERNAL_REFERENCE_IMAGE_MODEL_ID === 'string' && env.INTERNAL_REFERENCE_IMAGE_MODEL_ID.trim()
+            ? env.INTERNAL_REFERENCE_IMAGE_MODEL_ID.trim()
+            : DEFAULT_IMAGE_MODEL_ID
     };
 }
