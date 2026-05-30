@@ -39,6 +39,7 @@ import {
     normalizeT8ImageResponse,
     submitImageTask as submitT8ImageTask
 } from '../../services/ai/providers/t8Provider.js';
+import { lookupHiddenInternalReferences } from '../../services/internalReferences/lookup.js';
 import {
     addTaskEvent,
     heartbeatTask,
@@ -158,6 +159,59 @@ function normalizeInputArray(input) {
 
 function getTaskInput(task) {
     return task.input && typeof task.input === 'object' ? task.input : {};
+}
+
+function mergeRuntimeHiddenImages(imageUrls, options = {}) {
+    const hiddenImages = normalizeInputArray(options.hiddenReferenceImages).filter(Boolean);
+    if (hiddenImages.length === 0) return imageUrls;
+    return [...imageUrls, ...hiddenImages];
+}
+
+function modelSupportsRuntimeReferenceImages(providerConfig, modelConfig) {
+    if (!providerConfig || !modelConfig) return false;
+    if (providerConfig.isAsync) return false;
+
+    const capabilities = Array.isArray(modelConfig.capabilities) ? modelConfig.capabilities : [];
+    return Boolean(
+        modelConfig.supportsImageToImage ||
+        modelConfig.supportsMultiImage ||
+        capabilities.includes('image-to-image') ||
+        capabilities.includes('multi-image')
+    );
+}
+
+function getHiddenReferenceProviderOptions(hiddenReferenceContext, providerConfig, modelConfig) {
+    if (!hiddenReferenceContext?.enabled) return {};
+
+    const count = hiddenReferenceContext.images?.length || 0;
+    if (count === 0) {
+        console.log('[InternalReferences] Hidden reference lookup summary', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: hiddenReferenceContext.summary.hiddenReferenceUsage || 'not_matched'
+        });
+        return {};
+    }
+
+    if (!modelSupportsRuntimeReferenceImages(providerConfig, modelConfig)) {
+        console.log('[InternalReferences] Hidden reference lookup summary', {
+            ...hiddenReferenceContext.summary,
+            hiddenReferenceUsage: 'skipped_by_model_capability',
+            provider: providerConfig?.provider || null,
+            modelSupportsImageInput: false
+        });
+        return {};
+    }
+
+    console.log('[InternalReferences] Hidden reference lookup summary', {
+        ...hiddenReferenceContext.summary,
+        hiddenReferenceUsage: 'attached_runtime_only',
+        provider: providerConfig?.provider || null,
+        modelSupportsImageInput: true
+    });
+
+    return {
+        hiddenReferenceImages: hiddenReferenceContext.images.map(image => image.dataUri).filter(Boolean)
+    };
 }
 
 function getFirstImageResultUrl(images) {
@@ -589,9 +643,12 @@ function getTaskProviderConfig(task) {
     return { modelConfig, providerConfig };
 }
 
-function buildApimartInput(task, config, providerConfig, modelConfig) {
+function buildApimartInput(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const imageUrls = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
     const resolution = normalizeResolution(
         providerConfig.upstreamModel,
         input.resolution || modelConfig.defaultResolution || config.apimart.imageResolution
@@ -606,9 +663,12 @@ function buildApimartInput(task, config, providerConfig, modelConfig) {
     };
 }
 
-function buildPikachuInput(task, config, providerConfig, modelConfig) {
+function buildPikachuInput(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const referenceImages = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const referenceImages = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
 
     return {
         prompt: input.prompt || task.prompt || '',
@@ -619,9 +679,12 @@ function buildPikachuInput(task, config, providerConfig, modelConfig) {
     };
 }
 
-function buildDatalerInput(task, config, providerConfig, modelConfig) {
+function buildDatalerInput(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const imageUrls = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
 
     return {
         prompt: input.prompt || task.prompt || '',
@@ -632,9 +695,12 @@ function buildDatalerInput(task, config, providerConfig, modelConfig) {
     };
 }
 
-function buildAtlasInput(task, config, providerConfig, modelConfig) {
+function buildAtlasInput(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const imageUrls = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
 
     return {
         prompt: input.prompt || task.prompt || '',
@@ -645,9 +711,12 @@ function buildAtlasInput(task, config, providerConfig, modelConfig) {
     };
 }
 
-function buildNewapiInput(task, config, providerConfig, modelConfig) {
+function buildNewapiInput(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const imageUrls = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
 
     return {
         prompt: input.prompt || task.prompt || '',
@@ -658,9 +727,12 @@ function buildNewapiInput(task, config, providerConfig, modelConfig) {
     };
 }
 
-function buildT8Input(task, config, providerConfig, modelConfig) {
+function buildT8Input(task, config, providerConfig, modelConfig, options = {}) {
     const input = getTaskInput(task);
-    const imageUrls = normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean);
+    const imageUrls = mergeRuntimeHiddenImages(
+        normalizeInputArray(input.referenceImages || input.imageUrls).filter(Boolean),
+        options
+    );
     const aspectRatio = input.aspectRatio || input.size || null;
 
     return {
@@ -801,8 +873,15 @@ export async function executeImageTask(task, options = {}) {
             throw new Error('T8 image provider is not configured. Add T8_BASE_URL and T8_API_KEY to .env.');
         }
 
+        const hiddenReferenceContext = await lookupHiddenInternalReferences(task);
+        const providerInputOptions = getHiddenReferenceProviderOptions(
+            hiddenReferenceContext,
+            providerConfig,
+            resolved.modelConfig
+        );
+
         if (providerConfig.provider === 'dataler') {
-            const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig);
+            const providerInput = buildDatalerInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitDatalerImageTask(providerInput, {
                 config,
                 user: getTaskUser(task)
@@ -827,7 +906,7 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'pikachu') {
-            const providerInput = buildPikachuInput(task, config, providerConfig, resolved.modelConfig);
+            const providerInput = buildPikachuInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitPikachuImageTask(providerInput, {
                 config,
                 user: getTaskUser(task)
@@ -852,7 +931,7 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'atlas') {
-            const providerInput = buildAtlasInput(task, config, providerConfig, resolved.modelConfig);
+            const providerInput = buildAtlasInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitAtlasImageTask(providerInput, {
                 config,
                 user: getTaskUser(task)
@@ -893,7 +972,7 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 'newapi') {
-            const providerInput = buildNewapiInput(task, config, providerConfig, resolved.modelConfig);
+            const providerInput = buildNewapiInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitNewapiImageTask(providerInput, {
                 config,
                 user: getTaskUser(task)
@@ -920,7 +999,7 @@ export async function executeImageTask(task, options = {}) {
         }
 
         if (providerConfig.provider === 't8') {
-            const providerInput = buildT8Input(task, config, providerConfig, resolved.modelConfig);
+            const providerInput = buildT8Input(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
             const submitResult = await submitT8ImageTask(providerInput, {
                 config,
                 user: getTaskUser(task)
@@ -950,7 +1029,7 @@ export async function executeImageTask(task, options = {}) {
             throw new Error(`Unsupported image task provider: ${providerConfig.provider}`);
         }
 
-        const providerInput = buildApimartInput(task, config, providerConfig, resolved.modelConfig);
+        const providerInput = buildApimartInput(task, config, providerConfig, resolved.modelConfig, providerInputOptions);
         const submitResult = await submitImageTask(providerInput, { config });
 
         if (submitResult.status === 'completed') {

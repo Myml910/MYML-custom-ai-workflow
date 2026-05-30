@@ -66,3 +66,8 @@ package-lock.json
 # Local designer credential seed inputs may contain plaintext passwords/API keys.
 tmp/designer-accounts*.json
 !tmp/designer-accounts.example.json
+
+# Local hidden internal reference manifests may contain private asset metadata.
+server/internal-references/*.local.json
+server/internal-references/manifest.*.json
+!server/internal-references/manifest.sample.json

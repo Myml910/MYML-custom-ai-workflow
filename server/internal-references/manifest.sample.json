@@ -1,0 +1,42 @@
+{
+  "version": "internal-reference-manifest-sample-v1",
+  "assets": [
+    {
+      "id": "sample-kpop-gift-mug-001",
+      "projectCode": "SAMPLE_PROJECT_001",
+      "designTaskId": "concept_01",
+      "productType": "travel_mug",
+      "printMode": "digital_print",
+      "themeTags": ["kpop", "gift"],
+      "styleTags": ["cute", "decorative"],
+      "colorTags": ["pink", "purple"],
+      "filePath": "samples/kpop-gift-set/travel-mug-approved.png",
+      "approvedStatus": "approved",
+      "usabilityScore": 0.92
+    },
+    {
+      "id": "sample-kpop-gift-bag-001",
+      "projectCode": "SAMPLE_PROJECT_001",
+      "designTaskId": "concept_02",
+      "productType": "cosmetic_bag",
+      "printMode": "digital_print",
+      "themeTags": ["kpop", "gift"],
+      "styleTags": ["cute", "decorative"],
+      "colorTags": ["pink", "purple"],
+      "filePath": "samples/kpop-gift-set/cosmetic-bag-approved.png",
+      "approvedStatus": "approved",
+      "usabilityScore": 0.9
+    },
+    {
+      "id": "sample-unapproved-skipped",
+      "productType": "sock",
+      "printMode": "digital_print",
+      "themeTags": ["kpop"],
+      "styleTags": ["cute"],
+      "colorTags": ["pink"],
+      "filePath": "samples/not-used/unapproved.png",
+      "approvedStatus": "draft",
+      "usabilityScore": 1
+    }
+  ]
+}
